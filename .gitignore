@@ -1,0 +1,63 @@
+# Secretos y variables de entorno
+.env
+.env.*
+!.env.example
+!config/examples/*.example.env
+*secret*
+*secrets*
+!**/README.md
+!**/*secrets.example.env
+
+# Credenciales y configuración local de Kubernetes/Minikube
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+.minikube/
+.kube/
+
+# Terraform state (si se llega a utilizar)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.iml
+*.suo
+*.user
+
+# Artefactos de compilación
+bin/
+obj/
+build/
+dist/
+out/
+target/
+*.class
+*.o
+*.dll
+*.exe
+
+# Dependencias
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# Logs
+*.log
+logs/
+
+# Datos locales y temporales
+*.tmp
+*.temp
+tmp/
+data/local/
+*.sqlite
+*.db
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
