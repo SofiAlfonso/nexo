@@ -21,9 +21,11 @@ export class ServicioValidacion {
   async ejecutar(solicitud: SolicitudIngreso): Promise<ResultadoValidacion> {
     const liberar = this.contador.iniciar();
     let timer: NodeJS.Timeout | undefined;
-    const trabajo = Promise.resolve().then(() => this.caso.ejecutar(solicitud)).finally(liberar);
+    const venceEn = new Date(this.reloj.ahora().getTime() + this.config.plazoValidacionMs);
+    const trabajo = Promise.resolve().then(() => this.caso.ejecutar({ ...solicitud, venceEn })).finally(liberar);
     try {
-      // El plazo limita la respuesta, no cancela el commit: un reintento recupera la decisión.
+      // El caso no confirma pasado `venceEn`; D1 acota cada sentencia al mismo plazo.
+      // Un commit ya en curso al vencer puede aterrizar: el reintento con el mismo idOrigen lo recupera.
       return await Promise.race([
         trabajo,
         new Promise<ResultadoValidacion>((resolve) => {

@@ -174,3 +174,23 @@ describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', ()
   it.todo('PU-04-05 intento histórico sin decisión queda pendiente (C2 despachador / M2)');
   it.todo('PU-05-02 reemplazo de lector revoca credencial antigua (gestión de puntos C2)');
 });
+
+describe('ValidarPrimerIngreso: plazo de respuesta', () => {
+  it('PU-03-08 pasado venceEn no confirma: sin consumo ni evidencia, responde sin confirmación', async () => {
+    const { db, servicio, solicitud, reloj } = sistema();
+    db.fallas.agregarOutbox = () => reloj.avanzar(600);
+    const r = await servicio.ejecutar({ ...solicitud, venceEn: new Date(Date.parse(BASE) + 500) });
+    expect(r).toMatchObject({ decision: 'sin-respuesta', admision: false });
+    expect(db.llamadas.confirmar).toBe(0);
+    expect(db.consumos.size).toBe(0);
+    expect(db.intentos.size).toBe(0);
+    expect(db.outbox).toHaveLength(0);
+  });
+
+  it('dentro del plazo confirma normalmente', async () => {
+    const { db, servicio, solicitud } = sistema();
+    const r = await servicio.ejecutar({ ...solicitud, venceEn: new Date(Date.parse(BASE) + 500) });
+    expect(r.decision).toBe('aceptado');
+    expect(db.llamadas.confirmar).toBe(1);
+  });
+});

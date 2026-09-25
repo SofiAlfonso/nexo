@@ -55,8 +55,9 @@ export async function crearAlmacenPostgres(
   if (opciones.migrar ?? true) await migrate(pool);
 
   const eventoId = opciones.eventoId;
-  const lockTimeoutMs = opciones.lockTimeoutMs ?? 1_000;
-  const statementTimeoutMs = opciones.sentenciaTimeoutMs ?? 2_000;
+  // Acotados al plazo de V1 (500 ms): una unidad lenta no retiene el candado de la boleta ni la conexión.
+  const lockTimeoutMs = opciones.lockTimeoutMs ?? 500;
+  const statementTimeoutMs = opciones.sentenciaTimeoutMs ?? 500;
 
   const unidades: FabricaUnidadValidacion = {
     async abrir() {
@@ -123,7 +124,7 @@ export async function crearAlmacenPostgres(
       const cliente = await pool.connect();
       try {
         await cliente.query('BEGIN');
-        await cliente.query(`SET LOCAL statement_timeout = ${statementTimeoutMs}`);
+        await cliente.query(`SET LOCAL statement_timeout = ${Math.max(statementTimeoutMs, 5_000)}`);
         await cliente.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`diario:${lote.idLote}`]);
         const previo = await cliente.query<{ acuse: AcuseLoteDiario }>('SELECT acuse FROM diario_lote WHERE id_lote = $1', [lote.idLote]);
         if (previo.rows[0]) {

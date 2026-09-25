@@ -33,6 +33,8 @@ export interface SolicitudIngreso {
   zonaSolicitada?: string | null;
   instanteLector: Date;
   modo?: ModoOperacion;
+  /** Plazo de respuesta (V1: 500 ms). Pasado este instante no se confirma ni se reintenta: la decisión queda sin efecto. */
+  venceEn?: Date;
 }
 
 /** Huella estable (SHA-256 hex) del contenido de un intento: distingue retransmisión de conflicto (PB-04). */
@@ -77,6 +79,7 @@ export class ValidarPrimerIngreso {
     const huella = huellaIntento(intento);
     const intentosMax = 1 + (this.deps.reintentosCarrera ?? 2);
     let versiones: VersionesInstaladas | null = null;
+    const vencido = () => solicitud.venceEn !== undefined && this.deps.reloj.ahora().getTime() >= solicitud.venceEn.getTime();
 
     for (let n = 1; ; n++) {
       let unidad: UnidadValidacion | null = null;
@@ -148,6 +151,11 @@ export class ValidarPrimerIngreso {
           registradoEn: instante,
         });
         await unidad.agregarOutbox({ eventoId: intento.eventoId, registro });
+        // Un lector que ya recibió "sin confirmación" no debe encontrar después una admisión confirmada.
+        if (vencido()) {
+          await unidad.cancelar();
+          return this.sinConfirmacion(intento, 'plazo de validación vencido', versiones);
+        }
         await unidad.confirmar();
 
         this.notificarDecision(resultado, intento, inicio);
@@ -155,7 +163,7 @@ export class ValidarPrimerIngreso {
       } catch (error) {
         if (unidad) await cancelarSilencioso(unidad);
         if (error instanceof ErrorConflictoIdempotencia) throw error;
-        if ((error instanceof ErrorConsumoDuplicado || error instanceof ErrorIntentoDuplicado) && n < intentosMax) continue;
+        if ((error instanceof ErrorConsumoDuplicado || error instanceof ErrorIntentoDuplicado) && n < intentosMax && !vencido()) continue;
         return this.sinConfirmacion(intento, causa(error), versiones);
       }
     }

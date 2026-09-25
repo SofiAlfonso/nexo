@@ -15,7 +15,7 @@ import { crearAlmacenPostgres } from './infrastructure/persistence/postgres/inde
 export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfig()) {
   let almacen: Almacen;
   if (config.postgres) {
-    almacen = await crearAlmacenPostgres(config.postgres, { eventoId: config.eventoId, migrar: config.migrarD1 });
+    almacen = await crearAlmacenPostgres(config.postgres, { eventoId: config.eventoId, migrar: config.migrarD1, lockTimeoutMs: config.plazoValidacionMs, sentenciaTimeoutMs: config.plazoValidacionMs });
   } else {
     const memoria = crearAlmacenMemoria();
     memoria.sembrar(semillaDemo(new Date()));
