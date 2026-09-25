@@ -1,2 +1,2 @@
-export { migrate } from './migrate.js';
-export { createD2Pool } from './pool.js';
+export { migrate } from './migrate.ts';
+export { createD2Pool } from './pool.ts';
