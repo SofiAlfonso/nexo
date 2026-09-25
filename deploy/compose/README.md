@@ -90,6 +90,28 @@ respondan (piezas de otras sesiones de la ola 1), la suite se omite sola
 con un aviso indicando qué falta; no hace falta editarla a mano para
 activarla.
 
+La prueba de validación V1 no usa un `lectorId`/`codigo` inventados: lee
+`tmp/dev-boletas.json` (la exportación real que deja el paso de semilla de
+`npm run dev`) y elige el primer punto de `/api/puntos` que tenga un
+lector habilitado en D1, y la primera boleta vigente y sin usar de su
+zona. Si esa exportación no existe todavía (o quedó desactualizada frente
+a D1), la prueba falla con un mensaje explícito indicando qué falta en vez
+de un 403 opaco. Puedes forzar otros valores con las variables de entorno
+`NEXO_BOLETAS`, `NEXO_LECTOR_ID`, `NEXO_CODIGO_BOLETA` y
+`NEXO_ZONA_SOLICITADA`.
+
+> ⚠️ **Hashes de operador obsoletos en un D2 ya sembrado**: la siembra de
+> operadores usa `ON CONFLICT (usuario) DO NOTHING`, así que si alguna vez
+> se sembró `auth.operadores` con un `SEED_OPERATOR_PASSWORD` distinto (por
+> ejemplo, durante una corrida parcial de `npm run dev` interrumpida antes
+> de terminar de sembrar), las corridas siguientes de `npm run dev` **no**
+> actualizan esas filas y el login sigue devolviendo 401 aunque el resto
+> del entorno esté sano. En el stack compartido `nexo-dev`, si ves 401 en
+> `test:m1` con la contraseña de `.env.example`, antes de tocar datos
+> avisa a la orquestadora: sólo debe reescribirse `auth.operadores` (o
+> reiniciar el volumen de D2) con su autorización explícita, porque D2 es
+> compartido entre sesiones de la ola 1.
+
 ### Paso a paso para correr M1 completo localmente
 
 1. Clona el repo y desde la raíz corre `npm ci` (una sola vez, o tras

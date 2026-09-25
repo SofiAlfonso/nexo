@@ -15,9 +15,14 @@
 //   1. Login por rol → cookie de sesión (`nexo_sesion`).
 //   2. `GET /api/puntos` con datos reales de D2 (no fixtures).
 //   3. V1 valida contra C2 y la decisión queda en D1 (idempotencia por
-//      `idOrigen`, regla 5).
+//      `idOrigen`, regla 5). El lector/punto/boleta de la solicitud se
+//      eligen dinámicamente a partir de `/api/puntos` y de la exportación
+//      real de la semilla (`tmp/dev-boletas.json`), no con valores fijos
+//      inventados.
 //   4. En <= 10 s la decisión llega a D2 vía outbox/E1 y se ve tanto en
 //      `GET /api/intentos` como por un evento `intento` en `GET /api/stream`.
+import { readFile } from 'node:fs/promises';
+import { resolve as resolvePath } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   RUTAS,
@@ -26,6 +31,7 @@ import {
   SolicitudValidacion,
   ListaPuntos,
   ListaIntentos,
+  type PuntoResumen,
 } from '@nexo/shared/contracts';
 
 const CENTRAL_URL = process.env.CENTRAL_URL ?? `http://localhost:${process.env.CENTRAL_PORT ?? '8080'}`;
@@ -37,6 +43,51 @@ const OPERADOR_CONTRASENA = process.env.SEED_OPERATOR_PASSWORD ?? 'nexo_operador
 // Meta KR de outbox → D2 (regla 7); el hito M1 exige verlo en <= 10 s.
 const OUTBOX_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 500;
+
+// Exportación real generada por `npm run dev` (deploy/scripts/export-boletas.ts vía
+// deploy/scripts/seed.ts --export): { eventos: [{ eventoId, boletas }], lectores, casos }.
+// La usamos para elegir un lector y una boleta válidos en D1 en vez de valores fijos
+// inventados (que C2 rechaza con 403/boleta-desconocida al no existir de verdad).
+const BOLETAS_EXPORT_PATH = process.env.NEXO_BOLETAS ?? resolvePath(process.cwd(), 'tmp/dev-boletas.json');
+
+type BoletaFixture = { codigo: string; zona: string; estado: 'vigente' | 'anulada'; usada: boolean };
+type LectorFixture = { lectorId: string; puntoId: string; eventoId: string; zonas: string[] };
+type BoletasExport = { eventos: { eventoId: string; boletas: BoletaFixture[] }[]; lectores: LectorFixture[] };
+
+async function loadBoletasExport(): Promise<BoletasExport> {
+  const raw = await readFile(BOLETAS_EXPORT_PATH, 'utf8').catch((error: unknown) => {
+    const causa = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `No se pudo leer la exportación de boletas en ${BOLETAS_EXPORT_PATH} (${causa}). ` +
+        '`npm run dev` la genera automáticamente al sembrar; o define NEXO_BOLETAS con otra ruta.',
+    );
+  });
+  return JSON.parse(raw) as BoletasExport;
+}
+
+/**
+ * Elige, entre los `puntos` reales devueltos por `/api/puntos`, el primero que tenga un lector
+ * habilitado en la exportación de D1, y de ese punto/zona la primera boleta vigente y sin usar.
+ * Así la prueba consume siempre datos reales sembrados, no un `lectorId`/`codigo` inventados.
+ */
+function seleccionarFixtureDeValidacion(
+  puntos: PuntoResumen[],
+  exportado: BoletasExport,
+): { punto: PuntoResumen; lector: LectorFixture; zonaSolicitada: string; boleta: BoletaFixture } {
+  const boletas = exportado.eventos.find((evento) => evento.eventoId === EVENTO_ID)?.boletas ?? [];
+  for (const punto of puntos) {
+    const lector = exportado.lectores.find((candidato) => candidato.puntoId === punto.id);
+    if (!lector) continue;
+    for (const zona of punto.zonas) {
+      const boleta = boletas.find((candidata) => candidata.zona === zona && candidata.estado === 'vigente' && !candidata.usada);
+      if (boleta) return { punto, lector, zonaSolicitada: zona, boleta };
+    }
+  }
+  throw new Error(
+    `No se encontró combinación punto/lector/boleta válida entre ${puntos.length} puntos de /api/puntos ` +
+      `y la exportación de ${BOLETAS_EXPORT_PATH}. Verifica que la siembra de D1/D2 esté al día.`,
+  );
+}
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 1_500): Promise<Response | null> {
   const controller = new AbortController();
@@ -166,16 +217,18 @@ describe.skipIf(!servicesReady)('M1 — punta a punta (login, puntos, V1 → D1 
       });
       const puntos = ListaPuntos.parse(await respuestaPuntos.json());
       expect(puntos.length).toBeGreaterThan(0);
-      const punto = puntos[0]!;
+
+      const exportado = await loadBoletasExport();
+      const { punto, lector, zonaSolicitada, boleta } = seleccionarFixtureDeValidacion(puntos, exportado);
 
       const idOrigen = `m1-e2e:${Date.now()}`;
       const solicitud: SolicitudValidacion = SolicitudValidacion.parse({
         idOrigen,
         eventoId: EVENTO_ID,
-        lectorId: process.env.NEXO_LECTOR_ID ?? 'LX-2210-M1E2E',
+        lectorId: process.env.NEXO_LECTOR_ID ?? lector.lectorId,
         puntoId: punto.id,
-        codigo: process.env.NEXO_CODIGO_BOLETA ?? 'TA-88dd-e2e0',
-        zonaSolicitada: punto.zonas[0]!,
+        codigo: process.env.NEXO_CODIGO_BOLETA ?? boleta.codigo,
+        zonaSolicitada: process.env.NEXO_ZONA_SOLICITADA ?? zonaSolicitada,
         instanteLector: new Date().toISOString(),
       });
 
