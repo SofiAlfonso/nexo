@@ -11,6 +11,21 @@ command:
 
 replicaCount: 1
 
+rollout:
+  strategy: Recreate
+
+podSecurityContext:
+  fsGroup: 10001
+
+extraVolumes:
+  - name: collector-storage
+    persistentVolumeClaim:
+      claimName: nexo-otel-collector-storage
+
+extraVolumeMounts:
+  - name: collector-storage
+    mountPath: /var/lib/otelcol
+
 additionalLabels:
   app.kubernetes.io/part-of: nexo
 
@@ -44,6 +59,11 @@ ports:
     enabled: false
 
 config:
+  extensions:
+    file_storage:
+      directory: /var/lib/otelcol/file_storage
+      create_directory: true
+
   receivers:
     jaeger: null
     zipkin: null
@@ -67,8 +87,21 @@ config:
   exporters:
     debug:
       verbosity: basic
+    otlphttp/lgtm:
+      endpoint: http://nexo-otel-lgtm.nexo-observability.svc.cluster.local:4318
+      sending_queue:
+        enabled: true
+        storage: file_storage
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 5m
 
   service:
+    extensions:
+      - health_check
+      - file_storage
     pipelines:
       traces:
         receivers:
@@ -77,6 +110,7 @@ config:
           - memory_limiter
           - batch
         exporters:
+          - otlphttp/lgtm
           - debug
       metrics:
         receivers:
@@ -85,6 +119,7 @@ config:
           - memory_limiter
           - batch
         exporters:
+          - otlphttp/lgtm
           - debug
       logs:
         receivers:
@@ -93,4 +128,5 @@ config:
           - memory_limiter
           - batch
         exporters:
+          - otlphttp/lgtm
           - debug

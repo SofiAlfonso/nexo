@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexo-otel-lgtm
+  namespace: nexo-observability
+  labels:
+    app.kubernetes.io/name: nexo-otel-lgtm
+    app.kubernetes.io/part-of: nexo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-otel-lgtm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-otel-lgtm
+        app.kubernetes.io/part-of: nexo
+    spec:
+      containers:
+        - name: otel-lgtm
+          image: grafana/otel-lgtm:0.34.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grafana
+              containerPort: 3000
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: grafana
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1536Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexo-otel-lgtm
+  namespace: nexo-observability
+  labels:
+    app.kubernetes.io/name: nexo-otel-lgtm
+    app.kubernetes.io/part-of: nexo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: nexo-otel-lgtm
+  ports:
+    - name: grafana
+      port: 3000
+      targetPort: grafana
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http

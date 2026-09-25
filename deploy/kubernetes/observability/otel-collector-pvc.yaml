@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nexo-otel-collector-storage
+  namespace: nexo-observability
+  labels:
+    app.kubernetes.io/part-of: nexo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

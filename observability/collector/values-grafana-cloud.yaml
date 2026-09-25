@@ -1,0 +1,74 @@
+extraEnvs:
+  - name: GRAFANA_CLOUD_OTLP_ENDPOINT
+    valueFrom:
+      secretKeyRef:
+        name: nexo-grafana-cloud
+        key: GRAFANA_CLOUD_OTLP_ENDPOINT
+  - name: GRAFANA_CLOUD_INSTANCE_ID
+    valueFrom:
+      secretKeyRef:
+        name: nexo-grafana-cloud
+        key: GRAFANA_CLOUD_INSTANCE_ID
+  - name: GRAFANA_CLOUD_OTLP_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: nexo-grafana-cloud
+        key: GRAFANA_CLOUD_OTLP_TOKEN
+
+config:
+  extensions:
+    basicauth/grafana-cloud:
+      client_auth:
+        username: ${env:GRAFANA_CLOUD_INSTANCE_ID}
+        password: ${env:GRAFANA_CLOUD_OTLP_TOKEN}
+
+  exporters:
+    otlphttp/grafana-cloud:
+      endpoint: ${env:GRAFANA_CLOUD_OTLP_ENDPOINT}
+      auth:
+        authenticator: basicauth/grafana-cloud
+      sending_queue:
+        enabled: true
+        storage: file_storage
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 5m
+
+  service:
+    extensions:
+      - health_check
+      - file_storage
+      - basicauth/grafana-cloud
+    pipelines:
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp/lgtm
+          - debug
+          - otlphttp/grafana-cloud
+      metrics:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp/lgtm
+          - debug
+          - otlphttp/grafana-cloud
+      logs:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp/lgtm
+          - debug
+          - otlphttp/grafana-cloud
