@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { RegistroDecision } from '../contracts/index.ts';
 import {
   ErrorConflictoIdempotencia,
@@ -34,9 +35,9 @@ export interface SolicitudIngreso {
   modo?: ModoOperacion;
 }
 
-/** Huella estable del contenido de un intento: distingue retransmisión de conflicto (PB-04). */
+/** Huella estable (SHA-256 hex) del contenido de un intento: distingue retransmisión de conflicto (PB-04). */
 export function huellaIntento(i: IntentoDeValidacion): string {
-  return JSON.stringify([
+  const canonico = JSON.stringify([
     i.eventoId,
     i.lectorId,
     i.puntoId,
@@ -45,6 +46,7 @@ export function huellaIntento(i: IntentoDeValidacion): string {
     i.zonaSolicitada ?? null,
     i.instanteLector.toISOString(),
   ]);
+  return createHash('sha256').update(canonico).digest('hex');
 }
 
 /**
@@ -225,7 +227,7 @@ export function registroDecision(i: IntentoDeValidacion, r: ResultadoValidacion,
     puntoId: i.puntoId,
     codigo: i.codigo,
     zona: zonaBoleta,
-    zonaSolicitada: i.zonaSolicitada ?? '',
+    zonaSolicitada: i.zonaSolicitada ?? 'NO_IDENTIFICADA',
     decision: r.decision,
     motivo: r.motivo,
     proposito: r.proposito,
