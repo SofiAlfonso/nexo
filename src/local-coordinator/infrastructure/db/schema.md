@@ -27,3 +27,7 @@ Todas las columnas `*_en` y `instante_*` son `timestamptz`; identificadores, mot
 | `intento_diario` | `evento_id text`, `id_origen text` (PK compuesto), `id_lote text` (FK a diario_lote), `lector_id text`, `punto_id text`, `codigo text`, `proposito text`, `zona_solicitada text`, `motivo_local text`, `instante_lector timestamptz`, `recibido_en timestamptz` |
 
 Ninguna tabla almacena comprador ni secretos. `permiso_version` guarda paquetes firmados y las filas `boleta`/`punto` representan el estado aplicado por C2 tras verificar firma, versión y continuidad.
+
+## Semilla local
+
+`seed/seed.sql` se aplica después de `migrate(pool)` con `psql --single-transaction --set=ON_ERROR_STOP=1 --file ...`. Se puede repetir sin borrar consumos ni bitácora: crea `EVT-2026-02` (versión 1, sin reingreso) con ventana abierta desde hace una hora hasta dentro de seis, 20 puntos y lectores, y exactamente 16.240 boletas distribuidas 4.980 Norte, 3.360 Sur, 4.010 Oriental, 3.360 Occidental y 530 Palcos. La segunda aplicación solo refresca la ventana/antigüedad de permisos del evento; inserciones de puntos, lectores y boletas ya existentes quedan intactas. En `P-01`, `TA-8800-0000` es válida, `TA-8804-0980` es de otra zona y `TA-8800-0001` tiene anulación recibida. No se inventa una firma P2: `permiso_version` solo debe contener paquetes auténticos.
