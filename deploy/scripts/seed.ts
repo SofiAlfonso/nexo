@@ -2,9 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import argon2 from 'argon2';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
+import { createD1Pool } from '../../src/local-coordinator/infrastructure/db/index.ts';
 import { migrate as migrateD1 } from '../../src/local-coordinator/infrastructure/db/migrate.ts';
+import { createD2Pool } from '../../src/central-core/infrastructure/db/index.ts';
 import { migrate as migrateD2 } from '../../src/central-core/infrastructure/db/migrate.ts';
+import { exportBoletas } from './export-boletas.ts';
 
 const d1SeedPath = fileURLToPath(
   new URL('../../src/local-coordinator/infrastructure/db/seed/seed.sql', import.meta.url),
@@ -59,47 +62,32 @@ function requiredEnvironmentVariable(name: string): string {
   return value;
 }
 
-function connectionString(
-  prefix: 'D1' | 'D2',
-  defaults: { port: string; database: string; user: string },
-): string {
-  const direct = process.env[`${prefix}_DATABASE_URL`];
-  if (direct) return direct;
-
-  const url = new URL('postgresql://localhost');
-  url.username = process.env[`${prefix}_POSTGRES_USER`] || defaults.user;
-  url.password = requiredEnvironmentVariable(`${prefix}_POSTGRES_PASSWORD`);
-  url.hostname = process.env[`${prefix}_HOST`] || 'localhost';
-  url.port = process.env[`${prefix}_PORT`] || defaults.port;
-  url.pathname = `/${process.env[`${prefix}_POSTGRES_DB`] || defaults.database}`;
-  return url.toString();
+function exportPathFromArguments(args: string[]): string | undefined {
+  if (args.length === 0) return undefined;
+  if (args.length === 2 && args[0] === '--export' && args[1]!.length > 0) {
+    return args[1];
+  }
+  throw new Error('Usage: node --import tsx deploy/scripts/seed.ts [--export <ruta.json>]');
 }
 
-async function runCli(): Promise<void> {
+async function runCli(exportPath: string | undefined): Promise<void> {
   const password = requiredEnvironmentVariable('SEED_OPERATOR_PASSWORD');
-  const d1Pool = new Pool({
-    connectionString: connectionString('D1', {
-      port: '5433',
-      database: 'nexo_venue',
-      user: 'nexo_venue',
-    }),
-  });
-  const d2Pool = new Pool({
-    connectionString: connectionString('D2', {
-      port: '5434',
-      database: 'nexo_central',
-      user: 'nexo_central',
-    }),
-  });
+  const d1Pool = createD1Pool();
+  let d2Pool: Pool | undefined;
 
   try {
+    d2Pool = createD2Pool();
     console.info('Applying D1 and D2 migrations...');
     await Promise.all([migrateD1(d1Pool), migrateD2(d2Pool)]);
     console.info('Seeding D1 and D2...');
     await seed(d1Pool, d2Pool, password);
+    if (exportPath) {
+      await exportBoletas(d1Pool, exportPath);
+      console.info(`Exported reader boletas to ${resolve(exportPath)}.`);
+    }
     console.info('D1 and D2 seed data applied successfully.');
   } finally {
-    await Promise.all([d1Pool.end(), d2Pool.end()]);
+    await Promise.all([d1Pool.end(), d2Pool?.end()]);
   }
 }
 
@@ -107,7 +95,16 @@ const invokedPath = process.argv[1];
 const isMain = invokedPath !== undefined
   && pathToFileURL(resolve(invokedPath)).href === import.meta.url;
 if (isMain) {
-  runCli().catch((error: unknown) => {
+  let exportPath: string | undefined;
+  let argumentsValid = true;
+  try {
+    exportPath = exportPathFromArguments(process.argv.slice(2));
+  } catch (error) {
+    console.error('Seed failed:', error);
+    process.exitCode = 1;
+    argumentsValid = false;
+  }
+  if (argumentsValid) runCli(exportPath).catch((error: unknown) => {
     console.error('Seed failed:', error);
     process.exitCode = 1;
   });

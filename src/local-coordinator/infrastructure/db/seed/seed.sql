@@ -38,7 +38,8 @@ ON CONFLICT (evento_id, version) DO UPDATE SET
   vigente_hasta = EXCLUDED.vigente_hasta,
   apertura_en = EXCLUDED.apertura_en,
   cierre_en = EXCLUDED.cierre_en,
-  version_politicas = EXCLUDED.version_politicas;
+  version_politicas = EXCLUDED.version_politicas
+WHERE permiso_version.paquete->>'fixture' = 'demo-only';
 
 WITH asignacion AS (
   SELECT n,

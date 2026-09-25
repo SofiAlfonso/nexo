@@ -31,12 +31,11 @@ Configure también las contraseñas de conexión que correspondan al entorno:
 | Variable | Valor por omisión / uso |
 |---|---|
 | `SEED_OPERATOR_PASSWORD` | Obligatoria; contraseña inicial de los cinco operadores |
-| `D1_HOST`, `D1_PORT` | `localhost`, `5433` |
-| `D1_POSTGRES_DB`, `D1_POSTGRES_USER` | `nexo_venue` |
-| `D1_POSTGRES_PASSWORD` | Obligatoria; contraseña configurada para D1 |
-| `D2_HOST`, `D2_PORT` | `localhost`, `5434` |
-| `D2_POSTGRES_DB`, `D2_POSTGRES_USER` | `nexo_central` |
-| `D2_POSTGRES_PASSWORD` | Obligatoria; contraseña configurada para D2 |
+| `D1_DATABASE_URL`, `D2_DATABASE_URL` | Opcionales; tienen prioridad sobre las variables PostgreSQL de su base |
+| `LOCAL_POSTGRES_HOST`, `LOCAL_POSTGRES_PORT`, `LOCAL_POSTGRES_DB`, `LOCAL_POSTGRES_USER`, `LOCAL_POSTGRES_PASSWORD` | Conexión de D1; predeterminados de host/puerto/base/usuario: `localhost`, `5433`, `nexo_venue`, `nexo_venue`; contraseña obligatoria |
+| `CENTRAL_POSTGRES_HOST`, `CENTRAL_POSTGRES_PORT`, `CENTRAL_POSTGRES_DB`, `CENTRAL_POSTGRES_USER`, `CENTRAL_POSTGRES_PASSWORD` | Conexión de D2; predeterminados de host/puerto/base/usuario: `localhost`, `5434`, `nexo_central`, `nexo_central`; contraseña obligatoria |
+| `D1_HOST`, `D1_PORT`, `D1_POSTGRES_DB`, `D1_POSTGRES_USER`, `D1_POSTGRES_PASSWORD` | Alias aceptados por `seed.ps1` para D1 |
+| `D2_HOST`, `D2_PORT`, `D2_POSTGRES_DB`, `D2_POSTGRES_USER`, `D2_POSTGRES_PASSWORD` | Alias aceptados por `seed.ps1` para D2 |
 
 Ejemplo en PowerShell; la entrada es oculta y las variables solo viven en el
 proceso actual:
@@ -68,8 +67,9 @@ Para pruebas de integración, `deploy/scripts/seed.ts` exporta
 La función inserta los datos dentro de una transacción por base y no aplica
 migraciones; la prueba debe aplicar primero `migrate(d1Pool)` y
 `migrate(d2Pool)`. Importar el módulo no inicia el CLI. Para invocarlo
-directamente, configure `SEED_OPERATOR_PASSWORD`, las variables D1/D2
-anteriores y ejecute:
+directamente, configure `SEED_OPERATOR_PASSWORD`, `D1_DATABASE_URL` /
+`D2_DATABASE_URL` o las variables de fábrica `LOCAL_POSTGRES_*` /
+`CENTRAL_POSTGRES_*`, y ejecute:
 
 ```powershell
 node --import tsx .\deploy\scripts\seed.ts
@@ -81,15 +81,17 @@ La semilla crea los operadores `supervisor`, `lider-tecnico`, `logistica`,
 versión 1 en D1 y D2. Las boletas por zona son Norte 4.980, Sur 3.360,
 Oriental 4.010, Occidental 3.360 y Palcos 530.
 
-Para generar el catálogo real de prueba del lector después de sembrar, indique
-`D1_DATABASE_URL` (o las cinco variables `LOCAL_POSTGRES_*` de
-`config/examples/secrets.example.env`) y una ruta **fuera de Git**:
+Para sembrar y generar el catálogo real de prueba del lector en el mismo paso,
+pase `--export <ruta>` al CLI. Use una ruta **fuera de Git**:
 
 ```powershell
-# Configure D1_DATABASE_URL from a local secret source; do not store credentials here.
 $boletaFile = Join-Path $HOME 'Documents\boletas-lector.json'
-node --import tsx deploy\scripts\export-boletas.ts $boletaFile
+.\deploy\scripts\seed.ps1 --export $boletaFile
 ```
+
+El comando aplica migraciones, siembra ambas bases y exporta los datos activos
+de D1. También puede invocarse directamente con
+`node --import tsx .\deploy\scripts\seed.ts --export $boletaFile`.
 
 El JSON contiene `eventos: [{eventoId, boletas: [{codigo, zona, estado,
 usada}]}]`, `lectores: [{lectorId, puntoId, eventoId, zonas}]` y `casos` con

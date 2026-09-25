@@ -238,4 +238,17 @@ describe.skipIf(!dockerAvailable)('PostgreSQL D1 y D2', () => {
     );
     expect(Number(rows[0]?.count)).toBe(1);
   });
+
+  it('no sustituye un paquete de permisos firmado al resembrar', async () => {
+    const signed = { eventoId: 'EVT-2026-02', firma: { algoritmo: 'test', valor: 'fixture' } };
+    await d1.query(
+      "UPDATE permiso_version SET paquete = $1 WHERE evento_id = 'EVT-2026-02' AND version = 1",
+      [signed],
+    );
+    await seed(d1, d2, 'integration-test-password');
+    const result = await d1.query<{ paquete: typeof signed }>(
+      "SELECT paquete FROM permiso_version WHERE evento_id = 'EVT-2026-02' AND version = 1",
+    );
+    expect(result.rows[0]?.paquete).toEqual(signed);
+  });
 });
