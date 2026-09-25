@@ -31,6 +31,14 @@ docker compose -f deploy/compose/docker-compose.dev.yml down
 Para eliminar también los volúmenes y reiniciar las bases de datos desde
 cero, ejecuta el mismo comando con `down -v`.
 
+> ⚠️ **Entorno compartido**: en el laboratorio de la ola 1 sólo hay un
+> Docker; el proyecto Compose `nexo-dev` (D1 `5433`, D2 `5434`, `otel-lgtm`)
+> es **compartido entre sesiones**. Nunca ejecutes `down -v` (ni borres sus
+> volúmenes) salvo que sepas que ninguna otra sesión depende de esos datos.
+> Las pruebas automáticas deben usar Testcontainers, no este stack; si
+> necesitas un stack propio y aislado, usa
+> `docker compose -p nexo-<tu-sesion> ...` con otros puertos.
+
 ## Correr el hito M1 localmente (`npm run dev`)
 
 `npm run dev` (`scripts/dev.mjs`, T27) automatiza lo anterior y arranca C4 y
@@ -52,8 +60,10 @@ C2 con las variables de `deploy/compose/.env.example` (o de tu propio
      `COORDINATOR_PORT`, por defecto `8081`), con la salida de cada uno
      prefijada (`[central]`, `[coordinator]`).
 3. `Ctrl+C` detiene C4 y C2 de forma ordenada; D1/D2/`otel-lgtm` siguen
-   corriendo. Para pararlos: `npm run dev:down` (o con `-- --volumes` para
-   además borrar los datos y reiniciar desde cero).
+   corriendo (`npm run dev` sólo hace `up -d`, nunca `down -v`, porque el
+   stack es compartido — ver advertencia arriba). Para pararlos:
+   `npm run dev:down` (o con `-- --reset` para además borrar los datos y
+   reiniciar desde cero, sólo si ninguna otra sesión los necesita).
 4. `npm run dev:reader` arranca el lector emulado (C1, perfil de carga
    `nominal` de `tests/load/`) contra el C2 local — requiere que
    `npm run dev` ya esté corriendo.

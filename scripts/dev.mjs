@@ -11,6 +11,13 @@
 //    otel-lgtm quedan corriendo (deténlos con `npm run dev:down` o
 //    `docker compose -f deploy/compose/docker-compose.dev.yml down`).
 //
+// ADVERTENCIA (entorno compartido, un solo Docker): el proyecto Compose
+// `nexo-dev` (D1 5433, D2 5434, otel-lgtm) es compartido entre sesiones de
+// la ola 1. Este script sólo hace `up -d` (idempotente) y NUNCA `down -v`;
+// para borrar volúmenes usa explícitamente `npm run dev:down -- --reset`.
+// Las pruebas automáticas (unit/integración) deben usar Testcontainers, no
+// este stack compartido.
+//
 // Portable (Windows/PowerShell, macOS, Linux): usa `node:child_process` con
 // `shell: false` y localiza binarios vía PATH, sin sintaxis de shell.
 
