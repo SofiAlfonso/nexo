@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, realpath, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, InvalidArgumentError } from 'commander';
 import { limpiarControl, leerEjecucion, procesoVivo, rutasControl, solicitarParada } from './control.ts';
@@ -30,7 +30,8 @@ function numeroPositivo(valor: string): number {
 function rutaDatos(valor: string): string {
   const datos = resolve(valor);
   const raiz = fileURLToPath(new URL('../../../', import.meta.url));
-  if (datos === raiz || datos.startsWith(`${raiz}\\`) || datos.startsWith(`${raiz}/`)) {
+  const ruta = relative(raiz, datos);
+  if (!ruta || (ruta !== '..' && !ruta.startsWith(`..${sep}`) && !isAbsolute(ruta))) {
     throw new InvalidArgumentError('El directorio de datos debe estar fuera del repositorio');
   }
   return datos;
@@ -43,6 +44,11 @@ async function iniciar(configuracion: Configuracion): Promise<void> {
   if (url.username || url.password) throw new Error('No se admiten credenciales en la URL');
   if (!isAbsolute(configuracion.boletas)) configuracion.boletas = resolve(configuracion.boletas);
   await mkdir(datos, { recursive: true });
+  const raizReal = await realpath(fileURLToPath(new URL('../../../', import.meta.url)));
+  const rutaReal = relative(raizReal, await realpath(datos));
+  if (!rutaReal || (rutaReal !== '..' && !rutaReal.startsWith(`..${sep}`) && !isAbsolute(rutaReal))) {
+    throw new Error('El directorio de datos resuelve dentro del repositorio');
+  }
   const anterior = await leerEjecucion(datos);
   if (anterior && procesoVivo(anterior.pid)) throw new Error(`Ya hay una ejecución activa (PID ${anterior.pid})`);
   await limpiarControl(datos);
