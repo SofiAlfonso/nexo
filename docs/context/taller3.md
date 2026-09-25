@@ -1,0 +1,272 @@
+# Taller 3: plan de implementación y seguimiento de NEXO
+
+Documento vivo: define el plan del entregable 3 y registra su avance. Solo el agente orquestador actualiza las tablas de seguimiento; los subagentes reportan su resultado y el orquestador lo consolida, para evitar ediciones concurrentes.
+
+Última actualización: 25 de septiembre de 2026. Estado general: plan propuesto; decisiones D1 a D12 con recomendación (§8), pendientes de confirmación del equipo en T00.
+
+Contexto completo, autocontenido:
+
+- [taller1.md](taller1.md): caso de negocio (premisas, alcance, piloto, tarifa, KR y controles CA1 a CA4).
+- [taller2.md](taller2.md): entregables arquitectónicos (dominio, ADR-001 a ADR-013, arquitectura de referencia e implementación, clases y secuencia, prototipo, observabilidad, pruebas, volumetría y fallos).
+- [prototipo.md](prototipo.md): especificación detallada del prototipo de interfaz (roles, armazón, componentes, pantallas, estado, incidentes, conciliación, API que necesita, bloqueos, invariantes, reglas de medición y supuestos). Solo la necesitan las tareas de interfaz (T30 a T32), las que definen la API O2 (T22) y las de métricas (T41, P §15).
+- [DESIGN.md](../../DESIGN.md): sistema de diseño del panel (tokens de color, tipografía, espaciado, sombras, componentes, patrones de pantalla, accesibilidad y reglas de estilo). Lo usan T30 a T32 y cualquier tarea que cree o cambie interfaz.
+
+Las referencias "T2 §n" de este documento remiten a la sección n de [taller2.md](taller2.md), "T1 §n" a la de [taller1.md](taller1.md) y "P §n" a la de [prototipo.md](prototipo.md).
+
+## 1. Rúbrica del entregable 3
+
+| Criterio | Peso | Qué debe existir |
+|---|---|---|
+| Aplicación funcionando | 40 % | Funcionalidades principales operativas, despliegue en el entorno definido, experiencia estable, evidencias (video, accesos, ejemplos). |
+| Observabilidad | 20 % | 3 métricas de negocio y 3 técnicas funcionando de forma real, justificadas; recolección y visualización en tiempo real; dashboards, logs, trazas y alertas. |
+| Simulación y análisis de fallos | 30 % | 4 escenarios de fallo de tipos diferentes; análisis de métricas, recuperación y degradación; conclusiones; scripts, registros y capturas. |
+| Patrones utilizados | 10 % | Patrones identificados y justificados, relacionados con atributos de calidad, con evidencia en código y documentación. |
+| Autoevaluación | +10 % | Reflexión con logros, dificultades y propuestas de evolución, coherente con la evidencia. |
+| Coherencia | hasta -10 % | Lo desplegado coincide con ADR, supuestos, alcance y entregables previos; ADR actualizados si algo cambia; entregables del taller 2 presentes y consistentes (por ejemplo, ejecución de pruebas unitarias). |
+
+Nota = (puntos base 0 a 100 + adicionales 0 a 10 - descuento 0 a 10) × 30 %.
+
+Condiciones del equipo para esta entrega:
+
+- La coherencia con el taller 2 es prioritaria, en especial con los ADR (T2 §3), la arquitectura de implementación (T2 §5) y el prototipo de interfaz (T2 §7).
+- El simulador del prototipo (T2 §7.4) no se recrea: la interfaz debe mostrar la carga que está en las bases de datos.
+- No hay despliegue en nube por ahora. El entorno local debe reproducir las capas y módulos en contenedores como se desplegarían después, y permitir el análisis de fallos.
+- Presupuesto: 12 horas de trabajo con IA.
+
+## 2. Repositorio
+
+Repositorio `nexo` (hoy un cascarón sin implementación funcional). Su README ya fija:
+
+- Arquitectura por capas con monolito modular central, no microservicios (ADR-001).
+- C1 cliente de puerta, C2 coordinador local como unidad desplegable separada, D1 persistencia local, C4 núcleo central con M1 a M4, C3 dentro de C4 asociado a M1, C5 servido desde C4, D2 PostgreSQL compartido con propietarios de escritura por módulo. Coincide con T2 §5.1.
+- La nube nunca es autoridad alternativa y un lector aislado no autoriza.
+- Entorno local: Minikube (Kubernetes sobre Docker Desktop y WSL 2), documentado como entorno de desarrollo, integración y demostración, no como despliegue productivo.
+- Cuatro experimentos de fallo iniciales: `red-01-central-connection`, `ser-06-observability-outage`, `bd-01-local-persistence`, `rec-01-coordinator-cpu`.
+- Sin secretos ni datos personales en el repositorio.
+
+Estructura existente:
+
+```text
+nexo/
+├── docs/{architecture,decisions,observability,fault-experiments,evidence}/
+├── src/
+│   ├── reader-client/            C1
+│   ├── local-coordinator/        C2 y D1
+│   └── central-core/             C4 (incluye C3 y sirve C5)
+│       ├── api/  application/  domain/  infrastructure/
+│       └── modules/{configuration-permissions, evidence-ingestion, reconciliation, contracting-settlement}/
+├── deploy/{minikube, kubernetes/{namespaces,application,data,observability,chaos}, scripts}/
+├── observability/{collector,dashboards,alerts,telemetry-contract,synthetic-telemetry}/
+├── chaos/{experiments/{red-01-…,ser-06-…,bd-01-…,rec-01-…}, scripts, evidence}/
+├── tests/{unit,integration,load,resilience}/
+└── config/examples/
+```
+
+Este plan usa esa estructura. Rutas nuevas que propone: `src/central-core/web/` para el panel C5 portado del prototipo, `src/ticketing-sim/` para la boletería simulada (sistema externo de prueba, fuera de C4) y `src/shared/` para el paquete de dominio y la telemetría compartidos, si el lenguaje elegido lo requiere.
+
+## 3. Decisiones de partida
+
+Supuestos del orquestador para poder planear. Se confirman en T00 y cada una termina registrada en un ADR nuevo o en la actualización de uno existente (`docs/decisions/`).
+
+| ID | Decisión propuesta | Motivo | Estado |
+|---|---|---|---|
+| D1 | Minikube con namespaces `nexo-recinto` (C2, D1, lectores emulados), `nexo-central` (C4 con C3 y C5, D2, D3), `nexo-externo` (boletería simulada) y `nexo-obs` (Collector y backend de telemetría). NetworkPolicies que solo permiten el tráfico de T2 §5.2: recinto a central saliente (E1, P2), lectores a C2 (V1, H1), C4 a D2. Toxiproxy como pod intermedio en el enlace recinto-central y en C3-boletería. | Ya fijado en el README del repo. Reproduce las fronteras de NEXO_04 y deja el despliegue listo para una nube con Kubernetes. Cambia el entorno del laboratorio de fallos, que el entregable 11 proponía sobre Docker Compose (T2 §11.2): hay que registrarlo en un ADR (ADR-015) y en el informe. | Fijado por el repo; falta el ADR |
+| D2 | TypeScript sobre Node.js 22 para C1, C2, C4 y `nexo-chaos`; Fastify, `pg`, Vitest y `decimal.js` para importes (PB-18 exige decimal). | Runtime y lenguaje siguen pendientes (T2 §5.9, §9). El prototipo ya es JavaScript, Node está instalado y el SDK de OpenTelemetry para Node cubre trazas, métricas y logs. Se registra en ADR-014. Alternativas: Go, Java con Spring Boot. | Por confirmar |
+| D3 | D1 y D2 en PostgreSQL 16, instancias separadas (StatefulSet con volumen persistente). D3 en MinIO. Autoridad local en `nodo-unico`, como en la configuración de NEXO_04 (T2 §5.3). | PostgreSQL es premisa para D2 y candidata para D1 (T2 §4.7). `nodo-unico` deja fuera RED-06, BD-06 y EXP 07 (condicionados a ADR-005) y hay que reflejarlo en el prototipo, que muestra réplica (T2 §7.5). | Por confirmar |
+| D4 | OpenTelemetry SDK en C1, C2, C4 y C5 hacia un Collector con cola persistente (`file_storage`). El Collector exporta a un backend en el clúster (Grafana, Prometheus o Mimir, Loki y Tempo; por ejemplo la imagen `grafana/otel-lgtm`) y, si hay token, también a Grafana Cloud Free. | Coincide con T2 §8.1 (Collector local, Grafana Cloud Free en PoC) y permite la demo sin internet y sin secretos. El backend local se registra como variante de laboratorio al actualizar ADR-013. | Por confirmar |
+| D5 | El panel C5 es el prototipo portado a `src/central-core/web/` y servido por C4, con `simulador.js` reemplazado por un adaptador `api.js` que llena el mismo `store` por REST y SSE. Los incidentes salen de reglas en C4 sobre datos reales: heartbeat de más de 60 s, enlace del recinto caído, latencia fuera de umbral, Collector caído. | La rúbrica penaliza que la interfaz no corresponda con el prototipo. Mantener vistas y CSS limita el trabajo al adaptador. Se eliminan el guion de incidentes, los saltos de reloj y el personal simulado. | Por confirmar |
+| D6 | La carga la produce `reader-client` en modo emulado: N lectores con credencial propia, diario durable, `idOrigen` estable, heartbeat cada 10 s y perfiles de T2 §10 (nominal, pico, estrés). Cada intento lleva su resultado esperado, que sirve de referencia independiente para falsos rechazos y de contador independiente para la conciliación. | Así la carga pasa por C2 y queda persistida en D1 y D2, que es lo que el panel lee. Un generador HTTP genérico no tiene diario ni heartbeat. | Por confirmar |
+| D7 | Latencia: se mide la proporción de validaciones en 300 ms o menos (SLO de T2 §8.2, al menos 95 %) y se reporta también el p95 frente a los 500 ms de CA2 y ADR-002. | T2 §8.2 declara que 300 ms sustituye a 500 ms; mostrar ambos evita una contradicción con ADR-002 y con el prototipo. | Por confirmar |
+| D8 | Seguridad mínima: mTLS entre C1 y C2 con CA de laboratorio y credencial revocable por lector (ADR-008, PB-14); RLS por cliente y evento en D2 (ADR-009). Operadores del panel con token estático de laboratorio; `identidadOperadores` sigue pendiente. | Son baratos de demostrar con un recinto. Si falta tiempo se recortan y el ADR queda "pendiente de PoC" con esa nota. | Por confirmar |
+
+### 3.1 Escenarios de fallo
+
+Los cuatro del README del repo, uno por cada dimensión del catálogo de T2 §11.1:
+
+| ID | Tipo | Escenario | Experimento | Inyección en Minikube | Hipótesis a verificar |
+|---|---|---|---|---|---|
+| F1 | Red | RED-01: corte entre recinto y central | EXP 01 | `nexo-chaos` deshabilita el proxy Toxiproxy recinto-central durante 5 min en la demo y 15 min en la corrida de evidencia (CA1). | Las validaciones siguen en C2; el outbox crece; el panel marca la antigüedad de los datos del recinto (SER-05); al volver se drena al menos el 99,5 % en 5 min; cero pérdidas y cero duplicados. |
+| F2 | Servicio | SER-06: caída de observabilidad | EXP 06 | Escalar el Deployment del Collector a 0 réplicas durante 15 min (o cortar su exportación). | La validación y la auditoría no se interrumpen; T1 sigue en objetivo según el contador de `reader-client`; la cola persistente retiene y luego drena; la alerta de pérdida de visibilidad se dispara. |
+| F3 | Base de datos | BD-01: persistencia local indisponible | Nuevo, derivado de BD-01 y EXP 05 | Escalar el StatefulSet de D1 a 0 o bloquear su puerto con NetworkPolicy durante 2 min con carga nominal. | Ninguna aceptación nueva; C2 responde "sin confirmación" (PU-03-07, PB-12); los lectores no abren; al volver D1, los consumos previos están íntegros y los reintentos con el mismo `idOrigen` no duplican. |
+| F4 | Recursos | REC-01: saturación de CPU del coordinador | Nuevo, derivado de REC-01 y del escenario de estrés | `stress-ng` en un contenedor auxiliar del pod de C2, o reducir `resources.limits.cpu`, durante el perfil pico. | La latencia se degrada y se ve en dashboard y alerta; las solicitudes sin respuesta permanecen en el denominador; la integridad de consumos no cambia. |
+
+Pruebas de integridad complementarias, fuera de los cuatro fallos pero exigidas por CA3 y ADR-003: EXP 03 (reintento tras caída del coordinador, SER-01 con BD-03) y EXP 04 (500 boletas con dos solicitudes simultáneas). Se ejecutan en `tests/resilience/`.
+
+### 3.2 Métricas (3 de negocio y 3 técnicas)
+
+| ID | Tipo | Métrica | Cálculo | Umbral | Origen |
+|---|---|---|---|---|---|
+| N1 | Negocio | Admisiones registradas e ingreso facturable | Primeros consumos aceptados por evento; I(N) = 500 + 0,40 N | Informativa, conciliada al cierre | T1 §5.1, KR5.1, RN-04, RN-09 |
+| N2 | Negocio | Disponibilidad del flujo de validación | Decisiones definitivas / solicitudes del lector, incluidos timeouts y "sin confirmación" | ≥ 99,9 % | T2 §8.2, CA2 |
+| N3 | Negocio | Integridad de la decisión | Falsos rechazos / autorizables según `reader-client`; boletas con más de un consumo | ≤ 0,5 % y 0 | KR4.1, ADR-003, alertas A1 |
+| T1 | Técnica | Latencia de validación | Respuestas en 300 ms o menos / solicitudes; p95 | ≥ 95 %; p95 ≤ 500 ms | T2 §8.2, CA2, ADR-002 |
+| T2 | Técnica | Pendientes de sincronización | Filas del outbox sin confirmar, edad del más antiguo y proporción drenada en 5 min | ≥ 99,5 % en 5 min | KR2.1, ADR-011, alertas A10 y A11 |
+| T3 | Técnica | Edad del último heartbeat por punto | Segundos desde el último heartbeat de cada lector | ≤ 60 s para marcar "sin comunicación" | KR1.2, alerta A8 |
+
+Se muestran también, sin contarlas entre las seis: visibilidad en 5 s, evidencia completa, rechazos por motivo y ocupación de la cola del Collector.
+
+### 3.3 Contratos iniciales
+
+Borrador para que los agentes trabajen en paralelo. Lo cierra T00 y lo mantiene T20. Semántica en T2 §4.3 y §5.4.
+
+- V1, C1 a C2: `POST /v1/validaciones` con `{ idOrigen, lectorId, puntoId, codigo, proposito, zonaSolicitada, instanteLector }`; responde `{ decision: aceptado | rechazado | sin-respuesta, motivo, idOrigen, versionPermisos }`. Mismo `idOrigen` y contenido devuelve la decisión original; distinto contenido, error de integridad (PB-04).
+- H1, C1 a C2: `POST /v1/heartbeats` y `POST /v1/diario/lotes`.
+- E1, C2 a C4: `POST /v1/lotes-evidencia` con hasta 100 registros (`loteEvidenciaMax`), idempotente por `idOrigen` y por identificador de lote.
+- P2, C4 a C2: `GET /v1/permisos?desdeVersion=n`, solicitado por el recinto, con firma del contenido.
+- P1, boletería simulada a C3: `GET /versiones` y `GET /versiones/{n}` en JSON; C3 traduce al modelo canónico dentro de M1.
+- O2, panel a C4: `GET /api/eventos/actual/estado`, `GET /api/puntos`, `GET /api/puntos/{id}`, `GET /api/incidentes`, `GET /api/incidentes/{id}`, `POST /api/incidentes/{id}/acciones`, `POST /api/cierre/preliminar`, `POST /api/cierre/definitivo`, `GET /api/stream` (SSE).
+
+## 4. Asignación por complejidad
+
+| Complejidad | Quién la ejecuta | Criterio |
+|---|---|---|
+| Alta (A) | Agente orquestador | Decisiones de arquitectura, lógica que sostiene invariantes de los ADR (consumo único, idempotencia, outbox), diseño y análisis de fallos, coherencia con el taller 2. |
+| Media (M) | Subagentes GPT-6 Sol (`gpt-6-sol`) | Componentes completos con contrato definido: servicios, interfaz, observabilidad, manifiestos, herramienta de caos, esquema de datos. |
+| Baja (B) | Subagentes GPT-6 Luna (`gpt-6-luna`) | Tareas acotadas y verificables: andamiaje, Dockerfiles, datos semilla, pruebas con especificación cerrada, alertas, capturas, README, revisión de estilo. |
+
+Reglas para delegar:
+
+1. Cada subagente recibe el ID de la tarea, las secciones de [taller1.md](taller1.md) o [taller2.md](taller2.md) que debe leer, el contrato de la §3.3 que le aplica y el criterio de aceptación.
+2. El subagente no edita este archivo. Devuelve archivos cambiados, comandos de verificación con su salida y desviaciones respecto del contrato.
+3. El orquestador revisa las tareas M antes de marcarlas como hechas; las B se aceptan si pasa su verificación.
+4. Toda desviación de un ADR o de T2 §5 se anota en la §7 y se resuelve en T60.
+
+## 5. Plan de tareas y seguimiento
+
+Estados: `pendiente`, `en curso`, `hecho`, `bloqueado`. Horas estimadas de reloj con agentes en paralelo.
+
+### Fase 0. Preparación (0,5 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T00 | Confirmar D1 a D12 (§3 y §8); cerrar contratos de la §3.3; redactar ADR-014 (runtime y lenguaje) y ADR-015 (laboratorio local en Minikube, en lugar de Docker Compose) | A | Orquestador | Respuestas del equipo | pendiente | ADR en `docs/decisions/` con el formato de los ADR del taller 2 (estado, fecha, contexto, decisión, alternativas, consecuencias, criterio para aceptar). |
+| T01 | Instalar Docker Desktop con WSL 2, Minikube y kubectl; perfil con al menos 8 GB de RAM y 4 CPU | B | Equipo o Luna | — | pendiente | `minikube start` y `kubectl get nodes` funcionan en la máquina de demo. |
+| T02 | Andamiaje de código en `src/` y `tests/`: npm workspaces, TypeScript, Vitest, ESLint | B | Luna | T00 | pendiente | `npm install`, `npm run build` y `npm test` pasan en vacío. |
+
+### Fase 1. Dominio y datos (2 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T10 | Dominio del primer ingreso: `Boleta`, `IntentoDeValidacion`, `ContextoIngreso`, `EvaluacionIngreso`, `MotorPrimerIngreso`, `ValidarPrimerIngreso`, puerto `UnidadValidacion` y puertos de permisos, outbox y telemetría. Motivos y estados iguales a los del prototipo (T2 §7.3). Clave de consumo de T2 §6.2 | A | Orquestador | T02 | pendiente | Nombres coinciden con T2 §2 y §6; el dominio no depende de infraestructura. |
+| T11 | Pruebas unitarias PU-03, PU-04, PU-05 y PB-01 a PB-14, PB-21 sobre el motor con dobles de prueba; reporte de cobertura | M | Sol | T10 | pendiente | `npm test` en verde; `docs/evidence/unit-tests/` con la tabla PU/PB → prueba y el reporte. |
+| T12 | Liquidación y plazos con `decimal.js`: PU-07, PU-08, PB-15 a PB-20, PB-22 a PB-24 | B | Luna | T02 | pendiente | PB-18 da exactamente 500,40 y PB-20 500,20; todo el grupo en verde. |
+| T13 | Migraciones D1 y D2: `consumo` con UNIQUE sobre la clave de consumo, `intento` con UNIQUE `id_origen`, bitácora de solo adición con trigger que bloquea UPDATE y DELETE, `outbox`, lotes recibidos idempotentes, proyección del panel, incidentes y acciones, conciliación, liquidación; esquemas por módulo; RLS por cliente y evento en D2 solo si se confirma (recomendación 5 de la §8) | M | Sol, revisa Orquestador | T10 | pendiente | Migraciones aplican en limpio; prueba de integración demuestra que UPDATE a la bitácora falla y que un segundo consumo de la misma boleta no entra. |
+| T14 | Datos semilla con los nombres del prototipo (P §6): 1 cliente, 1 recinto, 3 eventos, 5 zonas, 20 puntos, 20 lectores, 16.240 boletas, con anuladas, boletas de prueba para los casos del lector (P §5.5) y los casos de CA3 | B | Luna | T13 | pendiente | Script de siembra carga todo; conteos verificados por SQL coinciden con P §6. |
+
+### Fase 2. Servicios y despliegue local (3 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T20 | C2 en `src/local-coordinator/`: V1 y H1; una transacción por intento con intento, decisión, consumo, bitácora y outbox (ADR-003, 004, 011); reintento idempotente (BD-03); "sin confirmación" si D1 falla (BD-01) o vence el plazo de 500 ms | A | Orquestador | T10, T13 | pendiente | Pruebas de integración contra PostgreSQL real: aceptación, duplicado, reintento y D1 caído. |
+| T21 | E1: despachador del outbox en lotes de hasta 100 con backoff y prioridad inferior a V1; recepción idempotente en M2 | A | Orquestador | T20, T22 | pendiente | Con el enlace cortado el outbox crece; al volver se vacía sin duplicados en D2. |
+| T22 | C4 en `src/central-core/`: M1 (versiones de permisos para P2 y C3), M2 (ingesta de lotes), M3 (conciliación preliminar y definitiva por decisiones únicas frente al contador independiente), M4 (liquidación con T12), API O2 con SSE (P §12) y reglas de incidentes (P §8) | M | Sol | T12, T13 | pendiente | Endpoints de la §3.3 responden con datos de D2; un lector sin heartbeat más de 60 s genera un incidente "Puerta sin comunicación". |
+| T23 | Boletería simulada en `src/ticketing-sim/` y adaptador C3 dentro de M1: versiones de permisos y anulaciones en JSON, traducción al modelo canónico (ADR-007), anulación en vivo por comando | M | Sol | T22 | pendiente | Una anulación hecha en la boletería llega a C2 y la boleta se rechaza con "Boleta anulada por la boletería"; se documenta la ventana en que aún no ha llegado (RN-06). |
+| T24 | `src/reader-client/` en modo emulado: lectores con credencial, diario durable, `idOrigen` estable, reintentos, heartbeat; perfiles nominal, pico y estrés; mezcla de casos con resultado esperado; modo "pares concurrentes"; CLI para arrancar, cambiar perfil y detener | M | Sol | Contratos V1 y H1 | pendiente | Sostiene 5,5 TPS con ráfagas de 16,5 y llega a 49,5 TPS en pico; exporta el contador independiente por evento. |
+| T25 | mTLS C1-C2 con CA de laboratorio, credencial por lector y revocación (ADR-008, PB-14) | M | Sol | T20, T24 | pendiente | Un lector revocado es rechazado por confianza del dispositivo y no consume. Recortable. |
+| T26 | Manifiestos en `deploy/kubernetes/`: namespaces, Deployments de C2 y C4, StatefulSets de D1 y D2, MinIO, Toxiproxy, NetworkPolicies, probes, límites de recursos; scripts `deploy/scripts/` (`up`, `down`, `seed`, `load`, `reset`) y `deploy/minikube/` | M | Sol | T02 | pendiente | Despliegue desde cero con un comando; una prueba demuestra que C2 no alcanza D2 directamente. |
+| T27 | Dockerfiles multi-stage por unidad desplegable y carga de imágenes en Minikube | B | Luna | T02 | pendiente | Imágenes construyen y los pods arrancan. |
+
+### Fase 3. Interfaz (2 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T30 | Portar el prototipo (T2 §7, detalle en P §1 a §11, criterios de aceptación en P §14 a §17 y estilo en DESIGN.md) a `src/central-core/web/`, servido por C4; sustituir `simulador.js` por `api.js` (REST y SSE) que llena el mismo `store`; quitar guion, saltos de reloj y personal simulado; mostrar la antigüedad de los datos cuando C4 no recibe del recinto; ajustar la tarjeta del coordinador a `nodo-unico` | M | Sol | T22 | pendiente | Las seis rutas cargan con datos reales; ninguna vista usa el simulador; con F1 activo el resumen muestra antigüedad y no valores congelados. |
+| T31 | Vista `#/lector` validando contra C2 con credencial de lector web; acciones de incidentes persistidas en D2 con tiempos para KR1.3; cierre preliminar y liquidación desde `#/cierre` | M | Sol | T30, T20 | pendiente | Una validación manual aparece en `#/puertas` y en Grafana; una acción sobre un incidente queda registrada. |
+| T32 | Comparación visual prototipo frente a panel real, pantalla por pantalla | B | Luna | T30 | pendiente | Lista de diferencias con capturas en `docs/evidence/ui/`. |
+
+### Fase 4. Observabilidad (1,5 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T40 | Instrumentación OpenTelemetry en C1, C2, C4 y C5 con los spans de T2 §8.3 y W3C Trace Context; logs JSON con las reglas de T2 §8.4; Collector en `observability/collector/` con `file_storage` y reintentos; backend en `nexo-obs` y exportación opcional a Grafana Cloud Free | M | Sol | T20, T22, T24 | pendiente | Una traza muestra lector → C2 → D1 y, tras sincronizar, un Span Link a C4; detener el Collector no bloquea validaciones. |
+| T41 | Métricas N1 a N3 y T1 a T3; dashboards como código en `observability/dashboards/` (operación del evento y sincronización y resiliencia, T2 §8.5) | M | Sol | T40 | pendiente | Las seis métricas cambian en vivo con la carga emulada. |
+| T42 | Alertas en `observability/alerts/`: A1, A6, A8, A11, A13 y A14 de T2 §8.6, con punto de contacto por webhook local | B | Luna | T41 | pendiente | Cada alerta se dispara al menos una vez durante F1 a F4 y queda capturada. |
+| T43 | Justificación de las seis métricas: decisión que soportan, KR o CA, SLO y ADR | A | Orquestador | T41 | pendiente | Tabla lista para el informe en `docs/observability/`. |
+
+### Fase 5. Fallos (2 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T50 | `nexo-chaos` en `chaos/scripts/`: `validate`, `plan`, `run --confirm`, `status`, `abort`, `restore` sobre YAML (T2 §11.2); acciones Toxiproxy, `kubectl scale`, NetworkPolicy, `stress-ng` y límites de CPU; reversión por temporizador; registro JSON de cada ejecución | M | Sol | T26 | pendiente | Una ejecución de prueba deja su registro en `chaos/evidence/`. |
+| T51 | F1 RED-01/EXP 01: YAML en `chaos/experiments/red-01-central-connection/`, ejecución y verificación | A | Orquestador | T21, T41, T50 | pendiente | Drenado ≥ 99,5 % en 5 min; cero pérdidas y duplicados según SQL de integridad. |
+| T52 | F2 SER-06/EXP 06 | A | Orquestador | T40, T50 | pendiente | T1 en objetivo durante la caída; cola drena; alerta disparada. |
+| T53 | F3 BD-01 | A | Orquestador | T20, T24, T50 | pendiente | Cero aceptaciones sin D1; integridad al recuperar. |
+| T54 | F4 REC-01 | A | Orquestador | T41, T50 | pendiente | Degradación visible en T1 y alerta; integridad sin cambios. |
+| T55 | Pruebas de integridad EXP 03 y EXP 04 en `tests/resilience/` | M | Sol | T20, T24 | pendiente | Reintentos devuelven la decisión original; 500 consumos, 500 aceptaciones y 500 rechazos. |
+| T56 | Evidencias por experimento: paneles, logs, trazas, registro de `nexo-chaos` y consultas de integridad | B | Luna | T51 a T54 | pendiente | Misma estructura de archivos en cada carpeta de `chaos/evidence/`. |
+| T57 | Análisis y conclusiones de F1 a F4 con la escala de T2 §11.3 | A | Orquestador | T56 | pendiente | Por fallo: hipótesis, perturbación, métricas, recuperación, resultado y aprendizaje, en `docs/fault-experiments/`. |
+
+### Fase 6. Documentación y coherencia (1,5 h)
+
+| ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| T60 | Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento; actualizar el estado de los ADR con PoC ejecutada; configuración de NEXO_04 con runtime e imágenes por digest; registro de recortes | A | Orquestador | T57 | pendiente | Ningún ADR contradice lo desplegado; cada desviación de la §7 tiene resolución. |
+| T61 | Informe del taller 3: aplicación, observabilidad, fallos y patrones (patrón → atributo de calidad → archivo del repo) | M | Sol | T43, T57, T60 | pendiente | Cada afirmación remite a una evidencia del repo. |
+| T62 | Autoevaluación: logros, dificultades y propuestas de evolución | A | Orquestador | T61 | pendiente | Sección incluida en el informe. |
+| T63 | README de ejecución paso a paso y guion del video demo | B | Luna | T60 | pendiente | Un integrante que no trabajó en el código levanta el sistema siguiendo el README. |
+| T64 | Revisión de estilo, referencias y enlaces del informe | B | Luna | T61, T62 | pendiente | Sin referencias rotas ni enlaces huérfanos. |
+
+### Cronograma por bloques
+
+| Bloque | Horas | Alta (Orquestador) | Media (Sol) | Baja (Luna) |
+|---|---|---|---|---|
+| 1 | 0 a 1 | T00 | — | T01, T02 |
+| 2 | 1 a 3 | T10 | T13, T26 | T12, T27, T14 |
+| 3 | 3 a 6 | T20 | T11, T22, T23, T24 | — |
+| 4 | 6 a 8 | T21 | T30, T31, T40, T25 | T32 |
+| 5 | 8 a 10 | T43, T51 a T54 | T41, T50, T55 | T42 |
+| 6 | 10 a 12 | T57, T60, T62 | T61 | T56, T63, T64 |
+
+Orden de recorte si no alcanza el tiempo: T25, exportación a Grafana Cloud, RLS en D2, D3 en MinIO, T32. Cada recorte se anota en la §7 y en el ADR correspondiente.
+
+## 6. Patrones esperados en la implementación
+
+Base para T61: patrones de T2 §4.5 más los que aparecen al implementar. Cada fila se confirma con el archivo donde se ve.
+
+| Patrón | ADR | Atributo de calidad | Dónde debería verse |
+|---|---|---|---|
+| Capas y monolito modular | ADR-001 | Mantenibilidad | `src/central-core/{api,application,domain,infrastructure}` y `modules/` |
+| Puertos y adaptadores | ADR-001, ADR-007 | Mantenibilidad, testabilidad | Dominio sin dependencias de infraestructura; `UnidadValidacion` |
+| Autoridad única con consumo atómico | ADR-002, ADR-003 | Integridad | UNIQUE sobre la clave de consumo en D1 |
+| Receptor idempotente por `idOrigen` | ADR-002, ADR-011 | Confiabilidad | C2 y recepción de lotes en M2 |
+| Bitácora de solo adición | ADR-004 | Auditabilidad | Trigger en D1 y D2 |
+| Outbox transaccional y store-and-forward | ADR-011 | Disponibilidad ante particiones | Tabla `outbox` y despachador E1 |
+| Adaptador anticorrupción | ADR-007 | Interoperabilidad | C3 dentro de M1 |
+| Reintento con backoff y prioridad de V1 | ADR-011 | Rendimiento de la validación | Despachador E1 |
+| Heartbeat y health check | KR1.2 | Observabilidad, recuperabilidad | H1, probes de Kubernetes, reglas de incidentes |
+| Proyección de lectura para el panel | SER-05 | Rendimiento, disponibilidad | Proyección en D2 y API O2 |
+| Collector como agente de telemetría | ADR-013 | Observabilidad desacoplada | `observability/collector/` |
+
+## 7. Desviaciones y decisiones durante la ejecución
+
+| Fecha | Tarea | Desviación o decisión | ADR o entregable afectado | Resolución |
+|---|---|---|---|---|
+| 25-09-2026 | — | El laboratorio de fallos usa Minikube, no Docker Compose como proponía el entregable 11. | Entregable 11 (T2 §11.2), nuevo ADR-015 | Pendiente de T00. |
+| 25-09-2026 | — | Los cuatro fallos del repo (RED-01, SER-06, BD-01, REC-01) reemplazan la propuesta anterior del plan (RED-01, SER-01, BD-02, REC-01); EXP 03 y EXP 04 pasan a pruebas de integridad. | Entregable 11 | Adoptado en la §3.1. |
+| 25-09-2026 | — | El prototipo muestra réplica y reingresos; la configuración fija `nodo-unico` y el caso de uso excluye reingreso (T2 §7.5). | Entregables 04, 05-06 y 07 | Recomendado en D9 y D10 (§8.1); aplicar en T30 y documentar en T60. |
+| 25-09-2026 | — | Revisión del repositorio real: 23 gaps entre el repo y este plan (namespaces, motor de D1, métricas, cola del Collector, estructura de C4, contratos, contexto para agentes, rama sin fusionar) y plan de sesiones paralelas por olas. | [gaps.md](gaps.md) | Pendiente de confirmar G01 a G04 y G07; aplicar en T00 y T02 (ola 0). |
+
+## 8. Preguntas abiertas y recomendaciones
+
+Recomendación del orquestador para cada pregunta (25-09-2026). Siguen pendientes de confirmación del equipo en T00; mientras tanto, el plan usa la recomendación.
+
+| N.º | Pregunta | Recomendación | Motivo |
+|---|---|---|---|
+| 1 | Lenguaje (D2) | TypeScript sobre Node 22. | Reutiliza reglas, motivos y umbrales de `dominio.js` (P §7); un solo lenguaje para panel y servicios; Node ya instalado. El consumo único depende de PostgreSQL, no del lenguaje. |
+| 2 | Telemetría (D4) | Backend en el clúster (`grafana/otel-lgtm`) como principal; exportación a Grafana Cloud Free opcional. | F2 (SER-06) apaga el Collector y la demo no debe depender de internet ni de un token. Registrar en ADR-013 como variante de laboratorio de la decisión del entregable 08. |
+| 3 | Fallos (§3.1) | Confirmar RED-01, SER-06, BD-01 y REC-01. | Cubren las cuatro dimensiones del catálogo y se inyectan con un comando en Minikube. F1 es el más demostrativo. En F4 preferir bajar `resources.limits.cpu` del pod de C2 a `stress-ng`: es reversible y deja evidencia en el manifiesto. |
+| 4 | Carga | Carga en vivo por los lectores emulados hacia C2 y, además, scripts SQL "de escenario" que dejan D2 en un estado dado (preparación, ingreso a mitad, cierre con diferencias). | Solo la carga en vivo produce latencia, heartbeats y sincronización reales, por eso sobre ella se miden métricas y fallos. Los escenarios SQL reemplazan los saltos del panel Demo sin recrear el simulador. Regla: lo sembrado por SQL se marca como sintético y nunca es evidencia de métricas ni de fallos. |
+| 5 | Seguridad (D8) | mTLS C1-C2 con credencial revocable, sí. RLS, no: ADR-009 queda "pendiente de PoC" con la razón escrita. | ADR-008 es PoC bloqueante y la interfaz muestra "Autenticación mutua" y la revocación (PB-14). Con un solo cliente en la semilla, RLS no demuestra nada visible; es el primer recorte. |
+| 6 | Entregables | Informe en LaTeX con la plantilla del taller 2; video en el orden de la rúbrica (aplicación, observabilidad, cuatro fallos, patrones). | Coherencia con los entregables anteriores. Duración del video y fecha de entrega: confirmar con el profesor. |
+| 7 | Máquina de demo | `minikube start --driver=docker --cpus=4 --memory=8192` en un equipo con 16 GB de RAM. | Consumo estimado de 4 a 5 GB entre D1, D2, C2, C4, MinIO, Toxiproxy, Collector, `otel-lgtm` y los lectores emulados. Falta confirmar la RAM de la máquina elegida. |
+
+### 8.1 Decisiones adicionales derivadas del prototipo
+
+Resuelven las diferencias de P §13. Se aplican en T10, T22 y T30.
+
+| ID | Decisión recomendada | Motivo |
+|---|---|---|
+| D9 | Falla del coordinador con `nodo-unico`: se conserva el tipo de incidente; los pasos pasan a "verificar el volumen de D1", "reiniciar el coordinador" y "comprobar que las boletas consumidas se rechazan"; se elimina la acción "Promover". El panel muestra el coordinador como un nodo con su estado y las pausas medidas. | No hay réplica que promover. La comprobación posterior es el criterio de ADR-012. F3 (BD-01) cae en este incidente porque C2 queda sin autoridad. |
+| D10 | No implementar reingresos: política `reingresoPermitido = false`; la segunda lectura se rechaza con "Uso ya registrado"; la tarjeta de políticas lo muestra. Se retiran el motivo de reingreso suspendido y la acción de suspender reingresos; el incidente "Permisos desactualizados" se mantiene con sus otros pasos. | El caso de uso del entregable 05-06 excluye reingresos y la clave de consumo es `PRIMER_INGRESO`. Reduce alcance sin contradecir el prototipo. |
+| D11 | KPI principal "Respuestas en ≤ 300 ms" (meta de T2 §8.2) y en el pie el p95 frente a los 500 ms de CA2. | Concilia el entregable 08 con ADR-002 y con el prototipo (desarrolla D7). |
+| D12 | No crear tipos de incidente nuevos: la taxonomía v1 se mantiene. BD-01 se reporta como "Falla del coordinador". SER-06 no genera incidente para el supervisor; su alerta va por Grafana. | La taxonomía está declarada cerrada antes del piloto (P §8). El panel lee de D2 y no de la telemetría, así que sigue funcionando con el Collector caído, que es lo que F2 quiere demostrar. |
