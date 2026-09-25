@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NEXO · Control de acceso</title>
+  <meta name="description" content="Prototipo de interfaz del piloto de NEXO: control de acceso para estadios.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230B1266'/%3E%3Cpath d='M9 9l14 14M23 9L9 23' stroke='%2338C6F4' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!-- Fuentes e iconos van incluidos: el prototipo abre sin conexión. -->
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <noscript>Este prototipo necesita JavaScript.</noscript>
+
+  <!-- El armazón lo construye app.js: el HTML solo define el orden de carga. -->
+
+  <!-- 1. utilidades e iconos -->
+  <script src="js/util.js"></script>
+  <script src="js/iconos.js"></script>
+
+  <!-- 2. dominio: entidades, reglas y datos semilla -->
+  <script src="js/modelo/dominio.js"></script>
+  <script src="js/modelo/datos.js"></script>
+
+  <!-- 3. estado, simulación (capa de aplicación) y enrutado -->
+  <script src="js/store.js"></script>
+  <script src="js/simulador.js"></script>
+  <script src="js/router.js"></script>
+
+  <!-- 4. presentación -->
+  <script src="js/vistas/comunes.js"></script>
+  <script src="js/vistas/pmu.js"></script>
+  <script src="js/vistas/alertas.js"></script>
+  <script src="js/vistas/incidente.js"></script>
+  <script src="js/vistas/punto.js"></script>
+  <script src="js/vistas/lector.js"></script>
+  <script src="js/vistas/cierre.js"></script>
+  <script src="js/vistas/config.js"></script>
+  <script src="js/vistas/ayuda.js"></script>
+
+  <!-- 5. arranque -->
+  <script src="js/app.js"></script>
+</body>
+</html>
