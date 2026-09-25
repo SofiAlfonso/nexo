@@ -22,7 +22,7 @@ if (!existsSync(cliEntry)) {
 const extraArgs = process.argv.slice(2);
 const args = [cliEntry, "--profile", "nominal", ...extraArgs];
 
-logStep("reader", `iniciando lector emulado (perfil nominal) contra ${env.COORDINATOR_URL ?? `http://localhost:${env.COORDINATOR_PORT ?? "4001"}`} ...`);
+logStep("reader", `iniciando lector emulado (perfil nominal) contra ${env.COORDINATOR_URL ?? `http://localhost:${env.COORDINATOR_PORT ?? "8081"}`} ...`);
 
 const child = spawn("node", args, {
   cwd: repoRoot,
@@ -30,7 +30,7 @@ const child = spawn("node", args, {
   shell: false,
   env: {
     ...env,
-    COORDINATOR_URL: env.COORDINATOR_URL ?? `http://localhost:${env.COORDINATOR_PORT ?? "4001"}`,
+    COORDINATOR_URL: env.COORDINATOR_URL ?? `http://localhost:${env.COORDINATOR_PORT ?? "8081"}`,
   },
 });
 

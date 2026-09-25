@@ -161,11 +161,11 @@ async function main() {
   await runOptionalScript("seed", path.join("deploy", "scripts", "seed-d2.ts"));
 
   spawnService("central", path.join("src", "central-core", "index.ts"), {
-    PORT: env.CENTRAL_PORT ?? "4000",
+    PORT: env.CENTRAL_PORT ?? "8080",
   });
   spawnService("coordinator", path.join("src", "local-coordinator", "index.ts"), {
-    PORT: env.COORDINATOR_PORT ?? "4001",
-    CENTRAL_URL: env.CENTRAL_URL ?? "http://localhost:4000",
+    PORT: env.COORDINATOR_PORT ?? "8081",
+    CENTRAL_URL: env.CENTRAL_URL ?? "http://localhost:8080",
   });
 
   logStep(

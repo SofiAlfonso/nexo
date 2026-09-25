@@ -26,8 +26,8 @@ COPY --from=deps /app/package.json ./package.json
 COPY src/shared ./src/shared
 COPY src/ticketing-sim ./src/ticketing-sim
 
-ENV PORT=4002
-EXPOSE 4002
+ENV PORT=8082
+EXPOSE 8082
 USER nexo
 
 CMD ["node", "src/ticketing-sim/index.ts"]

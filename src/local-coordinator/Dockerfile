@@ -28,8 +28,8 @@ COPY --from=deps /app/package.json ./package.json
 COPY src/shared ./src/shared
 COPY src/local-coordinator ./src/local-coordinator
 
-ENV PORT=4001
-EXPOSE 4001
+ENV PORT=8081
+EXPOSE 8081
 USER nexo
 
 CMD ["node", "src/local-coordinator/index.ts"]

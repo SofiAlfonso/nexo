@@ -48,8 +48,8 @@ C2 con las variables de `deploy/compose/.env.example` (o de tu propio
      si una sesión de la ola 1 (S1-data) todavía no las publicó, lo indica en
      la consola y continúa sin fallar.
    - Arranca `node src/central-core/index.ts` (C4, puerto `CENTRAL_PORT`,
-     por defecto `4000`) y `node src/local-coordinator/index.ts` (C2, puerto
-     `COORDINATOR_PORT`, por defecto `4001`), con la salida de cada uno
+     por defecto `8080`) y `node src/local-coordinator/index.ts` (C2, puerto
+     `COORDINATOR_PORT`, por defecto `8081`), con la salida de cada uno
      prefijada (`[central]`, `[coordinator]`).
 3. `Ctrl+C` detiene C4 y C2 de forma ordenada; D1/D2/`otel-lgtm` siguen
    corriendo. Para pararlos: `npm run dev:down` (o con `-- --volumes` para
@@ -64,7 +64,7 @@ laboratorio, sin secretos reales — ver `AGENTS.md` §8):
 | Variable | Uso |
 |---|---|
 | `CENTRAL_PORT`, `COORDINATOR_PORT`, `TICKETING_PORT` | Puertos HTTP locales de C4, C2 y la boletería simulada. |
-| `CENTRAL_URL` | URL que usan C1 y C2 para hablar con C4 (`http://localhost:4000` en desarrollo). |
+| `CENTRAL_URL` | URL que usan C1 y C2 para hablar con C4 (`http://localhost:8080` en desarrollo). |
 | `SEED_OPERATOR_PASSWORD` | Contraseña de los operadores de laboratorio sembrados en D2 (ADR-016). |
 | `SESSION_COOKIE_SECRET` | Clave de firma de la cookie `nexo_sesion` de C4 en desarrollo. |
 

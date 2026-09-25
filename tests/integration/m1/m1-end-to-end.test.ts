@@ -28,9 +28,9 @@ import {
   ListaIntentos,
 } from '@nexo/shared/contracts';
 
-const CENTRAL_URL = process.env.CENTRAL_URL ?? `http://localhost:${process.env.CENTRAL_PORT ?? '4000'}`;
+const CENTRAL_URL = process.env.CENTRAL_URL ?? `http://localhost:${process.env.CENTRAL_PORT ?? '8080'}`;
 const COORDINATOR_URL =
-  process.env.COORDINATOR_URL ?? `http://localhost:${process.env.COORDINATOR_PORT ?? '4001'}`;
+  process.env.COORDINATOR_URL ?? `http://localhost:${process.env.COORDINATOR_PORT ?? '8081'}`;
 const EVENTO_ID = process.env.NEXO_EVENTO_ID ?? 'EVT-2026-02';
 const OPERADOR_USUARIO = process.env.SEED_OPERATOR_USER ?? 'supervisor';
 const OPERADOR_CONTRASENA = process.env.SEED_OPERATOR_PASSWORD ?? 'nexo_operador_dev';

@@ -26,8 +26,8 @@ COPY --from=deps /app/package.json ./package.json
 COPY src/shared ./src/shared
 COPY src/central-core ./src/central-core
 
-ENV PORT=4000
-EXPOSE 4000
+ENV PORT=8080
+EXPOSE 8080
 USER nexo
 
 CMD ["node", "src/central-core/index.ts"]
