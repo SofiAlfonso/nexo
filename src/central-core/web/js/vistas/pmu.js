@@ -160,8 +160,8 @@ NEXO.vistas.pmu = (function () {
         c.tip('Aceptaciones y rechazos por segundo en el último minuto, sumando todas las puertas.', 'Capacidad objetivo: 37,5 / s con tres eventos'),
         fmt.decimal(m.dps, 1), fmt.entero(e.conteo.decisiones) + ' decisiones en total',
         '<div class="kpi__spark">' + c.sparkline(e.serie.slice(-20).map(function (x) { return x.decisiones; }), 44) + '</div>') +
-      kpi('timer', enPlazo >= U.LATENCIA_MIN_PCT ? 'ok' : 'no', 'Respuestas en ≤ 500 ms',
-        c.tip('De todas las solicitudes de los lectores, cuántas recibieron respuesta en medio segundo. <b>Las que no recibieron respuesta también cuentan</b> como fuera de plazo.', 'CA2 · meta 95 % · ADR-013'),
+      kpi('timer', enPlazo >= U.LATENCIA_MIN_PCT ? 'ok' : 'no', 'Respuestas en ≤ 300 ms',
+        c.tip('De todas las solicitudes de los lectores, cuántas recibieron respuesta en 300 milisegundos. <b>Las que no recibieron respuesta también cuentan</b> como fuera de plazo.', 'CA2 · meta 95 % · ADR-013 · D11'),
         m.solicitudes ? fmt.pct(enPlazo) : '—', 'p95 ' + (m.p95Ms ? fmt.entero(m.p95Ms) + ' ms' : '—') + ' · ' + fmt.entero(sinResp) + ' sin respuesta',
         c.meta(enPlazo >= U.LATENCIA_MIN_PCT, m.solicitudes > 0)) +
       kpi('eye', vis >= U.VISIBILIDAD_MIN_PCT ? 'ok' : 'no', 'Visibles en ≤ 5 s',
@@ -193,7 +193,10 @@ NEXO.vistas.pmu = (function () {
     var bolTono = !e.integracion.enLinea ? 'no' : 'ok';
     var edadTono = edad > d.Umbral.ANTIGUEDAD_PERMISOS_S ? 'no-t' : edad > 120 ? 'warn-t' : '';
 
-    var coEstado = co.estado === EC.OPERANDO ? 'Decide cada intento' : co.estado === EC.PROTEGIENDO ? 'Restableciendo réplica síncrona' : 'Sin autoridad: no se acepta';
+    var coEstado = co.estado === EC.OPERANDO ? 'Decide cada intento' : co.estado === EC.PROTEGIENDO ? 'Restableciendo autoridad' : 'Sin autoridad: no se acepta';
+    // SER-05: antigüedad del último reporte del coordinador (nodo único, D9).
+    var coEdad = co.ultimoReporteS === null ? null : Math.max(0, e.ahoraS - co.ultimoReporteS);
+    var coEdadTono = coEdad === null ? 'no-t' : coEdad >= d.Umbral.SIN_COMUNICACION_S ? 'no-t' : coEdad >= d.Umbral.DETECCION_S ? 'warn-t' : '';
 
     return '<div class="arch">' +
       nodo(lectTono, 'smartphone', 'Lectores', '20 puertas',
@@ -203,19 +206,19 @@ NEXO.vistas.pmu = (function () {
         '<li><b class="num">' + fmt.entero(diario) + '</b> en diarios</li>') +
       enlace(co.estado === EC.OPERANDO && ev.estado !== 'preparacion' ? 'on' : co.estado === EC.OPERANDO ? 'idle' : 'off', 'Consulta síncrona', '< 500 ms') +
       nodo(coTono, 'server', 'Coordinador local', coEstado,
-        '<li>Primario <b>' + esc(co.primario) + '</b></li>' +
-        '<li>Réplica <b>' + esc(co.replica) + '</b></li>' +
-        (co.excluidos.length ? '<li class="dim">Excluido ' + esc(co.excluidos.join(', ')) + '</li>' : '<li class="dim">Repuesto ' + esc(co.repuesto) + '</li>')) +
+        '<li>Nodo único <b class="mono">' + esc(co.id) + '</b></li>' +
+        '<li class="dim">' + esc(co.topologia) + '</li>' +
+        '<li class="' + coEdadTono + '">' + (coEdad === null ? 'Sin reportes todavía' : 'Último reporte ' + fmt.hace(coEdad)) + '</li>') +
       enlace(e.nube.enLinea ? 'on' : 'off', 'Evidencia y cambios', 'asíncrono') +
       nodo(nubeTono, e.nube.enLinea ? 'cloud' : 'cloud-off', 'Nube NEXO', e.nube.enLinea ? 'Panel central y conciliación' : 'Sin enlace con el estadio',
         '<li>Buzón <b class="num">' + fmt.entero(e.nube.buzon) + '</b></li>' +
         '<li>Recibidos <b class="num">' + fmt.entero(e.nube.enviados) + '</b></li>' +
         (e.nube.caidaDesdeS !== null ? '<li class="no-t">Corte hace ' + fmt.duracion(e.ahoraS - e.nube.caidaDesdeS) + '</li>' : '<li class="dim">Auditoría 90 días</li>')) +
       enlace(e.integracion.enLinea ? 'on' : 'off', 'Permisos y anulaciones', 'versionados') +
-      nodo(bolTono, 'ticket', 'Boletería', NEXO.datos.BOLETERIA.nombre,
+      nodo(bolTono, 'ticket', 'Boletería', esc(ev.boleteria),
         '<li>Permisos <b>v' + ev.versionPermisos + '</b></li>' +
         '<li class="' + edadTono + '">Último cambio ' + fmt.hace(edad) + '</li>' +
-        '<li class="dim">' + (e.integracion.enTransito.length ? e.integracion.enTransito.length + (e.integracion.enTransito.length === 1 ? ' cambio en camino' : ' cambios en camino') : 'Adaptador v2.3') + '</li>') +
+        '<li class="dim">' + (e.integracion.enTransito.length ? e.integracion.enTransito.length + (e.integracion.enTransito.length === 1 ? ' cambio en camino' : ' cambios en camino') : 'Sin cambios pendientes') + '</li>') +
       '</div>';
   }
 
@@ -244,29 +247,39 @@ NEXO.vistas.pmu = (function () {
 
   function puertas(e) {
     var max = Math.max.apply(null, e.puntos.map(function (p) { return p.decisionesMinuto; }).concat([10]));
+    var zonas = zonasDeLosPuntos(e);
     return e.puntos.map(function (p) {
       var v = d.estadoVisible(p, e.evento, e.coordinador, e.ahoraS);
       var x = d.ESTADO_PUNTO[v];
-      var zona = NEXO.datos.ZONAS.filter(function (z) { return z.nombre === p.zona; })[0];
       var extra = v === EP.SIN_COMUNICACION ? 'Sin reporte hace ' + fmt.duracion(e.ahoraS - p.ultimaComunicacionS)
         : v === EP.AVERIADO ? 'Fuera hace ' + fmt.duracion(e.ahoraS - p.averiadoDesdeS)
         : p.pendientesDiario ? fmt.entero(p.pendientesDiario) + ' por sincronizar'
         : fmt.entero(p.decisionesMinuto) + ' / min';
       return '<a class="gate gate--' + x.tono + '" href="#/puertas/' + p.id + '" title="' + esc(p.nombre + ' · ' + x.texto) + '">' +
         '<div class="gate__top"><b>' + p.id + '</b><i class="dot dot--' + x.tono + (v !== EP.EN_LINEA ? ' dot--pulse' : '') + '"></i></div>' +
-        '<div class="gate__name"><i class="zdot" style="background:var(--' + zona.color + ')"></i>' + esc(p.nombre.replace('Puerta ', '')) + '</div>' +
+        '<div class="gate__name"><i class="zdot" style="background:var(--' + c.colorZona(p.zona, zonas) + ')"></i>' + esc(p.nombre.replace('Puerta ', '')) + '</div>' +
         '<div class="bar bar--' + (v === EP.EN_LINEA ? 'ok' : x.tono) + '"><span style="width:' + (v === EP.EN_LINEA ? p.decisionesMinuto / max * 100 : 100).toFixed(0) + '%"></span></div>' +
         '<div class="gate__foot">' + esc(extra) + '</div></a>';
     }).join('');
   }
 
+  function zonasDeLosPuntos(e) {
+    var set = {};
+    e.puntos.forEach(function (p) { if (p.zona) set[p.zona] = true; });
+    return Object.keys(set).sort();
+  }
+
   function zonas(e) {
-    return NEXO.datos.ZONAS.map(function (z) {
-      var n = e.admisionesPorZona[z.nombre], pct = n / z.estimadas * 100;
-      return '<div class="zrow"><div class="zrow__top"><span><i class="zdot" style="background:var(--' + z.color + ')"></i>' + esc(z.nombre) + '</span>' +
-        '<span class="num"><b>' + fmt.entero(n) + '</b> <span class="dim">/ ' + fmt.entero(z.estimadas) + '</span></span></div>' +
-        '<div class="bar"><span style="width:' + u.limitar(pct, 0, 100).toFixed(1) + '%;background:var(--' + z.color + ')"></span></div></div>';
-    }).join('') + '<p class="dim" style="font-size:12px;margin-top:12px">Admisiones frente a lo estimado. No indican ocupación del recinto.</p>';
+    var lista = zonasDeLosPuntos(e);
+    var admisiones = e.admisionesPorZona || {};
+    var max = Math.max.apply(null, lista.map(function (z) { return admisiones[z] || 0; }).concat([1]));
+    if (!lista.length) return '<p class="dim">Sin puertas cargadas todavía.</p>';
+    return lista.map(function (z) {
+      var n = admisiones[z] || 0, pct = n / max * 100;
+      return '<div class="zrow"><div class="zrow__top"><span><i class="zdot" style="background:var(--' + c.colorZona(z, lista) + ')"></i>' + esc(z) + '</span>' +
+        '<span class="num"><b>' + fmt.entero(n) + '</b></span></div>' +
+        '<div class="bar"><span style="width:' + u.limitar(pct, 0, 100).toFixed(1) + '%;background:var(--' + c.colorZona(z, lista) + ')"></span></div></div>';
+    }).join('') + '<p class="dim" style="font-size:12px;margin-top:12px">Primeras aceptaciones correctas por zona. No indican ocupación del recinto.</p>';
   }
 
   // ---------- panel lateral ----------

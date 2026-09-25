@@ -45,6 +45,13 @@ NEXO.vistas.comunes = (function () {
 
   var ROLES = [d.Rol.SUPERVISOR, d.Rol.LIDER_TECNICO, d.Rol.LOGISTICA, d.Rol.CIERRE, d.Rol.FINANZAS];
 
+  /** Paleta fija de zonas (el contrato no define un catálogo ni colores por zona). */
+  var PALETA_ZONA = ['z1', 'z2', 'z3', 'z4', 'z5'];
+  function colorZona(nombre, todas) {
+    var i = (todas || []).indexOf(nombre);
+    return PALETA_ZONA[(i < 0 ? 0 : i) % PALETA_ZONA.length];
+  }
+
   /** Avatar de un rol del servicio (nunca de un asistente). */
   function avatar(autor, grande) {
     var limpio = String(autor || '').replace(' (simulado)', '');
@@ -175,7 +182,7 @@ NEXO.vistas.comunes = (function () {
 
   return {
     cabecera: cabecera, tip: tip, badge: badge, estadoPunto: estadoPunto, decision: decision,
-    avatar: avatar, ROLES: ROLES, tipoInc: tipoInc, estadoInc: estadoInc, abierto: abierto,
+    avatar: avatar, ROLES: ROLES, colorZona: colorZona, tipoInc: tipoInc, estadoInc: estadoInc, abierto: abierto,
     slaActuacion: slaActuacion, slaRecuperacion: slaRecuperacion,
     sparkline: sparkline, anillo: anillo, barra: barra, meta: meta, vacio: vacio, delegar: delegar
   };

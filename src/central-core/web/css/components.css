@@ -327,6 +327,19 @@
 }
 .modal__close { position: absolute; top: 14px; right: 14px; }
 
+/* ---------- acceso (ADR-016) ---------- */
+
+.login-box { width: min(360px, 100%); padding: 32px 28px 28px; text-align: center; }
+.login-box__marca {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0 auto 6px; font-weight: 800; font-size: 22px; letter-spacing: .01em; color: var(--ink);
+}
+.login-box__marca span { color: var(--accent); }
+.login-box form { margin-top: 20px; text-align: left; }
+.login-box .field + .field { margin-top: 12px; }
+.login-box .notice { margin-top: 14px; text-align: left; }
+.login-box button[type="submit"] { margin-top: 20px; }
+
 /* ---------- mini gráfico ---------- */
 
 .spark { display: block; width: 100%; height: 40px; }

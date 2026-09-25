@@ -11,7 +11,7 @@ NEXO.vistas.cierre = (function () {
   'use strict';
 
   var u = NEXO.util, esc = u.esc, ico = u.icono, fmt = u.fmt;
-  var d = NEXO.dominio, S = function () { return NEXO.simulador; };
+  var d = NEXO.dominio, S = function () { return NEXO.api; };
   var c;
 
   function montar(cont) {
@@ -55,7 +55,6 @@ NEXO.vistas.cierre = (function () {
     var s = u.ranuras(raiz);
 
     c.delegar(raiz, {
-      adelantar: function () { S().saltarA(NEXO.datos.CIERRE_S + 90); },
       preliminar: function () { S().entregarPreliminar(); },
       conciliar: function () { S().declararConciliado(); },
       resolver: function (arg) { var p = arg.split('|'); S().resolverDiferencia(p[0], p[1]); },
@@ -65,8 +64,7 @@ NEXO.vistas.cierre = (function () {
 
     return {
       actualizar: function (e) {
-        var cerrado = e.evento.estado === 'cerrado';
-        u.ranura(s.acc, cerrado ? '' : '<button type="button" class="btn btn--primary" data-accion="adelantar">' + ico('fast-forward', 16) + 'Adelantar la demo al cierre</button>');
+        u.ranura(s.acc, '');
         u.ranura(s.pasos, pasos(e));
         u.ranura(s.aviso, aviso(e));
         var abiertas = e.conciliacion.diferencias.filter(function (x) { return x.estado === 'abierta'; }).length;
@@ -182,8 +180,8 @@ NEXO.vistas.cierre = (function () {
       }).join('') +
       '<div><span>de los rechazos: otra zona · anuladas · desconocidos · uso repetido</span><b class="nowrap">' +
         [k.zonaIncorrecta, k.anuladas, k.desconocidos, k.usoRegistrado + k.concurrentes].map(fmt.entero).join(' · ') + '</b></div>' +
-      '</div><p class="dim" style="font-size:12px;margin-top:8px">La boletería habilitó ' + fmt.entero(e.boletas.total) +
-      ' boletas. Esa cifra no se suma con las de arriba ni indica cuántas personas entraron.</p>';
+      '</div><p class="dim" style="font-size:12px;margin-top:8px">El evento estimó ' + fmt.entero(e.evento.admisionesEstimadas) +
+      ' admisiones. Esa cifra no se suma con las de arriba ni indica cuántas personas entraron.</p>';
   }
 
   // ---------- condiciones, liquidación y contrato ----------
@@ -238,18 +236,14 @@ NEXO.vistas.cierre = (function () {
   }
 
   function contrato(e) {
-    var K = NEXO.datos.CONTRATO, C = NEXO.datos.CLIENTE;
     var L = S().liquidacion(e);
-    return '<dl class="kv"><dt>Cliente</dt><dd>' + esc(C.razonSocial) + '</dd><dt>Contrato</dt><dd class="mono">' + K.id + '</dd>' +
-      '<dt>Acordado</dt><dd>' + esc(K.fechaAcuerdo) + '</dd><dt>Origen</dt><dd>' + esc(K.origen) + '</dd></dl>' +
-      '<div class="evlist">' + K.eventos.map(function (x) {
-        var estado = x.actual ? (e.conciliacion.estado === 'conciliado' ? 'Conciliado' : e.evento.estado === 'cerrado' ? 'En cierre' : 'En curso') : x.estado;
-        var tono = estado === 'Liquidado' || estado === 'Conciliado' ? 'ok' : estado === 'Programado' ? 'mute' : 'info';
-        var monto = x.actual ? fmt.usd(L.importe) : x.modalidad === 'Gratuito' ? 'Sin tarifa · costos ≤ USD 600' : fmt.usd(x.cobrado);
-        return '<div class="ev' + (x.actual ? ' ev--now' : '') + '"><div><b>' + esc(x.nombre) + '</b><small>' + esc(x.fecha) + ' · ' + esc(x.modalidad) + '</small></div>' +
-          '<div class="right">' + c.badge(estado, tono, 'badge--sm') + '<small>' + esc(monto) + '</small></div></div>';
-      }).join('') + '</div>' +
-      '<p class="dim" style="font-size:12px;margin-top:10px">' + ico('repeat', 12) + ' Recompra: ' + esc(K.recompra) + '.</p>';
+    var estado = e.conciliacion.estado === 'conciliado' ? 'Conciliado' : e.evento.estado === 'cerrado' ? 'En cierre' : 'En curso';
+    var tono = estado === 'Conciliado' ? 'ok' : 'info';
+    return '<dl class="kv"><dt>Evento</dt><dd>' + esc(e.evento.nombre) + '</dd><dt>Recinto</dt><dd>' + esc(e.evento.recinto) + '</dd>' +
+      '<dt>Boletería</dt><dd>' + esc(e.evento.boleteria) + '</dd></dl>' +
+      '<div class="evlist"><div class="ev ev--now"><div><b>' + esc(e.evento.nombreCorto) + '</b><small>' + (e.evento.gratuito ? 'Gratuito' : 'Con tarifa') + '</small></div>' +
+        '<div class="right">' + c.badge(estado, tono, 'badge--sm') + '<small>' + fmt.usd(L.importe) + '</small></div></div></div>' +
+      '<p class="dim" style="font-size:12px;margin-top:10px">El historial de contrato y de eventos anteriores del cliente se conecta después de M1.</p>';
   }
 
   return { id: 'cierre', montar: montar };

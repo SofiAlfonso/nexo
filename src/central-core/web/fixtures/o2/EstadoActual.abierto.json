@@ -1,0 +1,146 @@
+{
+  "ahora": "2026-09-16T17:42:15.000-05:00",
+  "ahoraS": 63735,
+  "evento": {
+    "id": "EVT-2026-02",
+    "nombre": "Fecha 14 · Cordillera vs. Real Pacífico",
+    "nombreCorto": "Fecha 14",
+    "recinto": "Estadio Cordillera",
+    "boleteria": "TaquillaAndina",
+    "aperturaS": 61200,
+    "cierreS": 72900,
+    "admisionesEstimadas": 15000,
+    "gratuito": false,
+    "estado": "abierto",
+    "versionPermisos": 37,
+    "ultimoCambioRecibidoS": 63693,
+    "politicas": {
+      "version": 2,
+      "reingresoPermitido": true,
+      "reingresoTrasMin": 10,
+      "reingresoSuspendido": false
+    }
+  },
+  "coordinador": {
+    "id": "COORD-A",
+    "topologia": "Nodo único",
+    "estado": "operando",
+    "desdeS": 57600,
+    "ultimoReporteS": 63731,
+    "pausas": []
+  },
+  "nube": {
+    "enLinea": true,
+    "caidaDesdeS": null,
+    "buzon": 5,
+    "enviados": 4210,
+    "buzonEdadMaxS": 1.2
+  },
+  "integracion": {
+    "enLinea": true,
+    "enTransito": [],
+    "pendientesRevision": 0
+  },
+  "conteo": {
+    "intentos": 4300,
+    "decisiones": 4296,
+    "aceptados": 4180,
+    "admisiones": 4102,
+    "reingresos": 78,
+    "rechazados": 116,
+    "desconocidos": 21,
+    "zonaIncorrecta": 60,
+    "anuladas": 9,
+    "concurrentes": 1,
+    "usoRegistrado": 25,
+    "sinRespuesta": 4,
+    "camposCompletos": 4296
+  },
+  "admisionesPorZona": {
+    "Norte": 1260,
+    "Sur": 850,
+    "Oriental": 1040,
+    "Occidental": 830,
+    "Palcos": 122
+  },
+  "serie": [
+    {
+      "minuto": 1060,
+      "decisiones": 690
+    },
+    {
+      "minuto": 1061,
+      "decisiones": 712
+    }
+  ],
+  "metricas": {
+    "dps": 11.8,
+    "p95Ms": 142,
+    "solicitudes": 4300,
+    "enPlazo": 4288,
+    "visiblesTotal": 4210,
+    "visiblesEnPlazo": 4190,
+    "duranteCorte": 0,
+    "sincronizaciones": []
+  },
+  "conciliacion": {
+    "estado": "sin-iniciar",
+    "preliminarEnS": null,
+    "definitivoEnS": null,
+    "diferencias": [],
+    "saldoCobrado": false,
+    "condiciones": [
+      {
+        "id": "ventana",
+        "texto": "Ventana de ingreso cerrada",
+        "ok": false
+      },
+      {
+        "id": "diarios",
+        "texto": "Diarios de los 20 lectores sincronizados",
+        "ok": false
+      }
+    ]
+  },
+  "preparacion": {
+    "confirmada": true,
+    "controles": [
+      {
+        "id": "permisos",
+        "titulo": "Boletas y reglas verificadas",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      },
+      {
+        "id": "contingencia",
+        "titulo": "Conectividad y contingencia acordadas",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      },
+      {
+        "id": "reemplazo",
+        "titulo": "Puntos y repuestos probados",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      },
+      {
+        "id": "integridad",
+        "titulo": "Integridad comprobada",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      },
+      {
+        "id": "privacidad",
+        "titulo": "Seguimiento exclusivo a la boleta",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      },
+      {
+        "id": "adicionales",
+        "titulo": "Adicionales aceptados por el cliente",
+        "ok": true,
+        "detalle": "Sin datos aún."
+      }
+    ]
+  }
+}

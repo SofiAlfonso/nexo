@@ -67,10 +67,10 @@ NEXO.vistas.alertas = (function () {
     c.delegar(raiz, {
       grupo: function (g) { filtro.grupo = g; pintar(ultimo); },
       vista: function (v) { filtro.vista = v; pintar(ultimo); },
-      destacar: function (id, n, ev) { ev.stopPropagation(); NEXO.simulador.destacar(id); },
+      destacar: function (id, n, ev) { ev.stopPropagation(); NEXO.api.destacar(id); },
       abrir: function (id) { NEXO.router.ir('#/incidentes/' + id); },
-      aprobar: function (id) { NEXO.simulador.decidirAccion(id, true); },
-      rechazar: function (id) { NEXO.simulador.decidirAccion(id, false); }
+      aprobar: function (id) { NEXO.api.decidirAccion(id, true); },
+      rechazar: function (id) { NEXO.api.decidirAccion(id, false); }
     });
 
     function pintarLista(e) { u.ranura(s.lista, lista(e)); }
@@ -220,7 +220,6 @@ NEXO.vistas.alertas = (function () {
   function acciones(e, pend) {
     if (!pend.length) return '<p class="dim side__empty">Nada espera tu decisión. Cuando una falla necesite aprobación aparecerá aquí.</p>';
     return pend.map(function (a) {
-      var auto = a.autoEnS !== null ? Math.max(0, a.autoEnS - e.ahoraS) : null;
       return '<div class="act' + (a.decisiva ? ' act--hot' : '') + '"><div class="act__top"><b>' + esc(a.titulo) + '</b></div>' +
         '<p class="act__txt">' + esc(a.detalle) + '</p>' +
         '<div class="act__btns">' +
@@ -228,7 +227,6 @@ NEXO.vistas.alertas = (function () {
           '<button type="button" class="btn btn--sm btn--ok" data-accion="aprobar" data-arg="' + a.id + '">' + ico('check', 14) + esc(a.si) + '</button></div>' +
         '<div class="act__meta">' + ico('user-round', 13) + '<span>' + esc(a.rol) + (a.incidenteId ? ' · <a href="#/incidentes/' + a.incidenteId + '">' + a.incidenteId + '</a>' : '') + '</span>' +
           '<span class="spacer"></span><span>' + fmt.hace(e.ahoraS - a.creadaEnS) + '</span></div>' +
-        (auto !== null ? '<div class="act__auto">' + ico('timer', 12) + 'Aprobación automática (simulada) en ' + fmt.corto(auto) + '</div>' : '') +
         '</div>';
     }).join('');
   }

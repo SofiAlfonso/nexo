@@ -10,7 +10,7 @@ NEXO.vistas.config = (function () {
   'use strict';
 
   var u = NEXO.util, esc = u.esc, ico = u.icono, fmt = u.fmt;
-  var d = NEXO.dominio;
+  var d = NEXO.dominio, EC = d.EstadoCoordinador;
   var c;
 
   function montar(cont) {
@@ -50,9 +50,8 @@ NEXO.vistas.config = (function () {
     var s = u.ranuras(raiz);
 
     c.delegar(raiz, {
-      control: function (id) { NEXO.simulador.alternarControl(id); },
-      confirmar: function () { NEXO.simulador.confirmarApertura(); },
-      abrir: function () { NEXO.simulador.saltarA(NEXO.datos.APERTURA_S + 5); NEXO.router.ir('#/inicio'); }
+      control: function (id) { NEXO.api.alternarControl(id); },
+      confirmar: function () { NEXO.api.confirmarApertura(); }
     });
 
     return {
@@ -89,7 +88,7 @@ NEXO.vistas.config = (function () {
     } else {
       titulo = 'Apertura confirmada';
       texto = 'Las puertas empezarán a aceptar a las ' + fmt.hora(ev.aperturaS) + ' (' + fmt.plazo(ev.aperturaS - e.ahoraS) + ').';
-      boton = '<button type="button" class="btn btn--ok btn--lg" data-accion="abrir">' + ico('fast-forward', 18) + 'Adelantar la demo a la apertura</button>';
+      boton = c.badge('Confirmada', 'ok');
     }
     var pct = ok / ctl.length * 100;
     return '<div class="hero__main"><div class="kpi__ring kpi__ring--lg">' + c.anillo(pct, 64, ok === ctl.length ? 'var(--ok)' : null) + '<span>' + ok + '/' + ctl.length + '</span></div>' +
@@ -109,11 +108,14 @@ NEXO.vistas.config = (function () {
 
   function puertas(e) {
     var si = '<span class="yes">' + ico('check', 14) + '</span>';
+    var no = '<span class="dim">—</span>';
     return '<div class="tablewrap"><table class="table"><thead><tr><th>Puerta</th><th>Zonas</th><th>Lector</th><th>Compatible</th><th>Credencial</th><th>Permisos</th><th>Lectura de prueba</th></tr></thead><tbody>' +
       e.puntos.map(function (p) {
+        var prep = p.preparacion;
         return '<tr><td><b class="mono">' + p.id + '</b> <span class="dim">' + esc(p.nombre.replace('Puerta ', '')) + '</span></td>' +
-          '<td>' + p.zonas.map(esc).join(', ') + '</td><td class="mono">' + esc(p.lectores[p.lectores.length - 1].id) + ' <span class="dim">· ' + esc(p.lectores[p.lectores.length - 1].procedencia) + '</span></td>' +
-          '<td>' + si + '</td><td>' + si + '</td><td class="mono">v37 ' + si + '</td><td>' + si + '</td></tr>';
+          '<td>' + p.zonas.map(esc).join(', ') + '</td><td class="mono">' + (p.lectorActual ? esc(p.lectorActual.id) + ' <span class="dim">· ' + esc(p.lectorActual.procedencia) + '</span>' : no) + '</td>' +
+          '<td>' + (prep ? (prep.lector ? si : no) : no) + '</td><td>' + (prep ? (prep.credencial ? si : no) : no) + '</td>' +
+          '<td class="mono">v' + e.evento.versionPermisos + ' ' + (prep ? (prep.version ? si : no) : no) + '</td><td>' + (prep ? (prep.prueba ? si : no) : no) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
 
@@ -131,23 +133,25 @@ NEXO.vistas.config = (function () {
 
   function coordinador(e) {
     var co = e.coordinador;
-    return '<div class="nodes">' +
-      nodo('COORD-A', co.primario === 'COORD-A' ? 'Primario' : co.excluidos.indexOf('COORD-A') !== -1 ? 'Excluido' : 'Réplica') +
-      nodo('COORD-B', co.primario === 'COORD-B' ? 'Primario' : co.replica === 'COORD-B' ? 'Réplica síncrona' : 'Repuesto') +
-      nodo('COORD-C', co.replica === 'COORD-C' ? 'Réplica síncrona' : 'Repuesto') + '</div>' +
-      '<dl class="kv" style="margin-top:12px"><dt>Topología</dt><dd>Candidata B</dd><dt>Promoción</dt><dd>Manual y segura</dd><dt>Ensayo previo</dt><dd>pausa de 46 s</dd></dl>' +
-      '<p class="dim" style="font-size:12px;margin-top:10px">Nunca se promueve una copia que pueda carecer de consumos confirmados.</p>';
+    var coEdad = co.ultimoReporteS === null ? null : Math.max(0, e.ahoraS - co.ultimoReporteS);
+    var coEdadTono = coEdad === null ? 'no-t' : coEdad >= d.Umbral.SIN_COMUNICACION_S ? 'no-t' : coEdad >= d.Umbral.DETECCION_S ? 'warn-t' : '';
+    var tono = co.estado === EC.OPERANDO ? 'ok' : co.estado === EC.PROTEGIENDO ? 'violet' : 'no';
+    return '<div class="nodes">' + nodo(co.id, co.estado, tono) + '</div>' +
+      '<dl class="kv" style="margin-top:12px"><dt>Topología</dt><dd>' + esc(co.topologia) + '</dd>' +
+      '<dt>Autoridad desde</dt><dd class="mono">' + fmt.hora(co.desdeS) + '</dd>' +
+      '<dt>Último reporte</dt><dd class="' + coEdadTono + '">' + (coEdad === null ? 'Sin reportes todavía' : fmt.hace(coEdad)) + '</dd>' +
+      '<dt>Pausas</dt><dd>' + (co.pausas.length ? co.pausas.length : 'ninguna') + '</dd></dl>' +
+      '<p class="dim" style="font-size:12px;margin-top:10px">Nodo único (D9): ningún otro componente decide un ingreso.</p>';
   }
 
-  function nodo(id, rol) {
-    var tono = rol === 'Primario' ? 'ok' : rol === 'Excluido' ? 'no' : rol === 'Repuesto' ? 'mute' : 'info';
-    return '<div class="nodechip nodechip--' + tono + '">' + ico('server', 16) + '<b class="mono">' + id + '</b><small>' + esc(rol) + '</small></div>';
+  function nodo(id, estado, tono) {
+    var texto = estado === EC.OPERANDO ? 'Decide cada intento' : estado === EC.PROTEGIENDO ? 'Restableciendo autoridad' : 'Sin autoridad: no se acepta';
+    return '<div class="nodechip nodechip--' + tono + '">' + ico('server', 16) + '<b class="mono">' + esc(id) + '</b><small>' + esc(texto) + '</small></div>';
   }
 
   function integracion(e) {
-    var B = NEXO.datos.BOLETERIA;
-    return '<dl class="kv"><dt>Adaptador</dt><dd>' + esc(B.adaptador) + '</dd><dt>Modelo</dt><dd>' + esc(B.modeloCanonico) + '</dd>' +
-      '<dt>Instantánea inicial</dt><dd class="num">' + fmt.entero(e.boletas.total) + ' permisos</dd>' +
+    return '<dl class="kv"><dt>Boletería</dt><dd>' + esc(e.evento.boleteria) + '</dd>' +
+      '<dt>Admisiones estimadas</dt><dd class="num">' + fmt.entero(e.evento.admisionesEstimadas) + '</dd>' +
       '<dt>Versión actual</dt><dd class="mono">v' + e.evento.versionPermisos + '</dd>' +
       '<dt>Antigüedad tolerable</dt><dd>5 min</dd>' +
       '<dt>Identidad del permiso</dt><dd>cliente + evento + boletería + referencia</dd></dl>';
@@ -156,7 +160,9 @@ NEXO.vistas.config = (function () {
   function politicas(e) {
     var p = e.evento.politicas;
     return '<ul class="pols">' +
-      '<li>' + ico('repeat', 16) + '<span><b>Reingreso</b> permitido tras ' + p.reingresoTrasMin + ' min desde el último uso' + (p.reingresoSuspendido ? ' · <span class="warn-t">suspendido ahora</span>' : '') + '</span></li>' +
+      '<li>' + ico('repeat', 16) + '<span><b>Reingreso</b> ' + (p.reingresoPermitido
+        ? 'permitido tras ' + p.reingresoTrasMin + ' min desde el último uso' + (p.reingresoSuspendido ? ' · <span class="warn-t">suspendido ahora</span>' : '')
+        : '<span class="no-t">no permitido (D10)</span>: cada boleta admite un único ingreso') + '</span></li>' +
       '<li>' + ico('wifi-off', 16) + '<span><b>Sin coordinador</b> no se autoriza: el intento queda en el diario del lector</span></li>' +
       '<li>' + ico('key-round', 16) + '<span><b>Permisos atrasados</b> más de 5 min: se suspenden los reingresos</span></li>' +
       '<li>' + ico('eye-off', 16) + '<span><b>Datos personales</b>: no se tratan nombres, documentos, pagos ni biometría</span></li>' +

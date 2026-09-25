@@ -71,19 +71,21 @@ NEXO.vistas.lector = (function () {
     var s = u.ranuras(raiz);
 
     raiz.addEventListener('input', function (ev) {
-      if (ev.target.getAttribute('data-campo') === 'punto') NEXO.simulador.fijarPuntoLector(ev.target.value);
+      if (ev.target.getAttribute('data-campo') === 'punto') NEXO.api.fijarPuntoLector(ev.target.value);
     });
     c.delegar(raiz, {
-      escanear: function (caso) { modo = 'pruebas'; NEXO.simulador.escanear(caso); },
-      modo: function (m) { modo = m; NEXO.store.notificar(); },
-      abrir: function () { NEXO.simulador.saltarA(NEXO.datos.APERTURA_S + 30); }
+      escanear: function () {
+        NEXO.store.avisar({ tono: 'info', titulo: 'Lector físico no conectado todavía', texto: 'Los casos de prueba se conectarán a un lector real después de M1.' });
+      },
+      modo: function (m) { modo = m; NEXO.store.notificar(); }
     });
 
     return {
       actualizar: function (e) {
         var p = e.puntosPorId[e.lector.puntoId];
-        var it = modo === 'pruebas' ? e.lector.manuales[0] : p.recientes[0];
-        var hist = modo === 'pruebas' ? e.lector.manuales : p.recientes;
+        var recientes = p.recientes || [];
+        var it = modo === 'pruebas' ? e.lector.manuales[0] : recientes[0];
+        var hist = modo === 'pruebas' ? e.lector.manuales : recientes;
         u.ranura(s.modo, [['pruebas', 'Mis pruebas'], ['vivo', 'Tráfico en vivo']].map(function (m) {
           return '<button type="button" data-accion="modo" data-arg="' + m[0] + '" aria-pressed="' + (modo === m[0]) + '">' + m[1] + '</button>';
         }).join(''));
@@ -98,8 +100,7 @@ NEXO.vistas.lector = (function () {
 
   function aviso(e, p) {
     if (e.evento.estado === 'preparacion') {
-      return '<div class="notice">' + ico('clock', 18) + '<div><b>El ingreso todavía no abre.</b> Cualquier boleta se rechazará por horario: es la regla, no un error.</div>' +
-        '<button type="button" class="btn btn--sm" data-accion="abrir">Adelantar a la apertura</button></div>';
+      return '<div class="notice">' + ico('clock', 18) + '<div><b>El ingreso todavía no abre.</b> Cualquier boleta se rechazará por horario: es la regla, no un error.</div></div>';
     }
     if (e.evento.estado === 'cerrado') {
       return '<div class="notice">' + ico('clock', 18) + '<div><b>La ventana de ingreso ya cerró.</b> Las boletas se rechazan por horario.</div></div>';
@@ -116,7 +117,7 @@ NEXO.vistas.lector = (function () {
     var enLinea = v === d.EstadoPunto.EN_LINEA || v === d.EstadoPunto.SIN_ABRIR;
     var barra = '<div class="ph-status"><b>NEXO</b><span>' + p.id + '</span><span class="spacer"></span>' +
       ico(enLinea ? 'wifi' : 'wifi-off', 14) + '<span class="mono">' + fmt.hora(e.ahoraS) + '</span></div>' +
-      '<div class="ph-gate"><b>' + esc(p.nombre) + '</b><small>Lector ' + esc(p.lectores[0].id) + ' · zona ' + esc(p.zonas.join(' + ')) + '</small></div>';
+      '<div class="ph-gate"><b>' + esc(p.nombre) + '</b><small>Lector ' + esc((p.lectores && p.lectores[0] && p.lectores[0].id) || (p.lectorActual && p.lectorActual.id) || '—') + ' · zona ' + esc(p.zonas.join(' + ')) + '</small></div>';
 
     var cuerpo;
     if (!it) {

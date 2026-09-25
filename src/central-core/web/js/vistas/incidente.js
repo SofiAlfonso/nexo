@@ -10,7 +10,7 @@ NEXO.vistas.incidente = (function () {
   'use strict';
 
   var u = NEXO.util, esc = u.esc, ico = u.icono, fmt = u.fmt;
-  var d = NEXO.dominio, S = function () { return NEXO.simulador; };
+  var d = NEXO.dominio, S = function () { return NEXO.api; };
   var c;
 
   function montar(cont, params) {
@@ -170,7 +170,6 @@ NEXO.vistas.incidente = (function () {
     var a = e.acciones.filter(function (x) { return x.incidenteId === inc.id && x.estado === 'pendiente'; })[0];
     if (!a) return '';
     return '<div class="notice notice--violet decide">' + ico('hand', 20) + '<div style="flex:1"><b>' + esc(a.titulo) + '</b><br><span class="soft">' + esc(a.detalle) + '</span>' +
-      (a.autoEnS !== null ? '<div class="dim" style="font-size:12px;margin-top:4px">' + ico('timer', 12) + ' Si nadie decide, el rol simulado aprobará en ' + fmt.duracion(Math.max(0, a.autoEnS - e.ahoraS)) + '.</div>' : '') +
       '</div><div class="row">' +
       (a.no ? '<button type="button" class="btn btn--sm" data-accion="rechazar" data-arg="' + a.id + '">' + ico('x', 14, 'no-t') + esc(a.no) + '</button>' : '') +
       '<button type="button" class="btn btn--sm btn--ok" data-accion="aprobar" data-arg="' + a.id + '">' + ico('check', 14) + esc(a.si) + '</button></div></div>';
@@ -206,14 +205,14 @@ NEXO.vistas.incidente = (function () {
     if (inc.puntoId) {
       var p = e.puntosPorId[inc.puntoId];
       var v = d.estadoVisible(p, e.evento, e.coordinador, e.ahoraS);
-      var l = p.lectores[0];
+      var l = (p.lectores && p.lectores[0]) || p.lectorActual;
       html += acc('punto', 'Puerta afectada', abiertos,
         '<a class="entity" href="#/puertas/' + p.id + '">' + '<span class="bubble bubble--' + d.ESTADO_PUNTO[v].tono + '">' + ico('door-open', 18) + '</span>' +
         '<span><b>' + esc(p.nombre) + '</b><small>' + p.id + ' · zona ' + esc(p.zona) + '</small></span></a>' +
         '<dl class="kv" style="margin-top:12px"><dt>Estado</dt><dd>' + c.estadoPunto(v) + '</dd>' +
-        '<dt>Lector</dt><dd class="mono">' + esc(l.id) + '</dd>' +
-        '<dt>Credencial</dt><dd class="mono">' + esc(l.credencial) + '</dd>' +
-        '<dt>Último reporte</dt><dd>' + fmt.hace(e.ahoraS - p.ultimaComunicacionS) + '</dd>' +
+        '<dt>Lector</dt><dd class="mono">' + (l ? esc(l.id) : '—') + '</dd>' +
+        '<dt>Credencial</dt><dd class="mono">' + (l ? esc(l.credencial) : '—') + '</dd>' +
+        '<dt>Último reporte</dt><dd>' + (p.ultimaComunicacionS !== null ? fmt.hace(e.ahoraS - p.ultimaComunicacionS) : '—') + '</dd>' +
         '<dt>En diario</dt><dd class="num">' + fmt.entero(p.pendientesDiario) + '</dd></dl>' +
         '<a class="btn btn--soft btn--sm btn--block" style="margin-top:12px" href="#/puertas/' + p.id + '">Ver la puerta' + ico('arrow-right', 14) + '</a>');
     } else {
@@ -248,10 +247,11 @@ NEXO.vistas.incidente = (function () {
   function componente(e, inc) {
     var co = e.coordinador;
     if (inc.tipo === d.TipoIncidente.COORDINADOR) {
-      return '<dl class="kv"><dt>Topología</dt><dd>Candidata B</dd><dt>Primario</dt><dd class="mono">' + esc(co.primario) + '</dd>' +
-        '<dt>Réplica síncrona</dt><dd class="mono">' + esc(co.replica) + '</dd><dt>Excluidos</dt><dd class="mono">' + esc(co.excluidos.join(', ') || '—') + '</dd>' +
+      var coEdad = co.ultimoReporteS === null ? null : Math.max(0, e.ahoraS - co.ultimoReporteS);
+      return '<dl class="kv"><dt>Topología</dt><dd>' + esc(co.topologia) + '</dd><dt>Nodo</dt><dd class="mono">' + esc(co.id) + '</dd>' +
+        '<dt>Último reporte</dt><dd>' + (coEdad === null ? '—' : fmt.hace(coEdad)) + '</dd>' +
         '<dt>Estado</dt><dd>' + (co.estado === d.EstadoCoordinador.OPERANDO ? c.badge('Operando', 'ok') : c.badge('Sin autoridad', 'no')) + '</dd></dl>' +
-        '<p class="dim" style="font-size:12px;margin-top:10px">Se comparan tres topologías durante el piloto; ninguna promueve una copia que pueda carecer de consumos (ADR-005, ADR-012).</p>';
+        '<p class="dim" style="font-size:12px;margin-top:10px">Nodo único (D9): mientras esté sin autoridad, ningún intento se acepta.</p>';
     }
     if (inc.tipo === d.TipoIncidente.ENLACE_NUBE) {
       return '<dl class="kv"><dt>Enlace</dt><dd>' + (e.nube.enLinea ? c.badge('En línea', 'ok') : c.badge('Caído', 'no')) + '</dd>' +

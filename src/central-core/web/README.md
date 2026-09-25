@@ -1,29 +1,30 @@
-# NEXO · Prototipo de interfaz
+# NEXO · Interfaz del recinto (C5)
 
-Prototipo de alta fidelidad de **NEXO**, la plataforma B2B de control de acceso para
-estadios. Tiene estilo de mesa de ayuda: una bandeja de incidentes con contadores,
-responsables y plazos, y fichas de detalle con bitácora, propiedades y datos técnicos.
-Todo funciona sobre una simulación en vivo del evento.
-
-> Las cifras son de ejemplo y el cliente es ficticio. El prototipo no demuestra
-> viabilidad técnica ni comercial: muestra qué habría que medir.
+Interfaz de **NEXO**, la plataforma B2B de control de acceso para estadios. Tiene
+estilo de mesa de ayuda: una bandeja de incidentes con contadores, responsables y
+plazos, y fichas de detalle con bitácora, propiedades y datos técnicos. Los datos
+vienen del recinto en vivo (D2 vía C4): REST al arrancar y SSE (`/api/stream`)
+después. Ya no hay una simulación local: la sirve `js/api.js`.
 
 ## Cómo ejecutarlo
 
-Abre `index.html` con doble clic. No necesita servidor, compilación, dependencias
-ni conexión a internet: las fuentes y los iconos vienen incluidos.
+C5 la sirve C4 (`npm run dev` en la raíz, o el `start` de `central-core`); abrir
+`index.html` directamente sin backend solo tiene sentido en modo `?fixtures`
+(añade ese parámetro a la URL), que carga instantáneas de
+`tests/fixtures/O2/` para desarrollar la interfaz sin depender del backend.
 
-La primera vez aparece una bienvenida que explica cómo usar la demostración. Puedes
-volver a abrirla desde **Ayuda**, en el riel izquierdo.
+Al entrar aparece la pantalla de acceso (ADR-016): usuario y contraseña contra
+`POST /api/auth/login`. El rol viene de la sesión (`GET /api/auth/me` al
+arrancar) y ya no hay un selector de rol en el cliente.
 
 ## Qué cambió frente a la versión anterior
 
 | Problema | Solución |
 | --- | --- |
 | Difícil de comprender | Bienvenida y glosario del lenguaje ubicuo. Cada pantalla dice para qué sirve. Una frase resume el estado del evento («18 de 20 puertas validan con normalidad»). Los indicadores tienen ayuda en lenguaje llano y los códigos KR/CA pasan a segundo plano. Un diagrama en vivo muestra el recorrido de cada decisión. |
-| Difícil de usar | Menos pantallas y un flujo de mesa de ayuda: la bandeja lleva al detalle y el detalle a la puerta. Hay acciones pendientes con Aprobar/Rechazar, búsqueda global (atajo `/`) y filtros por contador. Los casos del lector se prueban con un botón. La simulación va en un panel plegable y baja a 1× cuando una decisión es tuya. |
-| Poco atractivo | Nuevo sistema visual con la marca de la presentación (azul noche y cian), la tipografía Inter, iconos, tarjetas, fichas de color, anillos y gráficos, además de tema claro y oscuro. |
-| Desalineado con los ADR | Las puertas ya no autorizan solas. Todas consultan un **coordinador local compartido**, así que una boleta se consume una sola vez en todo el evento. Sin coordinador no se acepta nada: el intento queda en el diario del lector. |
+| Difícil de usar | Menos pantallas y un flujo de mesa de ayuda: la bandeja lleva al detalle y el detalle a la puerta. Hay acciones pendientes con Aprobar/Rechazar, búsqueda global (atajo `/`) y filtros por contador. |
+| Poco atractivo | Sistema visual con la marca de la presentación (azul noche y cian), la tipografía Inter, iconos, tarjetas, fichas de color, anillos y gráficos, además de tema claro y oscuro. |
+| Desalineado con los ADR | Las puertas ya no autorizan solas. Todas consultan un **coordinador local único** (D9, sin réplica en el taller 3), así que una boleta se consume una sola vez en todo el evento. Sin coordinador no se acepta nada: el intento queda en el diario del lector. |
 
 ## Pantallas
 
@@ -38,50 +39,39 @@ volver a abrirla desde **Ayuda**, en el riel izquierdo.
 | `#/preparacion` | Preparación | Controles previos, pruebas CA1–CA4, coordinador, integración y políticas | O3 · CA1–CA4 |
 
 Ninguna pantalla cubre KR5.2 (recompra): esa evidencia son las fechas y el origen
-de un contrato nuevo. La tarjeta del contrato solo recuerda su ventana.
+de un contrato nuevo. La tarjeta del contrato queda pendiente de conectar
+(post-M1): hoy solo muestra el evento activo.
 
-## El guion de la simulación
+## Estado en el hito M1
 
-La demo arranca a las 17:52, con el ingreso cargado. Después ocurren estos incidentes,
-todos derivados de las reglas del modelo:
-
-| Hora | Qué pasa | Qué muestra | Decisión |
-| --- | --- | --- | --- |
-| 18:01 | P-16 pierde comunicación con el coordinador | Aparece «sin comunicación» a los 30 s. Sus intentos quedan en el diario, sin aceptación. Al volver sincroniza en menos de 5 min. | Redirigir el flujo |
-| 18:04 | El lector de P-11 se avería | El repuesto necesita una credencial individual. Se mide la recuperación frente a la meta de 3 min. | Emitir credencial (la demo baja a 1×) |
-| 18:06 | Se cae el enlace del estadio con la nube | **El ingreso sigue** con el coordinador local. La evidencia espera en el buzón. | — |
-| 18:11 | Los permisos pasan de 5 min sin cambios | Restricción acordada: suspender los reingresos | Suspender reingresos |
-| 18:15 | Vuelve el enlace | Llegan anulaciones atrasadas. Las boletas ya aceptadas pasan a conciliación. | — |
-| 18:24 | Falla el coordinador primario | Ninguna puerta acepta hasta promover la réplica síncrona. Luego se restablece la protección. | Promover COORD-B (la demo baja a 1×) |
-| 20:15 | Cierra la ventana | Preliminar en 30 min, diferencias, conciliación y liquidación | Entregar, resolver y conciliar |
-
-Si nadie decide, el rol responsable simulado actúa solo después de un tiempo, y el
-tiempo que tardó cuenta para la meta de 5 min.
-
-Con los botones del panel **Demo** (abajo a la derecha) puedes cambiar la velocidad o
-saltar a un momento: antes de abrir, pico de ingreso, incidentes, falla del
-coordinador o cierre. La semilla es fija, así que el evento es reproducible.
+Hasta M1 solo `#/inicio` y `#/puertas` tienen conexión completa a datos vivos
+(hidratación REST + actualización por SSE), junto con la ficha del coordinador
+como nodo único (D9) y la antigüedad de los datos del recinto cuando no llegan
+(SER-05). Las demás pantallas cargan con los mismos datos del API cuando existen,
+o con un estado vacío claro cuando el endpoint correspondiente todavía no está
+conectado; su conexión completa queda para después de M1. El lector físico de
+prueba (`#/lector`) queda como una pantalla informativa: el botón de escaneo
+avisa que el lector real se conecta más adelante.
 
 ## Alineación con el modelo de dominio y los ADR
 
 | Decisión | Dónde se ve |
 | --- | --- |
-| ADR-001 · capas | `modelo/` (dominio) ← `simulador.js` (aplicación) ← `vistas/` (presentación). Las vistas nunca deciden. |
-| ADR-002 · coordinador local compartido | Todos los intentos pasan por `dominio.decidir()`, que representa al coordinador. La nube nunca autoriza. |
-| ADR-003 · consumo único y global | Copias simultáneas en dos puertas: una se acepta y la otra se rechaza. Caso «Copia en otra puerta» en el lector. |
+| ADR-001 · capas | `modelo/` (dominio) ← `api.js` (aplicación real: REST + SSE) ← `vistas/` (presentación). Las vistas nunca deciden. |
+| ADR-002 · coordinador local | Todos los intentos pasan por el coordinador de C2; la interfaz solo refleja su decisión. La nube nunca autoriza. |
+| ADR-003 · consumo único y global | Copias simultáneas en dos puertas: una se acepta y la otra se rechaza. |
 | ADR-004 · bitácora de solo adición | Las notas y resoluciones se agregan y no se editan. Las admisiones se derivan de la primera aceptación correcta. |
-| ADR-005 · recuperación segura | Falla de COORD-A con promoción manual, protección síncrona con COORD-C y pausa medida |
 | ADR-006 · sin identidad del portador | El lector y los registros no tienen campos personales. Los responsables son roles. |
-| ADR-007 / ADR-010 · integración | Adaptador por boletería, permisos versionados, antigüedad tolerable y anulaciones en tránsito |
-| ADR-008 · identidad de dispositivos | Credencial individual por lector, punto y evento, e historial de lectores |
-| ADR-009 · autorización por rol | Selector de rol en la barra superior y filtro «Asignados a mí» |
-| ADR-011 · validación y sincronización separadas | Diario del lector → coordinador, y buzón del coordinador → nube |
-| ADR-012 · persistencia | Réplica síncrona, exclusión de la autoridad anterior y evidencia de 90 días |
-| ADR-013 · observabilidad | Latencia medida en el lector, con las solicitudes sin respuesta en el denominador y el corte informado aparte |
+| ADR-007 / ADR-010 · integración | Boletería del evento, permisos versionados y antigüedad tolerable. |
+| ADR-008 · identidad de dispositivos | Credencial individual por lector, punto y evento, e historial de lectores. |
+| ADR-009 · autorización por rol | El rol viene de la sesión (ADR-016); avatar y cierre de sesión en la barra superior. |
+| ADR-011 · validación y sincronización separadas | Diario del lector → coordinador, y buzón del coordinador → nube. |
+| ADR-013 · observabilidad | Latencia medida en el lector; KPI "Respuestas en ≤ 300 ms" (D11) con p95 en el pie. |
+| ADR-016 · acceso al panel | Pantalla de usuario/contraseña; sin selector de rol en el cliente. |
 
 Reglas del modelo de dominio que la interfaz hace cumplir:
 
-- Solo la primera aceptación correcta genera admisión. Un reingreso se acepta pero no se cobra.
+- Solo la primera aceptación correcta genera admisión. Sin reingresos en el taller 3 (D10).
 - Una solicitud sin respuesta nunca equivale a aceptación.
 - Una anulación que no ha llegado no se presume conocida: se concilia después.
 - Cambiar el lector no cambia la identidad del punto.
@@ -94,30 +84,31 @@ Reglas del modelo de dominio que la interfaz hace cumplir:
 ```
 index.html              orden de carga
 assets/fonts/           Inter y JetBrains Mono (licencia OFL)
+fixtures/o2/            instantáneas O2 para el modo ?fixtures (copia de tests/fixtures/O2)
 css/
   tokens.css            colores, tipografía y escala; tema claro y oscuro
   base.css              reinicio y utilidades
-  layout.css            riel, barra superior, panel Demo, notificaciones
-  components.css        botones, insignias, tarjetas, campos, bitácora, tablas
+  layout.css            riel, barra superior, notificaciones
+  components.css        botones, insignias, tarjetas, campos, bitácora, tablas, login
   screens.css           lo específico de cada pantalla
 js/
-  util.js               formato, escape de HTML, ranuras y generador con semilla
+  util.js               formato, escape de HTML y ranuras
   iconos.js             iconos Lucide incrustados (licencia ISC)
-  modelo/dominio.js     reglas, umbrales, tarifa y servicio de decisión
-  modelo/datos.js       cliente, contrato, eventos, zonas, puertas y boletas
+  modelo/dominio.js     reglas, umbrales, tarifa y traducciones KEY→texto
   store.js              estado central observable
-  simulador.js          capa de aplicación simulada y guion de incidentes
+  api.js                capa de aplicación real: REST (/api/*), SSE (/api/stream) y modo ?fixtures
+  login.js              pantalla de acceso (ADR-016)
   router.js             enrutador por fragmento (hash)
   vistas/               una vista por pantalla, más comunes.js y ayuda.js
-  app.js                armazón, búsqueda, tema, panel Demo y arranque
+  app.js                armazón, búsqueda, tema, sesión y arranque
 ```
 
 ## Decisiones técnicas del frontend
 
-- **Sin servidor.** Se usan un espacio de nombres global y enrutado por hash, porque los módulos ES fallan sobre `file://`. Migrar consiste en cambiar los `<script>` por `type="module"`.
-- **Montar una vez y actualizar ranuras.** Cada vista construye su esqueleto y solo reescribe las ranuras (`data-slot`) cuyo HTML cambió. Así los campos no pierden el foco ni las listas el desplazamiento, aunque la demo se actualiza 4 veces por segundo.
+- **Sin build.** Espacio de nombres global (`NEXO.*`) y enrutado por hash: JS de navegador plano, sin bundler ni frameworks nuevos.
+- **Montar una vez y actualizar ranuras.** Cada vista construye su esqueleto y solo reescribe las ranuras (`data-slot`) cuyo HTML cambió. Así los campos no pierden el foco ni las listas el desplazamiento cuando llega un evento SSE.
 - **Colores solo en `tokens.css`.** El color semántico (aceptado, rechazado, sin respuesta, en pausa) es independiente del acento y nunca se usa como adorno.
-- **Preferencias locales.** El tema, la bienvenida y el estado del panel Demo se guardan en el navegador. Si el almacenamiento no está disponible, todo funciona igual.
+- **Preferencias locales.** El tema y la bienvenida se guardan en el navegador. Si el almacenamiento no está disponible, todo funciona igual.
 
 ## Compatibilidad
 

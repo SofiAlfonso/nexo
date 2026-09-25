@@ -136,6 +136,10 @@
 }
 .who .avatar { position: absolute; left: 5px; top: 5px; pointer-events: none; }
 .who > .ico { position: absolute; right: 10px; top: 11px; pointer-events: none; color: var(--ink-3); }
+.who--sesion { display: flex; align-items: center; gap: 8px; padding-left: 44px; height: 38px; }
+.who__nombre { display: flex; flex-direction: column; line-height: 1.2; max-width: 150px; }
+.who__nombre b { font-size: 12.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who__nombre small { font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- contenido ---------- */
 

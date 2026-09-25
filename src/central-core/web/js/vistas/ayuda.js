@@ -1,9 +1,8 @@
 /* ============================================================
    vistas/ayuda.js — Bienvenida, glosario y mapa de pantallas
 
-   La primera barrera del prototipo anterior era entenderlo. Esta
-   ventana explica en lenguaje llano qué es NEXO, cómo se usa la
-   demostración y qué significa cada término del dominio.
+   Ventana que explica en lenguaje llano qué es NEXO, cómo se usa el
+   panel con datos en vivo y qué significa cada término del dominio.
    ============================================================ */
 
 NEXO.vistas.ayuda = (function () {
@@ -98,12 +97,12 @@ NEXO.vistas.ayuda = (function () {
       paso('plug', 'Integrar', 'Recibe los permisos y anulaciones de la boletería.') +
       paso('scan-line', 'Validar', 'Decide cada intento en la puerta por zona, horario y uso.') +
       paso('file-check-2', 'Conciliar', 'Cierra el evento con evidencia y calcula lo que se cobra.') + '</div>' +
-      '<h3 class="help__h">Cómo usar esta demostración</h3><ol class="howto">' +
-      '<li><b>La simulación avanza sola.</b> Un evento de 15.000 admisiones corre 30 veces más rápido. Los controles están abajo a la derecha.</li>' +
-      '<li><b>Cuando algo falla, aparece un incidente.</b> Una puerta sin red, un lector averiado, un corte de internet o una falla del coordinador. Algunos te piden una decisión y la demo se frena para que puedas tomarla.</li>' +
-      '<li><b>Prueba el lector.</b> Presenta una boleta válida, repetida, anulada o de otra zona y mira qué regla decide.</li>' +
+      '<h3 class="help__h">Cómo usar este panel</h3><ol class="howto">' +
+      '<li><b>Los datos son en vivo.</b> El resumen y las puertas se actualizan por eventos del recinto en tiempo real, con la antigüedad del último dato visible cuando algo no llega.</li>' +
+      '<li><b>Cuando algo falla, aparece un incidente.</b> Una puerta sin red, un lector averiado, un corte de internet o una falla del coordinador. Algunos te piden una decisión.</li>' +
+      '<li><b>Prueba el lector.</b> Presenta un caso de boleta válida, repetida, anulada o de otra zona y mira qué regla decide.</li>' +
       '<li><b>Cierra el evento.</b> Resuelve las diferencias, concilia y mira la liquidación.</li></ol>' +
-      '<div class="notice" style="margin-top:14px">' + ico('info', 18) + '<div>Las cifras son de ejemplo y el cliente es ficticio. El prototipo no demuestra viabilidad: hace visible qué habría que medir.</div></div>' +
+      '<div class="notice" style="margin-top:14px">' + ico('info', 18) + '<div>El panel muestra los datos reales del recinto conectado; algunas pantallas todavía tienen conexión parcial mientras avanza el hito M1.</div></div>' +
       '<div class="help__foot"><label class="row dim" style="font-size:13px"><input type="checkbox" id="no-mostrar"' + (vista ? ' checked' : '') + '> No volver a mostrar al abrir</label>' +
       '<span class="spacer"></span><button type="button" class="btn" data-h="tab" data-arg="glosario">Ver el glosario</button>' +
       '<button type="button" class="btn btn--primary" data-h="cerrar" data-foco>' + ico('play', 16) + 'Empezar</button></div>';

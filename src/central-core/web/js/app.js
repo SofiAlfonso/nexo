@@ -1,9 +1,9 @@
 /* ============================================================
    app.js — arranque y armazón
 
-   Une las piezas: crea el estado, construye el riel, la barra
-   superior y el dock de simulación, registra las rutas y monta la
-   vista que corresponde. Ninguna vista sabe de las otras.
+   Une las piezas: exige sesión (ADR-016), crea el estado, construye
+   el riel y la barra superior, registra las rutas y monta la vista
+   que corresponde. Ninguna vista sabe de las otras.
    ============================================================ */
 
 (function () {
@@ -24,7 +24,6 @@
 
   var vista = null, vistaId = null, params = {};
   var refs = {};
-  var dockAbierto = u.prefs.leer('dockAbierto', false);
 
   // ==========================================================
   //  armazón
@@ -48,58 +47,30 @@
       '<header class="topbar">' +
         '<div class="crumbs" data-ref="crumbs"></div>' +
         '<div class="search">' + ico('search', 16) +
-          '<input type="search" placeholder="Buscar puerta, incidente o boleta…" title="Ejemplos: P-07, INC-0001, TA-8804-0061. Atajo: /" data-ref="buscar" aria-label="Buscar" autocomplete="off">' +
+          '<input type="search" placeholder="Buscar puerta o incidente…" title="Ejemplos: P-07, INC-0001. Atajo: /" data-ref="buscar" aria-label="Buscar" autocomplete="off">' +
           '<div class="search__results" data-ref="resultados" role="listbox"></div></div>' +
-        '<div class="evchip" title="Evento en curso"><span data-ref="evDot"></span><div class="evchip__txt"><b>' + esc(NEXO.datos.RECINTO.nombre) + '</b><small data-ref="evSub"></small></div><span class="clock" data-ref="reloj"></span></div>' +
+        '<div class="evchip" title="Evento en curso"><span data-ref="evDot"></span><div class="evchip__txt"><b data-ref="evNombre"></b><small data-ref="evSub"></small></div><span class="clock" data-ref="reloj"></span></div>' +
         '<a class="iconbtn" href="#/incidentes" title="Incidentes abiertos" aria-label="Incidentes abiertos">' + ico('bell', 20) + '<b class="iconbtn__dot" data-ref="campana"></b></a>' +
-        '<label class="who" title="Rol con el que operas (ADR-009)"><span data-ref="avatar"></span>' +
-          '<select data-ref="rol" aria-label="Rol">' + NEXO.vistas.comunes.ROLES.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') + '</select>' +
-          ico('chevron-down', 16) + '</label>' +
+        '<div class="who who--sesion">' +
+          '<span data-ref="avatar"></span>' +
+          '<span class="who__nombre"><b data-ref="opNombre"></b><small data-ref="opRol"></small></span>' +
+          '<button type="button" class="iconbtn" data-app="salir" title="Cerrar sesión" aria-label="Cerrar sesión">' + ico('log-out', 18) + '</button>' +
+        '</div>' +
       '</header>' +
       '<main class="main" id="contenido" tabindex="-1"></main>';
     document.body.appendChild(app);
-
-    var dock = document.createElement('section');
-    dock.className = 'dock';
-    dock.setAttribute('aria-label', 'Controles de la simulación');
-    dock.innerHTML =
-      '<div class="dock__bar"><span class="dock__tag">Demo</span>' +
-        '<button type="button" class="dock__btn dock__btn--main" data-app="correr" data-ref="correr"></button>' +
-        '<span class="dock__clock" data-ref="dockReloj"></span><span class="dock__speed" data-ref="dockVel"></span>' +
-        '<span class="spacer"></span>' +
-        '<button type="button" class="dock__btn" data-app="dock" data-ref="dockChev" aria-label="Mostrar u ocultar controles"></button></div>' +
-      '<div class="dock__body">' +
-        '<div class="dock__label">Velocidad (segundos de evento por segundo)</div>' +
-        '<div class="dock__seg" data-ref="velocidades">' + [1, 10, 30, 60].map(function (v) {
-          return '<button type="button" data-app="vel" data-arg="' + v + '">' + v + '×</button>';
-        }).join('') + '</div>' +
-        '<div class="dock__label">Ir a un momento</div>' +
-        '<div class="dock__jumps">' +
-          salto('prep', 'clipboard-check', 'Antes de abrir', '16:20') +
-          salto('pico', 'trending-up', 'Pico de ingreso', '17:50') +
-          salto('inc', 'siren', 'Incidentes', '18:00') +
-          salto('coord', 'server', 'Falla del coordinador', '18:23') +
-          salto('cierre', 'file-check-2', 'Cierre', '20:16') +
-          '<button type="button" class="dock__jump" data-app="reiniciar">' + ico('rotate-ccw', 16) + '<span>Reiniciar<small>misma semilla</small></span></button>' +
-        '</div>' +
-        '<p class="dock__note">Estos controles reemplazan al backend y no son parte del producto. La misma semilla produce el mismo evento.</p>' +
-      '</div>';
-    document.body.appendChild(dock);
 
     var toasts = document.createElement('div');
     toasts.className = 'toasts';
     toasts.setAttribute('aria-live', 'polite');
     document.body.appendChild(toasts);
 
-    [app, dock].forEach(function (r) {
-      r.querySelectorAll('[data-ref]').forEach(function (n) { refs[n.getAttribute('data-ref')] = n; });
-    });
-    refs.app = app; refs.dock = dock; refs.toasts = toasts;
+    app.querySelectorAll('[data-ref]').forEach(function (n) { refs[n.getAttribute('data-ref')] = n; });
+    refs.app = app; refs.toasts = toasts;
     refs.nav = {};
     app.querySelectorAll('[data-nav]').forEach(function (n) { refs.nav[n.getAttribute('data-nav')] = n; });
 
     document.addEventListener('click', alClic);
-    refs.rol.addEventListener('change', function () { NEXO.simulador.cambiarRol(refs.rol.value); });
     refs.buscar.addEventListener('input', buscar);
     refs.buscar.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { var h = refs.resultados.querySelector('[data-ir]'); if (h) h.click(); }
@@ -112,10 +83,6 @@
     });
   }
 
-  function salto(id, icono, t, h) {
-    return '<button type="button" class="dock__jump" data-app="saltar" data-arg="' + id + '">' + ico(icono, 16) + '<span>' + t + '<small>' + h + '</small></span></button>';
-  }
-
   function alClic(ev) {
     var n = ev.target.closest('[data-app]');
     if (!n) {
@@ -123,22 +90,10 @@
       return;
     }
     var a = n.getAttribute('data-app'), arg = n.getAttribute('data-arg');
-    var S = NEXO.simulador, A = NEXO.datos.APERTURA_S;
     if (a === 'ayuda') NEXO.vistas.ayuda.abrir('inicio');
     else if (a === 'tema') alternarTema();
-    else if (a === 'correr') S.alternar();
-    else if (a === 'vel') S.velocidad(Number(arg));
-    else if (a === 'reiniciar') S.reiniciar();
-    else if (a === 'dock') { dockAbierto = !dockAbierto; u.prefs.guardar('dockAbierto', dockAbierto); pintarArmazon(NEXO.store.get()); }
-    else if (a === 'saltar') {
-      var destino = { prep: null, pico: A + 50 * 60, inc: A + 60 * 60, coord: A + 83 * 60, cierre: NEXO.datos.CIERRE_S + 60 }[arg];
-      var e = NEXO.store.get();
-      if (destino === null || destino < e.ahoraS) S.reiniciar();
-      if (destino !== null) S.saltarA(destino);
-      if (arg === 'inc' || arg === 'coord') NEXO.router.ir('#/incidentes');
-      if (arg === 'cierre') NEXO.router.ir('#/cierre');
-      if (arg === 'prep') NEXO.router.ir('#/preparacion');
-    } else if (a === 'irA') {
+    else if (a === 'salir') cerrarSesion();
+    else if (a === 'irA') {
       refs.buscar.value = '';
       u.ranura(refs.resultados, '');
       NEXO.router.ir(arg);
@@ -146,7 +101,7 @@
   }
 
   // ==========================================================
-  //  búsqueda global
+  //  búsqueda global (puertas e incidentes: sin boletas, sin backend de listado)
   // ==========================================================
 
   function buscar() {
@@ -161,14 +116,6 @@
     e.incidentes.forEach(function (x) {
       if ((x.id + ' ' + x.titulo).toLowerCase().indexOf(q) !== -1) hits.push({ ico: 'siren', t: x.id + ' · ' + x.titulo, s: x.prioridad.nombre + ' · ' + x.responsable, h: '#/incidentes/' + x.id });
     });
-    var b = e.boletas.buscar(refs.buscar.value.trim().toUpperCase());
-    if (b) {
-      var s = b.consumidaEnS !== null ? 'Admitida a las ' + fmt.hora(b.consumidaEnS, true) + ' en ' + b.consumidaEnPunto
-        : b.anulacion ? 'Anulada por la boletería' : 'Habilitada, sin usar';
-      hits.push({ ico: 'ticket', t: 'Boleta ' + b.ref + ' · zona ' + b.zona, s: s, h: b.consumidaEnPunto ? '#/puertas/' + b.consumidaEnPunto : '#/lector' });
-    } else if (/^ta-\d{4}-\d{4}$/.test(q)) {
-      hits.push({ ico: 'ticket', t: 'Boleta ' + q.toUpperCase(), s: 'No existe en este evento: se rechazaría como código desconocido', h: '#/lector' });
-    }
     u.ranura(refs.resultados, hits.slice(0, 7).map(function (h) {
       return '<button type="button" class="search__hit" data-app="irA" data-arg="' + h.h + '" data-ir>' + ico(h.ico, 16) +
         '<span><b>' + esc(h.t) + '</b><small>' + esc(h.s) + '</small></span></button>';
@@ -193,6 +140,17 @@
   }
 
   // ==========================================================
+  //  sesión
+  // ==========================================================
+
+  function cerrarSesion() {
+    NEXO.api.logout().then(reiniciarInicio, reiniciarInicio);
+  }
+
+  /** Vuelve a la pantalla de acceso sin recargar el documento. */
+  function reiniciarInicio() { location.hash = ''; location.reload(); }
+
+  // ==========================================================
   //  actualización del armazón
   // ==========================================================
 
@@ -205,8 +163,15 @@
     config: ['Antes del evento', 'Preparación y apertura']
   };
 
+  var ESTADO_EVENTO_TXT = {
+    preparacion: ['en preparación', 'info'],
+    abierto: ['ingreso abierto', 'ok'],
+    cerrado: ['ventana cerrada', 'violet']
+  };
+
   function pintarArmazon(e) {
     var ev = e.evento;
+    if (!ev) return; // aún cargando: la vista muestra su propio estado vacío
     var abiertos = e.incidentes.filter(function (x) { return x.estado === 'nuevo' || x.estado === 'en-curso'; }).length;
     var difs = e.conciliacion.diferencias.filter(function (x) { return x.estado === 'abierta'; }).length;
     var ctl = e.preparacion.controles.filter(function (x) { return !x.ok; }).length;
@@ -216,34 +181,24 @@
 
     var migas;
     if (vistaId === 'incidente') migas = '<a href="#/incidentes">Incidentes</a>' + ico('chevron-right', 14) + '<b>' + esc(params.id) + '</b>';
-    else if (vistaId === 'punto') migas = '<a href="#/inicio">Operación</a>' + ico('chevron-right', 14) + '<b>Puertas · ' + esc(params.id || 'P-07') + '</b>';
+    else if (vistaId === 'punto') migas = '<a href="#/inicio">Operación</a>' + ico('chevron-right', 14) + '<b>Puertas · ' + esc(params.id || '') + '</b>';
     else { var m = MIGAS[vistaId] || MIGAS.pmu; migas = '<span class="dim">' + m[0] + '</span>' + ico('chevron-right', 14) + '<b>' + m[1] + '</b>'; }
     u.ranura(refs.crumbs, migas);
 
-    var est = { preparacion: ['Fecha 14 · en preparación', 'info'], abierto: ['Fecha 14 · ingreso abierto', 'ok'], cerrado: ['Fecha 14 · ventana cerrada', 'violet'] }[ev.estado];
-    u.ranura(refs.evSub, est[0]);
+    u.ranura(refs.evNombre, esc(ev.recinto));
+    var est = ESTADO_EVENTO_TXT[ev.estado] || ESTADO_EVENTO_TXT.preparacion;
+    u.ranura(refs.evSub, esc(ev.nombreCorto) + ' · ' + est[0]);
     u.ranura(refs.evDot, '<i class="dot dot--' + est[1] + (ev.estado === 'abierto' ? ' dot--pulse' : '') + '"></i>');
     u.ranura(refs.reloj, fmt.hora(e.ahoraS, true));
 
-    if (document.activeElement !== refs.rol) refs.rol.value = e.rol;
     u.ranura(refs.avatar, NEXO.vistas.comunes.avatar(e.rol));
+    if (e.operador) { u.ranura(refs.opNombre, esc(e.operador.nombre)); u.ranura(refs.opRol, esc(e.rol)); }
     u.ranura(refs.temaIco, ico(temaActual() === 'dark' ? 'sun' : 'moon', 22));
 
     Object.keys(refs.nav).forEach(function (id) {
       var n = NAV.filter(function (x) { return x.id === id; })[0];
       var activo = id === vistaId || (n.tambien && n.tambien.indexOf(vistaId) !== -1);
       if (activo) refs.nav[id].setAttribute('aria-current', 'page'); else refs.nav[id].removeAttribute('aria-current');
-    });
-
-    refs.dock.setAttribute('data-open', dockAbierto ? '1' : '0');
-    refs.dock.setAttribute('data-run', e.corriendo ? '1' : '0');
-    u.ranura(refs.correr, ico(e.corriendo ? 'pause' : 'play', 16));
-    refs.correr.setAttribute('aria-label', e.corriendo ? 'Pausar' : 'Reanudar');
-    u.ranura(refs.dockReloj, fmt.hora(e.ahoraS, true));
-    u.ranura(refs.dockVel, e.corriendo ? e.velocidad + '×' : 'en pausa');
-    u.ranura(refs.dockChev, ico(dockAbierto ? 'chevron-down' : 'sliders-horizontal', 16));
-    refs.velocidades.querySelectorAll('button').forEach(function (b) {
-      b.setAttribute('aria-pressed', Number(b.getAttribute('data-arg')) === e.velocidad ? 'true' : 'false');
     });
   }
 
@@ -292,11 +247,8 @@
     document.title = t + ' · NEXO';
   }
 
-  function iniciar() {
-    var tema = u.prefs.leer('tema', null);
-    if (tema) document.documentElement.setAttribute('data-theme', tema);
-
-    NEXO.store.inicializar();
+  /** Tras el login (o la sesión reanudada): arma la interfaz y arranca la carga real. */
+  function arrancarConSesion() {
     construir();
 
     NEXO.store.suscribir(function (e) {
@@ -315,13 +267,20 @@
     R.registrar('#/cierre', 'cierre');
     R.registrar('#/preparacion', 'config');
 
-    // Arranca poco antes de los incidentes, con el ingreso cargado:
-    // un panel en vivo se entiende mejor viéndolo trabajar.
-    NEXO.simulador.saltarA(NEXO.datos.APERTURA_S + 52 * 60);
-    R.iniciar(alCambiarRuta);
+    // La hidratación inicial (REST) llega antes de montar la primera vista,
+    // para que ninguna pantalla se encuentre con `evento === null`.
+    NEXO.api.iniciar().then(function () {
+      R.iniciar(alCambiarRuta);
+      if (!u.prefs.leer('bienvenidaVista', false)) NEXO.vistas.ayuda.abrir('inicio');
+    });
+  }
 
-    if (u.prefs.leer('bienvenidaVista', false)) NEXO.simulador.iniciar();
-    else NEXO.vistas.ayuda.abrir('inicio', function () { NEXO.simulador.iniciar(); });
+  function iniciar() {
+    var tema = u.prefs.leer('tema', null);
+    if (tema) document.documentElement.setAttribute('data-theme', tema);
+
+    NEXO.store.inicializar();
+    NEXO.login.mostrar(arrancarConSesion);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);

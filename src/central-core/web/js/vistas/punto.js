@@ -28,7 +28,7 @@ NEXO.vistas.punto = (function () {
       '<div class="gsplit">' +
         '<aside class="card glist">' +
           '<div class="glist__head"><select class="select" data-campo="zona" aria-label="Filtrar por zona"><option value="">Todas las zonas</option>' +
-            NEXO.datos.ZONAS.map(function (z) { return '<option' + (filtroZona === z.nombre ? ' selected' : '') + '>' + esc(z.nombre) + '</option>'; }).join('') +
+            zonasDisponibles(NEXO.store.get()).map(function (z) { return '<option' + (filtroZona === z ? ' selected' : '') + '>' + esc(z) + '</option>'; }).join('') +
           '</select></div>' +
           '<div class="glist__rows" data-slot="lista"></div>' +
         '</aside>' +
@@ -54,25 +54,39 @@ NEXO.vistas.punto = (function () {
     });
     c.delegar(raiz, {
       ir: function (pid) { NEXO.router.ir('#/puertas/' + pid); },
-      lector: function () { NEXO.simulador.fijarPuntoLector(id); NEXO.router.ir('#/lector'); }
+      lector: function () { NEXO.api.fijarPuntoLector(id); NEXO.router.ir('#/lector'); }
     });
+
+    var detalleCargado = {};
 
     return {
       actualizar: function (e) {
         var p = e.puntosPorId[id];
         if (!p) { u.ranura(s.cabeza, c.vacio('search', 'No existe ' + esc(id), 'Elige una puerta de la lista.')); return; }
+        if (!Array.isArray(p.recientes) && !detalleCargado[id]) {
+          detalleCargado[id] = true;
+          NEXO.api.cargarPuntoDetalle(id);
+        }
         u.ranura(s.lista, lista(e, id));
         u.ranura(s.cabeza, cabeza(e, p));
         u.ranura(s.cifras, cifras(e, p));
-        u.ranura(s.actividad, p.actividad.slice().reverse().slice(0, 8).map(function (a) {
+        var actividad = p.actividad || [];
+        u.ranura(s.actividad, actividad.length ? actividad.slice().reverse().slice(0, 8).map(function (a) {
           var tono = a.tipo === 'sistema' ? 'info' : a.tipo;
           return '<div class="feed__item"><span class="feed__dot feed__dot--' + tono + '"></span><div style="flex:1">' + esc(a.texto) + '</div><time>' + fmt.hora(a.t) + '</time></div>';
-        }).join(''));
+        }).join('') : '<p class="dim">' + (Array.isArray(p.recientes) ? 'Sin actividad todavía.' : 'Cargando…') + '</p>');
         u.ranura(s.lector, lector(e, p));
         u.ranura(s.intentos, intentos(p));
       },
       desmontar: function () {}
     };
+  }
+
+  /** Zonas presentes en las puertas cargadas (no hay catálogo fijo de zonas en el contrato). */
+  function zonasDisponibles(e) {
+    var set = {};
+    (e.puntos || []).forEach(function (p) { if (p.zona) set[p.zona] = true; });
+    return Object.keys(set).sort();
   }
 
   function lista(e, sel) {
@@ -109,13 +123,14 @@ NEXO.vistas.punto = (function () {
   }
 
   function cifras(e, p) {
-    var lat = p.latencias.length ? u.percentil(p.latencias, 0.95) : 0;
-    var ult = e.ahoraS - p.ultimaComunicacionS;
+    var latencias = p.latencias || [];
+    var lat = latencias.length ? u.percentil(latencias, 0.95) : 0;
+    var ult = p.ultimaComunicacionS === null ? null : e.ahoraS - p.ultimaComunicacionS;
     return mini('activity', 'info', 'Decisiones por minuto', fmt.entero(p.decisionesMinuto), c.sparkline(p.serie, 30)) +
-      mini('timer', lat && lat > d.Umbral.LATENCIA_MS ? 'warn' : 'ok', 'p95 de respuesta', lat ? fmt.entero(lat) + ' ms' : '—', '<span class="dim">últimas ' + p.latencias.length + ' decisiones</span>') +
+      mini('timer', lat && lat > d.Umbral.LATENCIA_MS ? 'warn' : 'ok', 'p95 de respuesta', lat ? fmt.entero(lat) + ' ms' : '—', '<span class="dim">últimas ' + latencias.length + ' decisiones</span>') +
       mini('history', p.pendientesDiario ? 'warn' : 'ok', 'En el diario del lector', fmt.entero(p.pendientesDiario),
         '<span class="dim">' + (p.sincronizandoDesdeS !== null ? 'sincronizando hace ' + fmt.duracion(e.ahoraS - p.sincronizandoDesdeS) : fmt.entero(p.diarioTotal) + ' en todo el evento') + '</span>') +
-      mini('radio-tower', ult >= d.Umbral.DETECCION_S ? 'no' : 'ok', 'Último reporte', fmt.hace(ult), '<span class="dim">«sin comunicación» a los 30 s (meta 60 s)</span>');
+      mini('radio-tower', ult === null || ult >= d.Umbral.DETECCION_S ? 'no' : 'ok', 'Último reporte', ult === null ? 'sin reportes' : fmt.hace(ult), '<span class="dim">«sin comunicación» a los 30 s (meta 60 s)</span>');
   }
 
   function mini(icono, tono, titulo, valor, pie) {
@@ -124,7 +139,9 @@ NEXO.vistas.punto = (function () {
   }
 
   function lector(e, p) {
-    var l = p.lectores[0];
+    var lectores = p.lectores || (p.lectorActual ? [p.lectorActual] : []);
+    if (!lectores.length) return '<p class="dim">Cargando…</p>';
+    var l = lectores[0];
     return '<div class="reader"><span class="reader__art">' + ico('smartphone', 26) + '</span><div><b class="mono">' + esc(l.id) + '</b>' +
       '<small>' + esc(l.familia) + ' · ' + esc(l.procedencia) + '</small></div>' + c.badge('Autenticado', 'ok') + '</div>' +
       '<dl class="kv" style="margin:14px 0">' +
@@ -135,16 +152,18 @@ NEXO.vistas.punto = (function () {
         '<dt>Canal</dt><dd>Autenticación mutua</dd></dl>' +
       '<div class="field__lbl" style="margin-bottom:6px">Historial de lectores</div>' +
       '<div class="tablewrap"><table class="table"><thead><tr><th>Lector</th><th>Desde</th><th>Hasta</th><th>Origen</th></tr></thead><tbody>' +
-      p.lectores.map(function (x) {
+      lectores.map(function (x) {
         return '<tr><td class="mono">' + esc(x.id) + '</td><td class="mono">' + fmt.hora(x.desdeS) + '</td><td class="mono">' + (x.hastaS ? fmt.hora(x.hastaS) : '—') + '</td><td>' + esc(x.procedencia) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
-      (p.lectores.length > 1 ? '<p class="dim" style="font-size:12px;margin-top:8px">El punto conservó su identidad y sus registros al cambiar de lector' + (p.recuperacionS ? ' (recuperado en ' + fmt.duracion(p.recuperacionS) + ')' : '') + '.</p>' : '');
+      (lectores.length > 1 ? '<p class="dim" style="font-size:12px;margin-top:8px">El punto conservó su identidad y sus registros al cambiar de lector' + (p.recuperacionS ? ' (recuperado en ' + fmt.duracion(p.recuperacionS) + ')' : '') + '.</p>' : '');
   }
 
   function intentos(p) {
-    if (!p.recientes.length) return '<p class="dim">Esta puerta todavía no ha recibido intentos.</p>';
+    var recientes = p.recientes;
+    if (!Array.isArray(recientes)) return '<p class="dim">Cargando…</p>';
+    if (!recientes.length) return '<p class="dim">Esta puerta todavía no ha recibido intentos.</p>';
     return '<div class="tablewrap"><table class="table"><thead><tr><th>Hora</th><th>Identificador de origen</th><th>Boleta</th><th>Decisión</th><th>Motivo</th><th class="right">Respuesta</th><th>Vía</th></tr></thead><tbody>' +
-      p.recientes.slice(0, 10).map(function (it) {
+      recientes.slice(0, 10).map(function (it) {
         return '<tr><td class="mono dim">' + fmt.hora(it.t, true) + '</td><td class="mono">' + esc(it.id) + '</td><td class="mono">' + esc(it.ref) + '</td>' +
           '<td>' + c.decision(it.decision, true) + '</td><td>' + esc(it.admision ? 'Primer ingreso · genera admisión' : it.motivo) + '</td>' +
           '<td class="right mono">' + (it.latenciaMs !== null ? it.latenciaMs + ' ms' : '—') + '</td><td class="dim">' + esc(it.evidencia.via) + '</td></tr>';
