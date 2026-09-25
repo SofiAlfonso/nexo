@@ -99,6 +99,7 @@ describe.skipIf(!dockerDisponible)('C2 V1 contra D1 PostgreSQL real', () => {
   it('rechaza código desconocido, zona no autorizada y boleta anulada', async () => {
     expect((await validar(solicitud('NO-EXISTE'))).json().motivo).toBe('CODIGO_DESCONOCIDO');
     expect((await validar(solicitud('TA-8801-0006', { lectorId: 'LX-2210-120', puntoId: 'P-03', zonaSolicitada: 'Palcos' }))).json().motivo).toBe('ZONA_NO_AUTORIZADA');
+    expect((await validar(solicitud('TA-8801-0006', { zonaSolicitada: 'Palcos' }))).json().motivo).toBe('ZONA_NO_AUTORIZADA');
     expect((await validar(solicitud('TA-8809-0001'))).json().motivo).toBe('BOLETA_ANULADA');
   });
 

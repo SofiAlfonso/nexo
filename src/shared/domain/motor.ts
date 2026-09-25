@@ -64,9 +64,11 @@ export class MotorPrimerIngreso {
     // 3. Anulación ya recibida.
     if (anulacionConocida(boleta, instante)) return r('rechazado', 'BOLETA_ANULADA');
 
-    // 4. Zona identificada y autorizada por el punto (PB-08).
+    // 4. Zona identificada, servida por el punto y autorizada por la boleta (PB-08).
     const zonaSolicitada = ctx.intento.zonaSolicitada?.trim();
-    if (!zonaSolicitada || !punto.zonas.includes(boleta.zona)) return r('rechazado', 'ZONA_NO_AUTORIZADA');
+    if (!zonaSolicitada || !punto.zonas.includes(zonaSolicitada) || boleta.zona !== zonaSolicitada) {
+      return r('rechazado', 'ZONA_NO_AUTORIZADA');
+    }
 
     // 5. Estado del evento y ventana de ingreso (PB-05, PB-06, PB-07, PB-10).
     if (evento.estado !== 'abierto' || !admiteHorario(evento.ventana, instante)) {

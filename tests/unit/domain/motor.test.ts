@@ -36,6 +36,11 @@ describe('MotorPrimerIngreso: prioridad y límites de evaluación', () => {
     expect(evaluar({ punto: { ...base.punto!, zonas: ['Sur'] } }).motivo).toBe('ZONA_NO_AUTORIZADA');
     const sur = contexto({ intento: { ...base.intento, puntoId: 'P-02', zonaSolicitada: 'Sur' } });
     expect(evaluar({ punto: sur.punto, boleta: { ...base.boleta!, zona: 'Sur' }, intento: sur.intento }).decision).toBe('aceptado');
+    // Punto multizona: la zona solicitada debe coincidir con la de la boleta y estar servida por el punto.
+    const multizona = { ...base.punto!, zonas: ['Norte', 'Palcos'] };
+    expect(evaluar({ punto: multizona, intento: { ...base.intento, zonaSolicitada: 'Palcos' } }).motivo).toBe('ZONA_NO_AUTORIZADA');
+    expect(evaluar({ punto: multizona, intento: { ...base.intento, zonaSolicitada: 'Sur' } }).motivo).toBe('ZONA_NO_AUTORIZADA');
+    expect(evaluar({ punto: multizona }).decision).toBe('aceptado');
   });
   it('PB-09 punto ausente, deshabilitado o de otro evento prevalece sobre código desconocido', () => {
     const base = contexto();
