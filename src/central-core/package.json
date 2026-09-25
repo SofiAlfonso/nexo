@@ -1,0 +1,27 @@
+{
+  "name": "@nexo/central-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "C4 núcleo central (M1-M4, C3; sirve C5)",
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "./index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/static": "^10.1.4",
+    "@nexo/shared": "^0.1.0",
+    "argon2": "^0.45.1",
+    "decimal.js": "^10.6.0",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "pino": "^10.3.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}

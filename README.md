@@ -54,11 +54,11 @@ como un despliegue productivo definitivo.
 
 ## Estado actual
 
-**Cascarón inicial, sin implementación funcional.** Esta versión del
-repositorio define únicamente la estructura de carpetas y la documentación
-de propósito de cada componente. No hay lógica de negocio, servicios
-funcionales, dashboards completos, métricas reales, pruebas de carga ni
-inyección de fallos implementados todavía.
+El repositorio cuenta con el andamiaje TypeScript y los workspaces npm
+`@nexo/shared`, `@nexo/local-coordinator`, `@nexo/central-core`,
+`@nexo/reader-client` y `@nexo/ticketing-sim`. Los contratos V1/H1/E1/P1/P2/O2/Auth
+están en `src/shared/contracts/` junto con sus fixtures, y CI está configurado.
+La implementación de los componentes está en curso (taller 3).
 
 ## Advertencia de seguridad
 
@@ -76,25 +76,40 @@ nexo/
 ├── .gitignore
 ├── .editorconfig
 ├── .gitattributes
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── docs/
 │   ├── architecture/
+│   │   └── contracts.md
 │   ├── decisions/
 │   ├── observability/
 │   ├── fault-experiments/
 │   └── evidence/
 ├── src/
-│   ├── reader-client/
+│   ├── shared/
+│   │   ├── contracts/
+│   │   ├── domain/
+│   │   └── telemetry/
 │   ├── local-coordinator/
-│   └── central-core/
-│       ├── api/
-│       ├── application/
-│       ├── domain/
-│       ├── infrastructure/
-│       └── modules/
-│           ├── configuration-permissions/
-│           ├── evidence-ingestion/
-│           ├── reconciliation/
-│           └── contracting-settlement/
+│   │   ├── api/
+│   │   ├── application/
+│   │   ├── domain/
+│   │   └── infrastructure/
+│   ├── central-core/
+│   │   ├── api/
+│   │   ├── application/
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   ├── web/
+│   │   └── modules/
+│   │       └── <m>/
+│   │           ├── domain/
+│   │           ├── application/
+│   │           ├── infrastructure/
+│   │           └── api/
+│   ├── reader-client/
+│   └── ticketing-sim/
 ├── deploy/
 │   ├── minikube/
 │   ├── kubernetes/
@@ -122,10 +137,28 @@ nexo/
 │   ├── unit/
 │   ├── integration/
 │   ├── load/
-│   └── resilience/
+│   ├── resilience/
+│   └── fixtures/
 └── config/
     └── examples/
 ```
+
+## Desarrollo
+
+Requisitos: Node.js >= 24 y npm.
+
+```sh
+npm ci
+npm run build
+npm run lint
+npm test
+npm run test:integration
+npm run dev
+```
+
+`npm run build` ejecuta el typecheck de todos los workspaces.
+`npm run test:integration` requiere Docker y usa Testcontainers.
+`npm run dev` es un placeholder hasta M1.
 
 ## Próximos pasos
 

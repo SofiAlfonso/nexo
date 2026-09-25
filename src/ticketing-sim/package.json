@@ -1,0 +1,20 @@
+{
+  "name": "@nexo/ticketing-sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Boletería simulada (sistema externo de prueba)",
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "./index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nexo/shared": "^0.1.0",
+    "fastify": "^5.12.5",
+    "pino": "^10.3.1",
+    "zod": "^4.6.5"
+  }
+}

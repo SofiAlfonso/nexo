@@ -1,0 +1,44 @@
+{
+  "name": "nexo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NEXO: validación de acceso a eventos (taller 3, ST1625)",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "src/shared",
+    "src/local-coordinator",
+    "src/central-core",
+    "src/reader-client",
+    "src/ticketing-sim"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:workspaces": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "dev": "node -e \"console.log('npm run dev: pendiente hasta el hito M1')\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.0.2",
+    "eslint": "^9.39.5",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "globals": "^17.12.0",
+    "testcontainers": "^12.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

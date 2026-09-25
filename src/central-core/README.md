@@ -1,7 +1,7 @@
 # Núcleo central (C4)
 
 **Responsabilidad**: monolito modular organizado internamente por capas
-(`api/`, `application/`, `domain/`, `infraestructure/`) que aloja los
+(`api/`, `application/`, `domain/`, `infrastructure/`) que aloja los
 módulos de negocio M1–M4, el adaptador de boletería (C3, asociado a M1) y
 sirve el panel de operación (C5).
 
@@ -15,19 +15,23 @@ sirve el panel de operación (C5).
 **Componente relacionado**: C4 (núcleo central), C3 (adaptador de
 boletería, dentro de M1) y C5 (panel de operación, servido desde aquí).
 
-**Decisiones pendientes**: stack tecnológico del monolito, límites exactos
-entre capas y contratos entre módulos M1–M4.
+**Stack**: TypeScript, Node 24, Fastify, `pg`, `decimal.js`, `argon2`
+(login de operadores por rol) y `zod`.
 
 ## Estructura interna
 
-- `api/` — capa de presentación/API del núcleo central.
-- `application/` — casos de uso y orquestación de aplicación.
-- `domain/` — modelo de dominio y reglas de negocio.
-- `infrastructure/` — integraciones técnicas (persistencia D2, mensajería,
-  etc.).
-- `modules/` — módulos de negocio M1–M4:
-  - `configuration-permissions/` (M1): configuración y permisos, incluye el
+- Cada módulo tiene sus propias capas en
+  `modules/<m>/{domain,application,infrastructure,api}/`:
+  - `configuration-permissions/` (M1): configuración y permisos; incluye el
     adaptador de boletería (C3).
   - `evidence-ingestion/` (M2): ingesta de intentos y evidencia.
   - `reconciliation/` (M3): conciliación.
   - `contracting-settlement/` (M4): contratación y liquidación.
+- Las carpetas globales son solo para elementos compartidos:
+  - `api/` — servidor HTTP Fastify y raíz de composición.
+  - `application/` — solo cableado, sin lógica de negocio.
+  - `domain/` — kernel compartido (tipos de eventos y cliente).
+  - `infrastructure/` — conexión a D2 (`infrastructure/db/`) y telemetría.
+- `web/` — panel C5; prototipo portado y servido como archivos estáticos por C4.
+- Una regla de ESLint impide que un módulo importe el `infrastructure/` de
+  otro módulo.

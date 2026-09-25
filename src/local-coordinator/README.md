@@ -13,5 +13,12 @@ delegarse la autoridad de decisión a la nube/plataforma central.
 **Componente relacionado**: C2 — Coordinador local, junto con D1
 (persistencia transaccional local).
 
-**Decisiones pendientes**: tecnología del coordinador, esquema de D1 y
-protocolo de sincronización/outbox hacia C4.
+**Stack**: TypeScript, Node 24, Fastify, `pg` y PostgreSQL 16 como D1.
+
+## Estructura interna
+
+- `index.ts` — punto de entrada del componente.
+- `domain/` — reglas del dominio de validación local.
+- `application/` — casos de uso y orquestación.
+- `infrastructure/` — adaptadores; `infrastructure/db/` contiene las migraciones de D1 PostgreSQL, propiedad de la sesión de datos.
+- `api/` — V1 `POST /v1/validaciones`, H1 `POST /v1/heartbeats` y `POST /v1/diario/lotes`.
