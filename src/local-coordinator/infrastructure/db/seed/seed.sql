@@ -16,6 +16,20 @@ ON CONFLICT (evento_id) DO UPDATE SET
   cierre_en = EXCLUDED.cierre_en,
   permisos_recibidos_en = EXCLUDED.permisos_recibidos_en;
 
+-- Provenance of the pre-installed demo permission version. Deliberately not a
+-- signed P2 response: only C4 may issue a real signed package.
+INSERT INTO permiso_version (
+  evento_id, version, desde_version, tipo, paquete, emitido_en,
+  vigente_hasta, apertura_en, cierre_en, version_politicas
+)
+SELECT evento_id, 1, 0, 'instantanea',
+  jsonb_build_object('fixture', 'demo-only', 'eventoId', evento_id,
+                     'hastaVersion', 1, 'firma', NULL),
+  permisos_recibidos_en, cierre_en, apertura_en, cierre_en, 1
+FROM evento
+WHERE evento_id = 'EVT-2026-02'
+ON CONFLICT (evento_id, version) DO NOTHING;
+
 WITH asignacion AS (
   SELECT n,
     CASE WHEN n <= 5 THEN 'Z-NORTE'
