@@ -80,16 +80,23 @@ async function waitForHealthy({ container, label }, timeoutMs = 120_000) {
   }
 }
 
-/** Corre un script opcional (migración/semilla) si el archivo existe; si no, lo indica y continúa. */
-async function runOptionalScript(scope, relativePath, args = []) {
-  const scriptPath = path.join(repoRoot, relativePath);
-  if (!existsSync(scriptPath)) {
-    logStep(scope, `omitido: ${relativePath} aún no existe (pendiente en otra sesión de la ola 1).`);
+/**
+ * Corre un script opcional si su archivo de presencia ya existe (p. ej. una
+ * migración publicada por otra sesión); si no, lo indica y continúa.
+ * `presenceRelativePath` permite comprobar un archivo (propiedad de otra
+ * sesión) distinto del que realmente se ejecuta (un wrapper propio de
+ * scripts/, como scripts/migrate.ts).
+ */
+async function runOptionalScript(scope, presenceRelativePath, args = [], runRelativePath = presenceRelativePath) {
+  const presencePath = path.join(repoRoot, presenceRelativePath);
+  if (!existsSync(presencePath)) {
+    logStep(scope, `omitido: ${presenceRelativePath} aún no existe (pendiente en otra sesión de la ola 1).`);
     return;
   }
-  logStep(scope, `ejecutando ${relativePath}...`);
-  await run("node", [scriptPath, ...args], { env });
-  logStep(scope, `${relativePath} completado.`);
+  const runPath = path.join(repoRoot, runRelativePath);
+  logStep(scope, `ejecutando ${runRelativePath} ${args.join(" ")}...`.trim());
+  await run("node", [runPath, ...args], { env });
+  logStep(scope, `${runRelativePath} ${args.join(" ")} completado.`.trim());
 }
 
 function spawnService(name, entryRelativePath, extraEnv = {}) {
@@ -141,10 +148,14 @@ async function main() {
   await runOptionalScript(
     "migrate",
     path.join("src", "local-coordinator", "infrastructure", "db", "migrate.ts"),
+    ["d1"],
+    path.join("scripts", "migrate.ts"),
   );
   await runOptionalScript(
     "migrate",
     path.join("src", "central-core", "infrastructure", "db", "migrate.ts"),
+    ["d2"],
+    path.join("scripts", "migrate.ts"),
   );
   await runOptionalScript("seed", path.join("deploy", "scripts", "seed-d1.ts"));
   await runOptionalScript("seed", path.join("deploy", "scripts", "seed-d2.ts"));
