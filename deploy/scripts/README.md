@@ -14,14 +14,16 @@ entorno de todos los componentes (C1–C5, D1–D2).
 ## Sembrar datos locales
 
 `seed.ps1` inserta datos idempotentes en D1 y D2, publicados por Compose en
-`localhost:5433` y `localhost:5434`. El comando PowerShell aplica las
-migraciones antes de ejecutar los SQL de semilla con `psql`; las bases deben
-estar creadas y accesibles. Se requieren PowerShell, `psql`, Node.js 24 o
-posterior y las dependencias instaladas con `npm ci` (`pg`, `tsx` y `argon2`).
+`localhost:5433` y `localhost:5434`. PowerShell invoca `seed.ts`, que aplica
+las migraciones antes de ejecutar cada SQL de semilla en una transacción;
+las bases deben estar creadas y accesibles. Se requieren PowerShell, Node.js
+24 o posterior y las dependencias instaladas con `npm ci` (`pg`, `tsx` y `argon2`).
 
 La contraseña común de laboratorio para los cinco operadores se exige por
 `SEED_OPERATOR_PASSWORD`; el script genera su hash Argon2 en cada ejecución y
 nunca imprime ni persiste la contraseña. No existe contraseña predeterminada.
+`seed.ts` calcula el hash y lo sustituye en el SQL de D2; la contraseña en
+texto claro no se guarda en las bases.
 La semilla inicial crea los cinco usuarios; una repetición conserva los hashes
 ya guardados y no sirve para cambiar una contraseña existente.
 Configure también las contraseñas de conexión que correspondan al entorno:
@@ -84,8 +86,9 @@ Para generar el catálogo real de prueba del lector después de sembrar, indique
 `config/examples/secrets.example.env`) y una ruta **fuera de Git**:
 
 ```powershell
-$env:D1_DATABASE_URL = 'postgresql://usuario:clave@localhost:5433/nexo_venue'
-node --import tsx deploy\scripts\export-boletas.ts "$env:TEMP\boletas-lector.json"
+# Configure D1_DATABASE_URL from a local secret source; do not store credentials here.
+$boletaFile = Join-Path $HOME 'Documents\boletas-lector.json'
+node --import tsx deploy\scripts\export-boletas.ts $boletaFile
 ```
 
 El JSON contiene `eventos: [{eventoId, boletas: [{codigo, zona, estado,
