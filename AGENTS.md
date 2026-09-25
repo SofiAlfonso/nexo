@@ -50,20 +50,30 @@ Un módulo no importa el `infrastructure/` de otro módulo (regla de ESLint).
 
 ## Flujo de trabajo
 
-**Hasta el hito M1 (trunk en `main`)**:
+El hito M1 ya se cumplió (login, panel con datos reales, V1 → D1 → E1 → D2 → SSE y `npm run dev`). Desde entonces **no se hace push directo a `main`**:
 
 ```powershell
 git fetch origin; git rebase origin/main
 npm ci; npm run lint; npm test
-git push origin HEAD:main
+git push -u origin HEAD
+gh pr create --base main --fill
 ```
 
-- Cada sesión trabaja en su worktree y solo edita sus rutas propias.
-- Quien rompe `main` lo arregla primero.
-- `package.json` raíz y `package-lock.json` solo los cambia S0-base; una dependencia nueva se agrega al workspace propio y el lockfile va en un commit aparte.
+- Una rama por tarea o funcionalidad (la rama del worktree de la sesión). PR contra `main` con CI verde (`npm ci`, `npm run lint`, `npm test`); se integra con *squash* cuando CI pasa y no hay conflictos.
+- Antes de abrir o actualizar el PR, rebasa sobre `origin/main`. Si otro PR ya integró algo que choca, resuelve el conflicto en tu rama.
+- Cada sesión solo edita sus rutas propias. Quien rompe `main` lo arregla primero.
+- Una dependencia nueva se agrega al `package.json` del workspace propio; el cambio de `package-lock.json` va en el mismo PR y en un commit aparte.
 - Commits pequeños, Conventional Commits en inglés, con el trailer `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>`.
+- `npm run test:m1` (con `npm run dev` arriba) es la prueba de humo de punta a punta; no la rompas.
 
-**Después de M1**: feature branches + PR con CI verde (`npm ci`, `npm run lint`, `npm test`).
+**Producto**: la aplicación va a producción. C5 puede tener bienvenida, ayuda o tutorial, pero **no simulación** en la interfaz ni datos inventados. El modo `?fixtures` es solo para desarrollo y no debe activarse contra un backend real.
+
+**Entorno compartido** (varias sesiones en la misma máquina):
+
+- Docker Desktop y Minikube son compartidos: no reinicies Docker, no ejecutes `wsl --shutdown`, `minikube stop` ni `minikube delete`.
+- El proyecto Compose `nexo-dev` (D1 `5433`, D2 `5434`, `otel-lgtm`) es compartido: nunca `down -v` ni borrar sus volúmenes. Las pruebas automáticas usan Testcontainers; para un stack propio usa `docker compose -p nexo-<sesion>` con otros puertos.
+- Los puertos `8080` (C4), `8081` (C2) y `8082` (boletería) del `npm run dev` compartido los usa una sola sesión a la vez; para pruebas propias levanta los servicios en otros puertos (`CENTRAL_PORT`, `COORDINATOR_PORT`, `TICKETING_PORT`).
+- En el clúster, cada sesión despliega solo en los namespaces de su tarea; los experimentos de caos (F1–F4) se ejecutan de uno en uno.
 
 Solo la sesión orquestadora actualiza las tablas de seguimiento de [docs/context/taller3.md](docs/context/taller3.md).
 
