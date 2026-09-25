@@ -45,7 +45,7 @@ Roles del servicio, nunca asistentes (ADR-006). Definidos en `dominio.Rol` y lis
 
 En el prototipo el rol se elige en un selector de la barra superior y solo cambia el autor de acciones y notas, el avatar y el filtro "Asignados a mí". No restringe permisos. Además de los roles aparecen dos autores de sistema: `NEXO` (detección automática) y `Sistema` (transiciones), con avatar "NX".
 
-Taller 3: mantener el selector como identidad de laboratorio (token estático por rol) y registrar el rol como autor en D2. La autorización real por rol, cliente y evento (ADR-009) queda como decisión D8 del plan.
+Taller 3: el selector se reemplaza por login con usuario y contraseña, uno por rol (ADR-016); el rol sale del usuario autenticado y se registra como autor en D2. La autorización real por rol, cliente y evento (ADR-009) queda como decisión D8 del plan.
 
 ## 3. Armazón (`app.js`)
 

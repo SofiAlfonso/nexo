@@ -1,6 +1,6 @@
 # Gaps entre el repositorio `nexo` y el plan del taller 3
 
-Comparación del 25 de septiembre de 2026 entre [taller3.md](taller3.md) y el estado real del repositorio `SofiAlfonso/nexo` (README en [main_README.md](main_README.md) y archivos de las ramas). Incluye las decisiones que hay que tomar antes de trabajar en paralelo y un plan de sesiones con worktrees.
+Comparación del 25 de septiembre de 2026 entre [taller3.md](taller3.md) y el estado real del repositorio `SofiAlfonso/nexo` (README en [README.md](../../README.md) y archivos de las ramas). Incluye las decisiones que hay que tomar antes de trabajar en paralelo y un plan de sesiones con worktrees.
 
 ## 1. Estado real del repositorio
 
@@ -62,7 +62,7 @@ Cada gap indica qué dice el repo, qué dice el plan y qué conviene hacer. Los 
 
 ## 4. Cambios que esto implica en taller3.md
 
-Pendientes de aplicar cuando el equipo confirme la sección 3:
+Aplicados el 25 de septiembre de 2026 en taller3.md, con las decisiones cerradas por el equipo (Node 24 en lugar de Node 22, login de laboratorio por rol con ADR-016, hito M1 y modelo de sesiones en taller3.md §3.4 y §3.5):
 
 - §2 y D1: namespaces de G01 y rutas de G08.
 - D3: D1 en PostgreSQL (G02) y D3 retenido en D2 (G13).
