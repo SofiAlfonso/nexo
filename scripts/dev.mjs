@@ -173,6 +173,9 @@ async function main() {
   spawnService("coordinator", path.join("src", "local-coordinator", "index.ts"), {
     PORT: env.COORDINATOR_PORT ?? "8081",
     CENTRAL_URL: env.CENTRAL_URL ?? "http://localhost:8080",
+    // scripts/migrate.ts ya migró D1 arriba; evita una segunda migración
+    // concurrente al arrancar C2 (que migra D1 por defecto si tiene Postgres).
+    D1_MIGRAR: "false",
   });
 
   logStep(
