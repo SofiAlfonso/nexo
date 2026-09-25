@@ -18,14 +18,20 @@ el lector conserva el intento en su diario y reintenta con el mismo `idOrigen`.
 
 ## Ejecución local
 
-Node 24: `npm start -w @nexo/local-coordinator`. Sin `LOCAL_POSTGRES_HOST`
-se crea un almacén **volátil de demostración**, con puntos, lectores y boletas
-de prueba. Para D1 persistente, inicie PostgreSQL del archivo
+Node 24: `npm start -w @nexo/local-coordinator` (o `node src/local-coordinator/index.ts`,
+que es lo que usan `npm run dev` y la imagen Docker). `npm run dev` pasa
+`PORT=4001` y toma D1 de las variables `D1_*` de `deploy/compose/.env.example`.
+Sin configuración de D1 se crea un almacén **volátil de demostración**, con puntos,
+lectores y boletas de prueba. Para D1 persistente, inicie PostgreSQL del archivo
 `deploy/compose/docker-compose.dev.yml` y configure `LOCAL_POSTGRES_HOST=localhost`,
 `LOCAL_POSTGRES_PORT=5433`, `LOCAL_POSTGRES_DB=nexo_venue` y
 `LOCAL_POSTGRES_USER=nexo_venue`; la contraseña se proporciona por variable de
-entorno, nunca se guarda en Git. Las migraciones y permisos del evento deben
-estar instalados antes de aceptar ingresos. `CENTRAL_URL` habilita el envío E1.
+entorno, nunca se guarda en Git. C2 aplica las migraciones de D1 al arrancar
+(idempotentes); la semilla del evento (evento, puntos, lectores, boletas) debe
+estar instalada antes de aceptar ingresos. `CENTRAL_URL` habilita el envío E1
+(`POST /v1/lotes-evidencia`, lotes ≤100, backoff exponencial, prioridad inferior a V1).
+La descarga de permisos P2 desde C4 aún no está conectada: C2 usa los permisos ya
+presentes en D1.
 
 | Variable | Predeterminado | Descripción |
 | --- | --- | --- |
@@ -43,6 +49,9 @@ estar instalados antes de aceptar ingresos. `CENTRAL_URL` habilita el envío E1.
 | `LOCAL_POSTGRES_DB` | `nexo_venue` | Base D1 |
 | `LOCAL_POSTGRES_USER` | `nexo_venue` | Usuario D1 |
 | `LOCAL_POSTGRES_PASSWORD` | sin valor | Contraseña D1, solo en entorno |
+| `D1_MIGRAR` | `true` | `false` si las migraciones de D1 las aplica otro paso |
+| `D1_DATABASE_URL` | sin valor | Alternativa a `LOCAL_POSTGRES_*` (URL `postgres://`) |
+| `D1_HOST`, `D1_PORT`, `D1_POSTGRES_DB`, `D1_POSTGRES_USER`, `D1_POSTGRES_PASSWORD` | `localhost`, `5433` | Variables de Compose; se usan si no hay `LOCAL_POSTGRES_HOST` ni `D1_DATABASE_URL` |
 
 Ejemplo de V1 en PowerShell (la primera boleta Norte de la semilla):
 

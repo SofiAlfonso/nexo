@@ -15,7 +15,7 @@ import { crearAlmacenPostgres } from './infrastructure/persistence/postgres/inde
 export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfig()) {
   let almacen: Almacen;
   if (config.postgres) {
-    almacen = await crearAlmacenPostgres(config.postgres, { eventoId: config.eventoId });
+    almacen = await crearAlmacenPostgres(config.postgres, { eventoId: config.eventoId, migrar: config.migrarD1 });
   } else {
     const memoria = crearAlmacenMemoria();
     memoria.sembrar(semillaDemo(new Date()));
@@ -68,7 +68,8 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
   return { app, almacen, autoridad, servicio, detener };
 }
 
-if (import.meta.main) {
+/** Arranca C2 como proceso: señales SIGINT/SIGTERM detienen ordenadamente. */
+export function ejecutarComoProceso(): void {
   void iniciarCoordinador().then(({ detener }) => {
     const salir = () => { void detener().then(() => { process.exitCode = 0; }).catch((error: unknown) => {
       console.error(error);
@@ -81,3 +82,5 @@ if (import.meta.main) {
     process.exitCode = 1;
   });
 }
+
+if (import.meta.main) ejecutarComoProceso();
