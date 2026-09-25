@@ -1,3 +1,4 @@
+﻿  
 mode: deployment
 namespaceOverride: nexo-observability
 fullnameOverride: nexo-otel-collector
@@ -24,6 +25,10 @@ resources:
 
 useGOMEMLIMIT: true
 
+podSecurityContext:
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+
 service:
   type: ClusterIP
 
@@ -43,7 +48,27 @@ ports:
   metrics:
     enabled: false
 
+extraEnvsFrom:
+  - secretRef:
+      name: grafana-cloud-otlp
+
+extraVolumes:
+  - name: collector-storage
+    persistentVolumeClaim:
+      claimName: nexo-otel-collector-storage
+
+extraVolumeMounts:
+  - name: collector-storage
+    mountPath: /var/lib/otelcol
+
 config:
+  extensions:
+    file_storage/nexo:
+      directory: /var/lib/otelcol/queue
+      timeout: 10s
+      create_directory: true
+      directory_permissions: "0750"
+
   receivers:
     jaeger: null
     zipkin: null
@@ -68,7 +93,28 @@ config:
     debug:
       verbosity: basic
 
+    otlp_http/grafana:
+      endpoint: ${env:GRAFANA_CLOUD_OTLP_ENDPOINT}
+      headers:
+        Authorization: ${env:GRAFANA_CLOUD_BASIC_AUTH_HEADER}
+      compression: gzip
+      timeout: 10s
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 0s
+      sending_queue:
+        enabled: true
+        num_consumers: 2
+        queue_size: 1000
+        storage: file_storage/nexo
+
   service:
+    extensions:
+      - health_check
+      - file_storage/nexo
+
     pipelines:
       traces:
         receivers:
@@ -78,6 +124,8 @@ config:
           - batch
         exporters:
           - debug
+          - otlp_http/grafana
+
       metrics:
         receivers:
           - otlp
@@ -86,6 +134,8 @@ config:
           - batch
         exporters:
           - debug
+          - otlp_http/grafana
+
       logs:
         receivers:
           - otlp
@@ -94,3 +144,4 @@ config:
           - batch
         exporters:
           - debug
+          - otlp_http/grafana
