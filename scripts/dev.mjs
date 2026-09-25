@@ -164,8 +164,16 @@ async function main() {
     ["d2"],
     path.join("scripts", "migrate.ts"),
   );
-  await runOptionalScript("seed", path.join("deploy", "scripts", "seed-d1.ts"));
-  await runOptionalScript("seed", path.join("deploy", "scripts", "seed-d2.ts"));
+  // S1-data publica un único script de semilla (deploy/scripts/seed.ts) que
+  // siembra D1 y D2 juntos, en lugar de dos scripts separados; requiere
+  // SEED_OPERATOR_PASSWORD (ver deploy/compose/.env.example) y admite
+  // `--export <ruta>` para dejar una exportación real de boletas lista para
+  // `npm run dev:reader` (tmp/dev-boletas.json, ignorado por git).
+  await runOptionalScript(
+    "seed",
+    path.join("deploy", "scripts", "seed.ts"),
+    ["--export", path.join("tmp", "dev-boletas.json")],
+  );
 
   spawnService("central", path.join("src", "central-core", "index.ts"), {
     PORT: env.CENTRAL_PORT ?? "8080",

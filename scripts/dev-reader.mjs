@@ -7,7 +7,9 @@
 //   start --perfil nominal --lectores N --coordinador <url> --boletas <archivo>
 // `--boletas` debe ser una exportación real de la semilla D1 (ver
 // tests/load/README.md), acorde a los eventos/zonas del perfil `nominal`
-// (EVT-2026-02). No hay un default seguro: pase `-- --boletas <ruta>` (y
+// (EVT-2026-02). Si `npm run dev` ya sembró datos, usa por defecto la
+// exportación que dejó en tmp/dev-boletas.json (--export de
+// deploy/scripts/seed.ts); si no existe, pase `-- --boletas <ruta>` (y
 // opcionalmente `--lectores`/`--evento`/`--duracion`) al invocar este script.
 
 import { spawn } from "node:child_process";
@@ -28,28 +30,36 @@ if (!existsSync(cliEntry)) {
 
 const coordinatorUrl = env.COORDINATOR_URL ?? `http://localhost:${env.COORDINATOR_PORT ?? "8081"}`;
 const extraArgs = process.argv.slice(2);
+const defaultBoletasPath = path.join(repoRoot, "tmp", "dev-boletas.json");
 
-if (!extraArgs.includes("--boletas")) {
+let args;
+if (extraArgs.includes("--boletas")) {
+  args = [cliEntry, "start", "--perfil", "nominal", "--lectores", "1", "--coordinador", coordinatorUrl, ...extraArgs];
+} else if (existsSync(defaultBoletasPath)) {
+  logStep("reader", `usando la exportación de \`npm run dev\` en ${defaultBoletasPath}.`);
+  args = [
+    cliEntry,
+    "start",
+    "--perfil",
+    "nominal",
+    "--lectores",
+    "1",
+    "--coordinador",
+    coordinatorUrl,
+    "--boletas",
+    defaultBoletasPath,
+    ...extraArgs,
+  ];
+} else {
   logStep(
     "reader",
-    "falta --boletas: pase una exportación real de la semilla D1, p. ej.\n" +
+    "falta --boletas: no hay exportación en tmp/dev-boletas.json (corre `npm run dev` primero, ya " +
+      "que siembra y exporta) o pase una ruta propia, p. ej.\n" +
       "  npm run dev:reader -- --boletas C:\\nexo-datos\\boletas.json\n" +
       "Ver tests/load/README.md y src/reader-client/cli/README.md.",
   );
   process.exit(1);
 }
-
-const args = [
-  cliEntry,
-  "start",
-  "--perfil",
-  "nominal",
-  "--lectores",
-  "1",
-  "--coordinador",
-  coordinatorUrl,
-  ...extraArgs,
-];
 
 logStep("reader", `iniciando lector emulado (perfil nominal) contra ${coordinatorUrl} ...`);
 
