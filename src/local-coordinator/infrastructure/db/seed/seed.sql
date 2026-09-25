@@ -86,7 +86,7 @@ INSERT INTO intento (
 )
 VALUES (
   'EVT-2026-02', 'seed:used:EVT-2026-02:TA-8800-0002',
-  encode(sha256(convert_to('seed:used:EVT-2026-02:TA-8800-0002', 'UTF8')), 'hex'),
+  '1d26a4f2de55e46762986d7485dd11f5184a1ca1be1f29967b3a8b3bf1229672',
   'LX-2210-0107', 'P-01', 'TA-8800-0002', 'ingreso', 'Z-NORTE',
   now() - interval '2 minutes', 'aceptado', 'PERMISO_VIGENTE',
   jsonb_build_object(
