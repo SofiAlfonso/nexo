@@ -164,6 +164,36 @@ describe('DespachadorOutbox', () => {
     expect(outbox.acuses).toHaveLength(4);
   });
 
+  it('las decisiones del outbox tienen prioridad sobre los latidos y la capacidad se recupera tras 413', async () => {
+    const lotes: LoteEvidencia[] = [];
+    let rechazos = 3;
+    const cliente: ClienteE1 = {
+      async enviar(lote) {
+        lotes.push(lote);
+        if (rechazos-- > 0) throw Object.assign(new Error('E1 HTTP 413'), { status: 413 });
+        return acuse(lote);
+      },
+    };
+    const { despachador, outbox, latidos, llenar } = preparar(30, cliente, { loteEvidenciaMax: 10 });
+    await llenar();
+    const latir = () => {
+      for (let n = 1; n <= 20; n++) {
+        latidos.registrar({
+          eventoId: 'EVT-2026-02', lectorId: `LECTOR${n}`, puntoId: 'P-01', secuencia: Date.now(),
+          estadoLector: 'operativo', pendientesDiario: 0, diarioTotal: 1, versionPermisos: 1,
+          instanteLector: new Date().toISOString(),
+        });
+      }
+    };
+    for (let i = 0; i < 3; i++) { latir(); await despachador.ejecutarCiclo(); }
+    expect(lotes.at(-1)!.registros).toHaveLength(2);
+    for (let i = 0; i < 8 && outbox.acuses.length < 30; i++) { latir(); await despachador.ejecutarCiclo(); }
+    expect(new Set(outbox.acuses).size).toBe(30);
+    expect(Math.max(...lotes.map((l) => l.registros.length))).toBe(10);
+    const esEvidencia = (t: string) => t !== 'latido-punto' && t !== 'estado-coordinador';
+    expect(lotes.slice(3, -1).every((l) => l.registros.filter((r) => esEvidencia(r.tipo)).length === l.registros.length - 1)).toBe(true);
+  });
+
   it('no acusa filas si el acuse válido pertenece a otro lote', async () => {
     const { despachador, outbox, llenar } = preparar(1, {
       async enviar(lote) {

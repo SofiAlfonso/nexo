@@ -66,7 +66,12 @@ export class DespachadorOutbox {
     this.backoffBaseMs = o.backoffBaseMs ?? 500;
     this.backoffMaxMs = o.backoffMaxMs ?? 30_000;
     this.esperaMaxV1Ms = o.esperaMaxV1Ms ?? 200;
-    this.capacidad = Math.max(1, Math.min(MAX_REGISTROS_LOTE, o.config.loteEvidenciaMax));
+    this.capacidad = this.capacidadMax();
+  }
+
+  /** Al menos 2: un registro de estado más, como mínimo, uno del outbox. */
+  private capacidadMax(): number {
+    return Math.max(2, Math.min(MAX_REGISTROS_LOTE, this.o.config.loteEvidenciaMax));
   }
 
   iniciar(): void {
@@ -130,10 +135,12 @@ export class DespachadorOutbox {
         this.edadMaxS = resumen.edadMaxS;
         const latidos = this.o.latidos.tomarPendientes();
         latidosTomados = latidos;
-        const disponibles = Math.max(0, this.capacidad - 1);
-        const seleccionados = latidos.slice(0, disponibles);
-        this.o.latidos.devolver(latidos.slice(disponibles));
-        const filas = await this.o.outbox.pendientes(disponibles - seleccionados.length);
+        const disponibles = this.capacidad - 1;
+        // Las decisiones tienen prioridad sobre los latidos: estos solo ocupan el espacio sobrante.
+        const filas = await this.o.outbox.pendientes(disponibles);
+        const seleccionados = latidos.slice(0, disponibles - filas.length);
+        this.o.latidos.devolver(latidos.slice(seleccionados.length));
+        latidosTomados = seleccionados;
         // Sin novedades, el estado solo se publica cada cinco sondeos.
         if (filas.length === 0 && seleccionados.length === 0 &&
           this.ultimoEstadoEnviado && ahora.getTime() - this.ultimoEstadoEnviado.getTime() < this.intervaloMs * 5) {
@@ -175,6 +182,8 @@ export class DespachadorOutbox {
       }
       await this.o.outbox.registrarAcuse(actual.filas.map((fila) => fila.id), actual.lote.idLote, this.o.reloj?.ahora() ?? new Date());
       this.pendiente = null;
+      // Tras un 413, la capacidad se recupera gradualmente con cada lote aceptado.
+      this.capacidad = Math.min(this.capacidadMax(), this.capacidad * 2);
       this.ultimoEnvioOk = this.o.reloj?.ahora() ?? new Date();
       this.ultimoEstadoEnviado = this.ultimoEnvioOk;
       this.fallosConsecutivos = 0;
@@ -189,7 +198,7 @@ export class DespachadorOutbox {
       this.fallosConsecutivos++;
       this.enLinea = false;
       if (typeof error === 'object' && error !== null && 'status' in error && error.status === 413 && this.pendiente) {
-        this.capacidad = Math.max(1, Math.floor(this.capacidad / 2));
+        this.capacidad = Math.max(2, Math.floor(this.capacidad / 2));
         this.o.latidos.devolver(this.pendiente.latidos);
         this.pendiente = null;
       }
