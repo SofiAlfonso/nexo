@@ -60,10 +60,14 @@ function identidades(archivo: unknown, perfil: PerfilCarga): Identidad[] {
   }));
 }
 
-function elegirLector(lectores: LectorEmulado[], identidadesLector: Identidad[], intento: PresentacionCarga): LectorEmulado {
+function elegirLector(
+  lectores: LectorEmulado[], identidadesLector: Identidad[], intento: PresentacionCarga, zonaBoleta?: string,
+): LectorEmulado {
   const compatibles = lectores.filter((_, indice) =>
     identidadesLector[indice]!.eventoId === intento.eventoId &&
-    identidadesLector[indice]!.zonas.includes(intento.zonaSolicitada));
+    identidadesLector[indice]!.zonas.includes(intento.zonaSolicitada) &&
+    (intento.caso !== 'wrong-zone' ||
+      (zonaBoleta !== undefined && !identidadesLector[indice]!.zonas.includes(zonaBoleta))));
   if (!compatibles.length) {
     throw new Error(`No hay lector en ${intento.eventoId} para la zona ${intento.zonaSolicitada}`);
   }
@@ -90,6 +94,9 @@ export async function ejecutar(configuracion: Configuracion): Promise<void> {
     perfil.ciclos = 1;
   }
   const exportacion = await cargarBoletas(configuracion.boletas);
+  const zonasBoletas = new Map(exportacion.eventos.map((evento) => [
+    evento.eventoId, new Map(evento.boletas.map((boleta) => [boleta.codigo, boleta.zona])),
+  ] as const));
   const datosExportados: unknown = JSON.parse(await readFile(configuracion.boletas, 'utf8'));
   const asignaciones = identidades(datosExportados, perfil);
   const lectores = asignaciones.map((identidad) => new LectorEmulado({
@@ -119,7 +126,10 @@ export async function ejecutar(configuracion: Configuracion): Promise<void> {
       });
     }, 200);
     const present = async (intento: PresentacionCarga) => {
-      const lector = elegirLector(lectores, asignaciones, intento);
+      const zonaBoleta = intento.caso === 'wrong-zone'
+        ? zonasBoletas.get(intento.eventoId)?.get(intento.codigo) : undefined;
+      if (intento.caso === 'wrong-zone' && !zonaBoleta) throw new Error('Boleta de otra zona ausente del export');
+      const lector = elegirLector(lectores, asignaciones, intento, zonaBoleta);
       const resultado = await lector.presentar({
         codigo: intento.codigo, zonaSolicitada: intento.zonaSolicitada,
       });

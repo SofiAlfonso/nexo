@@ -23,7 +23,9 @@ campos `estado`/`usada` deben coincidir con D1. El export puede incluir
 `lectores: [{ lectorId, puntoId, eventoId, zonas: ["Sur"] }]` de D1; si
 no lo incluye se generan identidades sintéticas **solo útiles contra el
 servidor falso**, no para una corrida real con credenciales C2. Al seleccionar
-una boleta, el CLI usa un lector del mismo evento y zona. Para los pares
+una boleta, el CLI usa un lector del mismo evento y zona; para el caso
+"otra zona" exige además un punto que no atienda la zona de la boleta
+(importante si hay puntos multizona). Para los pares
 necesita dos lectores compatibles por zona.
 
 `--perfil nominal|pico|estres` selecciona los perfiles de `tests/load/`
