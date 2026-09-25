@@ -3,8 +3,10 @@
 #   docker build -f src/reader-client/Dockerfile -t nexo/reader-client:dev .
 #
 # Node 24 ejecuta TypeScript nativamente (ADR-014); no hay paso de `tsc`.
-# El entrypoint es la CLI (`cli/index.ts`); el perfil de carga se pasa como
-# argumento, p. ej. `docker run nexo/reader-client:dev --profile nominal`.
+# El entrypoint es la CLI (`cli/index.ts`); se invoca por subcomandos, p. ej.:
+#   docker run nexo/reader-client:dev start --perfil nominal --lectores 20 \
+#     --coordinador http://local-coordinator:8081 --boletas /datos/boletas.json
+# Sin argumentos, muestra la ayuda (ver src/reader-client/cli/README.md).
 
 FROM node:24-alpine AS base
 WORKDIR /app
@@ -31,4 +33,4 @@ COPY src/reader-client ./src/reader-client
 USER nexo
 
 ENTRYPOINT ["node", "src/reader-client/cli/index.ts"]
-CMD ["--profile", "nominal"]
+CMD ["--help"]
