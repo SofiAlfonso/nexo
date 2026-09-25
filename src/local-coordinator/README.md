@@ -20,7 +20,7 @@ el lector conserva el intento en su diario y reintenta con el mismo `idOrigen`.
 
 Node 24: `npm start -w @nexo/local-coordinator` (o `node src/local-coordinator/index.ts`,
 que es lo que usan `npm run dev` y la imagen Docker). `npm run dev` pasa
-`PORT=4001` y toma D1 de las variables `D1_*` de `deploy/compose/.env.example`.
+`PORT=$COORDINATOR_PORT` (acordado: 8081; C4 8080) y toma D1 de las variables `D1_*` de `deploy/compose/.env.example`.
 Sin configuración de D1 se crea un almacén **volátil de demostración**, con puntos,
 lectores y boletas de prueba. Para D1 persistente, inicie PostgreSQL del archivo
 `deploy/compose/docker-compose.dev.yml` y configure `LOCAL_POSTGRES_HOST=localhost`,
