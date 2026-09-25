@@ -6,4 +6,6 @@
 
 `002_contrato_eventos.sql` allows one agreement to cover multiple events through `m4_liquidacion.contrato_eventos`. The idempotent `seed/seed.sql` is run with `psql --set=operator_password_hash=<argon2 hash>` after migrations. It creates the prototype pilot's three events, one shared contract, 20 readers/points, and 16,240 version-1 tickets for the active event. Re-running it leaves operator password hashes unchanged.
 
+`003_recinto_capacidad.sql` records venue capacity (the pilot stadium has 20,000 seats). The historical paid event has a closed event and collected liquidation; the current paid event is open; the future free event is in preparation. The pilot advance, costs and free-event cost ceiling live in the contract's `condiciones` JSON.
+
 Deduplicate batches on `m2_evidencia.lotes.id_lote` and records on `m2_evidencia.evidencias(evento_id, tipo, id_origen)`; compare `contenido_hash` before treating a collision as a retry. Commit a batch, its evidence, derived state, and stored `acuse` together. `m2_evidencia.bitacora` rejects both updates and deletes; write new rows for corrections. Retain business evidence for at least 90 days; no automatic deletion is configured. No RLS is installed in this laboratory PoC (ADR-009); application code must scope reads and writes to the authenticated event/client.

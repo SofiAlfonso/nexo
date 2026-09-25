@@ -4,9 +4,10 @@ INSERT INTO m1_config_permisos.clientes(id, nombre)
 VALUES ('CLI-001', 'Club Deportivo Cordillera (ficticio)')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO m1_config_permisos.recintos(id, cliente_id, nombre)
-VALUES ('REC-01', 'CLI-001', 'Estadio Cordillera')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO m1_config_permisos.recintos(id, cliente_id, nombre, capacidad)
+VALUES ('REC-01', 'CLI-001', 'Estadio Cordillera', 20000)
+ON CONFLICT (id) DO UPDATE
+    SET capacidad = COALESCE(m1_config_permisos.recintos.capacidad, EXCLUDED.capacidad);
 
 INSERT INTO m1_config_permisos.eventos
     (id, recinto_id, nombre, nombre_corto, boleteria, apertura, cierre,
@@ -111,8 +112,9 @@ INSERT INTO m4_liquidacion.contratos
     (id, cliente_id, tarifa_por_admision, minimo, moneda, condiciones)
 VALUES
     ('CT-2026-014', 'CLI-001', 0.40, 500.00, 'USD',
-     '{"acordadoEn":"2026-08-20","origen":"Acuerdo nuevo · piloto de tres eventos","recompraDias":60}'::jsonb)
-ON CONFLICT (id) DO NOTHING;
+     '{"acordadoEn":"2026-08-20","origen":"Acuerdo nuevo · piloto de tres eventos","recompraDias":60,"anticipoEvento01":"3500.00","costosEvento01":"318.00","costosTopeEvento03":"600.00"}'::jsonb)
+ON CONFLICT (id) DO UPDATE
+    SET condiciones = EXCLUDED.condiciones || m4_liquidacion.contratos.condiciones;
 
 INSERT INTO m4_liquidacion.contrato_eventos(contrato_id, evento_id)
 VALUES
