@@ -129,6 +129,9 @@ it('recupera el diario JSONL después de reiniciar y sincroniza H1 sin autorizar
   expect(falso.lotes.flatMap((lote) => lote.registros.map((r) => r.idOrigen)))
     .toContain(intento.solicitud.idOrigen);
   expect(falso.solicitudes).toHaveLength(1);
+  const reintento = await segundo.reintentar(intento.solicitud.idOrigen);
+  expect(reintento.solicitud).toEqual(intento.solicitud);
+  expect(reintento.respuesta?.repetida).toBe(true);
 });
 
 it('sostiene nominal 5,5 TPS y llega a 49,5 TPS en pico contra V1/H1 falso', async () => {
@@ -184,6 +187,9 @@ it('sostiene nominal 5,5 TPS y llega a 49,5 TPS en pico contra V1/H1 falso', asy
     });
     expect(reporte.tpsProgramado).toBeCloseTo(esperado, 0);
     expect(reporte.tpsDespachado).toBeGreaterThanOrEqual(esperado * 0.95);
+    if (nombre === 'nominal') {
+      expect(reporte.registros.filter((registro) => registro.programadoMs >= 14_000)).toHaveLength(16);
+    }
     expect(reporte.registros.every((registro) => registro.idOrigen?.startsWith('LX-2210-'))).toBe(true);
     expect(reporte.timeouts).toBe(0);
     expect(reporte.falsosRechazos).toBe(0);
