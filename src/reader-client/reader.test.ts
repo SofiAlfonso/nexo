@@ -134,6 +134,23 @@ it('recupera el diario JSONL después de reiniciar y sincroniza H1 sin autorizar
   expect(reintento.respuesta?.repetida).toBe(true);
 });
 
+it('diarios nuevos del mismo lector no reutilizan idOrigen ni idLote', async () => {
+  const falso = await servidorFalso();
+  const primeroDir = await mkdtemp(join(tmpdir(), 'nexo-lector-epoca-'));
+  const segundoDir = await mkdtemp(join(tmpdir(), 'nexo-lector-epoca-'));
+  directorios.push(primeroDir, segundoDir);
+  const primero = await lector(falso.url, primeroDir);
+  const segundo = await lector(falso.url, segundoDir);
+  const a = await primero.presentar({ codigo: 'LENTO', zonaSolicitada: 'Sur' });
+  const b = await segundo.presentar({ codigo: 'LENTO', zonaSolicitada: 'Sur' });
+  expect(a.solicitud.idOrigen).not.toBe(b.solicitud.idOrigen);
+  expect(a.decision).toBe('sin-respuesta');
+  expect(b.decision).toBe('sin-respuesta');
+  falso.habilitarDiario();
+  await Promise.all([primero.sincronizarDiario(), segundo.sincronizarDiario()]);
+  expect(new Set(falso.lotes.map((lote) => lote.idLote)).size).toBe(2);
+});
+
 it('sostiene nominal 5,5 TPS y llega a 49,5 TPS en pico contra V1/H1 falso', async () => {
   const mapa = new Map<string, { zona: string; estado: string; usada: boolean }>();
   const boletas: { codigo: string; zona: string; estado: 'vigente' | 'anulada'; usada: boolean }[] =

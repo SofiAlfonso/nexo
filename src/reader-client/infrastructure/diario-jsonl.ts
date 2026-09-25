@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -12,7 +12,7 @@ import {
 import type { Decision } from '@nexo/shared/contracts';
 
 type Registro =
-  | { tipo: 'identidad'; lectorId: string; puntoId: string; eventoId: string }
+  | { tipo: 'identidad'; lectorId: string; puntoId: string; eventoId: string; epoca?: string }
   | { tipo: 'intento'; secuencia: number; solicitud: SolicitudValidacion }
   | { tipo: 'resultado'; idOrigen: string; decision: Decision; respuesta?: RespuestaValidacion; latenciaMs: number }
   | { tipo: 'latido'; secuencia: number }
@@ -40,6 +40,7 @@ export class DiarioJsonl {
   private secuencia = 0;
   private secuenciaLatido = 0;
   private numeroLote = 0;
+  private epoca = '';
   private secuenciaReservada = 0;
   private latidoReservado = 0;
   private fallo?: unknown;
@@ -73,6 +74,7 @@ export class DiarioJsonl {
       this.secuencia = 0;
       this.secuenciaLatido = 0;
       this.numeroLote = 0;
+      this.epoca = randomBytes(8).toString('hex');
       this.identidadPersistida = false;
       this.fallo = undefined;
       const contenido = await archivo.readFile('utf8');
@@ -88,7 +90,7 @@ export class DiarioJsonl {
       this.secuenciaReservada = this.secuencia;
       this.latidoReservado = this.secuenciaLatido;
       this.archivo = archivo;
-      if (fin === 0) await this.anexar({ tipo: 'identidad', ...this.identidad });
+      if (fin === 0) await this.anexar({ tipo: 'identidad', ...this.identidad, epoca: this.epoca });
       else if (!this.identidadPersistida) throw new Error('Diario sin identidad de lector');
     } catch (error) {
       this.archivo = undefined;
@@ -106,6 +108,10 @@ export class DiarioJsonl {
             registro.puntoId !== this.identidad.puntoId || registro.eventoId !== this.identidad.eventoId) {
           throw new Error('Identidad incompatible en diario de lector');
         }
+        if (registro.epoca !== undefined && !/^[0-9a-f]{16}$/.test(registro.epoca)) {
+          throw new Error('Época inválida en diario de lector');
+        }
+        this.epoca = registro.epoca ?? '';
         this.identidadPersistida = true;
         break;
       case 'intento': {
@@ -166,13 +172,16 @@ export class DiarioJsonl {
     await operacion;
   }
 
-  async nuevoIntento(datos: Omit<SolicitudValidacion, 'idOrigen'>): Promise<SolicitudValidacion> {
-    const secuencia = ++this.secuenciaReservada;
-    const prefijo = /^[A-Za-z0-9._:-]+$/.test(this.identidad.lectorId)
+  private prefijoId(): string {
+    return /^[A-Za-z0-9._:-]+$/.test(this.identidad.lectorId)
       ? this.identidad.lectorId
       : createHash('sha256').update(this.identidad.lectorId).digest('hex').slice(0, 20);
+  }
+
+  async nuevoIntento(datos: Omit<SolicitudValidacion, 'idOrigen'>): Promise<SolicitudValidacion> {
+    const secuencia = ++this.secuenciaReservada;
     const solicitud = SolicitudValidacion.parse({
-      ...datos, idOrigen: `${prefijo.slice(0, 100)}:${String(secuencia).padStart(8, '0')}`,
+      ...datos, idOrigen: `${this.prefijoId().slice(0, 100)}:${this.epoca ? `${this.epoca}:` : ''}${String(secuencia).padStart(8, '0')}`,
     });
     await this.anexar({ tipo: 'intento', secuencia, solicitud });
     return solicitud;
@@ -221,7 +230,7 @@ export class DiarioJsonl {
   }
 
   siguienteIdLote(): string {
-    return `${this.identidad.lectorId}:lote:${this.numeroLote + 1}`;
+    return `${this.prefijoId()}:${this.epoca ? `${this.epoca}:` : ''}lote:${this.numeroLote + 1}`;
   }
 
   async confirmarLote(acuse: AcuseLoteDiario): Promise<void> {

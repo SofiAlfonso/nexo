@@ -22,5 +22,8 @@ El diario JSONL por identidad se sincroniza a disco antes de enviar V1 y al
 registrar resultados, latidos, lotes o acuses. Conserva intentos sin decisión
 confirmada y retransmite lotes con el mismo `idLote` hasta acuse completo; el
 diario H1 solo recupera evidencia histórica y **no** solicita autorización.
+Cada diario nuevo persiste una época aleatoria con la identidad para que su
+secuencia reiniciada no colisione con `idOrigen` ni `idLote` de otro diario
+del mismo lector; abrir el mismo diario conserva la época y los identificadores.
 Los errores de V1 de integridad se lanzan; los errores de H1 manual se lanzan
 y los de las tareas periódicas se registran mediante `logger.error`.
