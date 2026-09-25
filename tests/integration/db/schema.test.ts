@@ -219,6 +219,51 @@ describe.skipIf(!dockerAvailable)('PostgreSQL D1 y D2', () => {
     }
   });
 
+  it('regenera casos vigentes después de consumir las boletas originales sin borrar consumos', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'nexo-boletas-usadas-'));
+    try {
+      for (const [codigo, idOrigen] of [
+        ['TA-8800-0000', 'integration:used-valid'],
+        ['TA-8800-0003', 'integration:used-concurrent'],
+      ]) {
+        await d1.query(`
+          INSERT INTO intento (id_origen, huella, evento_id, lector_id, punto_id, codigo,
+            proposito, zona_solicitada, instante_lector)
+          VALUES ($1, repeat('a', 64), 'EVT-2026-02', 'LX-2210-0107', 'P-01',
+            $2, 'ingreso', 'Norte', now())
+        `, [idOrigen, codigo]);
+        await d1.query(`
+          INSERT INTO consumo (cliente_id, evento_id, boleteria_id, referencia, id_origen,
+            punto_id, lector_id)
+          VALUES ('CLI-001', 'EVT-2026-02', 'BOL-01', $1, $2, 'P-01', 'LX-2210-0107')
+        `, [codigo, idOrigen]);
+      }
+
+      const destination = join(directory, 'actualizadas.json');
+      await exportBoletas(d1, destination);
+      const exported = JSON.parse(await readFile(destination, 'utf8')) as {
+        eventos: Array<{ boletas: Array<{ codigo: string; usada: boolean }> }>;
+        casos: Array<{ caso: string; codigo: string }>;
+      };
+      const cases = new Map(exported.casos.map(({ caso, codigo }) => [caso, codigo]));
+      const tickets = new Map(exported.eventos[0]!.boletas.map(({ codigo, usada }) => [codigo, usada]));
+      expect(tickets.get('TA-8800-0000')).toBe(true);
+      expect(tickets.get('TA-8800-0003')).toBe(true);
+      expect(cases.get('valida')).not.toBe('TA-8800-0000');
+      expect(cases.get('copia-concurrente')).not.toBe('TA-8800-0003');
+      expect(cases.get('valida')).not.toBe(cases.get('copia-concurrente'));
+      expect(tickets.get(cases.get('valida')!)).toBe(false);
+      expect(tickets.get(cases.get('copia-concurrente')!)).toBe(false);
+      expect(tickets.get(cases.get('usada')!)).toBe(true);
+      const count = await d1.query<{ count: string }>(
+        "SELECT count(*) FROM consumo WHERE evento_id = 'EVT-2026-02'",
+      );
+      expect(Number(count.rows[0]?.count)).toBe(3);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('impide un segundo consumo de la misma boleta incluso en otra puerta', async () => {
     const id = 'integration:duplicate';
     await d1.query(`

@@ -50,16 +50,26 @@ export async function exportBoletas(pool: Pool, destination: string): Promise<vo
   }
 
   const boletas = tickets.rows;
+  const expected = new Map(boletas.map((boleta) => [boleta.codigo, boleta]));
+  const disponiblesNorte = boletas.filter((boleta) =>
+    boleta.zona === 'Norte' && boleta.estado === 'vigente' && !boleta.usada);
+  const valida = disponiblesNorte.find((boleta) => boleta.codigo === 'TA-8800-0000') ?? disponiblesNorte[0];
+  const concurrente = disponiblesNorte.find((boleta) =>
+    boleta.codigo === 'TA-8800-0003' && boleta.codigo !== valida?.codigo)
+    ?? disponiblesNorte.find((boleta) => boleta.codigo !== valida?.codigo);
+  const usada = boletas.find((boleta) => boleta.usada && boleta.zona === 'Norte')
+    ?? boletas.find((boleta) => boleta.usada);
   const ejemplos = [
-    { caso: 'valida', codigo: 'TA-8800-0000', puntoId: 'P-01', zonaSolicitada: 'Norte', decision: 'aceptado' },
+    ...(valida ? [{ caso: 'valida', codigo: valida.codigo, puntoId: 'P-01',
+      zonaSolicitada: 'Norte', decision: 'aceptado' }] : []),
     { caso: 'anulada', codigo: 'TA-8800-0001', puntoId: 'P-01', zonaSolicitada: 'Norte', decision: 'rechazado' },
-    { caso: 'usada', codigo: 'TA-8800-0002', puntoId: 'P-01', zonaSolicitada: 'Norte', decision: 'rechazado' },
+    ...(usada ? [{ caso: 'usada', codigo: usada.codigo, puntoId: 'P-01',
+      zonaSolicitada: 'Norte', decision: 'rechazado' }] : []),
     { caso: 'otra-zona', codigo: 'TA-8804-0980', puntoId: 'P-01', zonaSolicitada: 'Norte', decision: 'rechazado' },
     { caso: 'desconocida', codigo: 'TA-DESCONOCIDA', puntoId: 'P-01', zonaSolicitada: 'Norte', decision: 'rechazado' },
-    { caso: 'copia-concurrente', codigo: 'TA-8800-0003', puntos: ['P-01', 'P-02'], zonaSolicitada: 'Norte',
-      aceptacionesMaximas: 1 },
+    ...(concurrente ? [{ caso: 'copia-concurrente', codigo: concurrente.codigo,
+      puntos: ['P-01', 'P-02'], zonaSolicitada: 'Norte', aceptacionesMaximas: 1 }] : []),
   ];
-  const expected = new Map(boletas.map((boleta) => [boleta.codigo, boleta]));
   for (const { caso, codigo } of ejemplos) {
     if (caso === 'desconocida') {
       if (expected.has(codigo)) throw new Error(`Unknown-code fixture ${codigo} exists in D1`);
@@ -67,9 +77,7 @@ export async function exportBoletas(pool: Pool, destination: string): Promise<vo
       throw new Error(`Missing ${caso} fixture ${codigo} in D1`);
     }
   }
-  if (expected.get('TA-8800-0000')?.estado !== 'vigente' || expected.get('TA-8800-0000')?.usada ||
-      expected.get('TA-8800-0001')?.estado !== 'anulada' ||
-      expected.get('TA-8800-0002')?.usada !== true ||
+  if (expected.get('TA-8800-0001')?.estado !== 'anulada' ||
       expected.get('TA-8804-0980')?.zona !== 'Sur') {
     throw new Error('D1 ticket fixtures do not match the expected reader cases');
   }

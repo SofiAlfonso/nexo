@@ -96,10 +96,13 @@ de D1. También puede invocarse directamente con
 El JSON contiene `eventos: [{eventoId, boletas: [{codigo, zona, estado,
 usada}]}]`, `lectores: [{lectorId, puntoId, eventoId, zonas}]` y `casos` con
 ejemplos de válidas, anuladas, ya consumidas, zona equivocada, desconocidas y
-copias concurrentes. `usada` refleja consumos reales de D1; las zonas usan los
+copias concurrentes. `usada` refleja consumos reales de D1; al regenerar, los
+ejemplos de ingreso válido y copia concurrente eligen boletas vigentes aún
+libres y el ejemplo de uso previo elige un consumo existente. Si se agotan las
+boletas libres, se omiten esos ejemplos sin bloquear la exportación. Las zonas usan los
 nombres de V1 (`Norte`, `Sur`, etc.), no los IDs internos `Z-*` de D2.
 `--boletas <ruta>` del lector carga este archivo. El script falla si no hay
-exactamente un evento abierto o si faltan boletas, lectores o casos de prueba.
+exactamente un evento abierto o si faltan boletas o lectores.
 
 Para que los casos de validación sigan siendo ejecutables, `EVT-2026-02` se
 siembra abierto con una ventana operativa de `now() - 1 hour` a `now() + 12
