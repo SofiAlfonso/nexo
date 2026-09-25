@@ -40,8 +40,8 @@ ON CONFLICT (evento_id, lector_id) DO NOTHING;
 
 -- Five zone distributions: 4,980 + 3,360 + 4,010 + 3,360 + 530 = 16,240.
 -- Samples at P-01: TA-8800-0000 valid, TA-8804-0980 other zone,
--- TA-8800-0001 annulled; any absent code is unknown. Reusing a valid
--- reference exercises "already consumed"; racing it at P-01/P-07 exercises
+-- TA-8800-0001 annulled, TA-8800-0002 already used; any absent code
+-- is unknown. Racing an unused reference at P-01/P-07 exercises
 -- the global unique-consumption constraint.
 WITH grupos(zona, inicio, cantidad) AS (
   VALUES ('Z-NORTE', 0, 4980),
@@ -62,3 +62,82 @@ SELECT 'EVT-2026-02',
 FROM grupos
 CROSS JOIN LATERAL generate_series(inicio, inicio + cantidad - 1) AS n
 ON CONFLICT (evento_id, referencia) DO NOTHING;
+
+-- Deterministic used-ticket fixture: preserve the complete original
+-- acceptance (identity, decision, consumption, immutable audit and outbox).
+-- Re-running the seed cannot make this ticket available again.
+INSERT INTO intento (
+  evento_id, id_origen, huella, lector_id, punto_id, codigo, proposito,
+  zona_solicitada, instante_lector, decision, motivo, respuesta, decidido_en
+)
+VALUES (
+  'EVT-2026-02', 'seed:used:EVT-2026-02:TA-8800-0002',
+  encode(sha256(convert_to('seed:used:EVT-2026-02:TA-8800-0002', 'UTF8')), 'hex'),
+  'LX-2210-0107', 'P-01', 'TA-8800-0002', 'ingreso', 'Z-NORTE',
+  now() - interval '2 minutes', 'aceptado', 'PERMISO_VIGENTE',
+  jsonb_build_object(
+    'idOrigen', 'seed:used:EVT-2026-02:TA-8800-0002',
+    'decision', 'aceptado', 'motivo', 'PERMISO_VIGENTE',
+    'proposito', 'ingreso', 'admision', true, 'concurrente', false,
+    'anulacionEnTransito', false, 'versionPermisos', 1,
+    'evidencia', jsonb_build_object(
+      'via', 'Coordinador COORD-A', 'versionPermisos', 1,
+      'versionPoliticas', 1, 'antiguedadPermisosS', 60
+    ),
+    'instanteDecision', now() - interval '2 minutes', 'repetida', false
+  ),
+  now() - interval '2 minutes'
+)
+ON CONFLICT (id_origen) DO NOTHING;
+
+INSERT INTO decision (
+  id_origen, decision, motivo, proposito, admision, concurrente,
+  anulacion_en_transito, version_permisos, evidencia, instante_decision
+)
+VALUES (
+  'seed:used:EVT-2026-02:TA-8800-0002',
+  'aceptado', 'PERMISO_VIGENTE', 'ingreso', true, false,
+  false, 1,
+  '{"via":"Coordinador COORD-A","versionPermisos":1,"versionPoliticas":1,"antiguedadPermisosS":60}',
+  now() - interval '2 minutes'
+)
+ON CONFLICT (id_origen) DO NOTHING;
+
+INSERT INTO consumo (
+  cliente_id, evento_id, boleteria_id, referencia, id_origen,
+  punto_id, lector_id, consumido_en
+)
+VALUES (
+  'CLI-001', 'EVT-2026-02', 'BOL-01', 'TA-8800-0002',
+  'seed:used:EVT-2026-02:TA-8800-0002',
+  'P-01', 'LX-2210-0107', now() - interval '2 minutes'
+)
+ON CONFLICT (cliente_id, evento_id, boleteria_id, referencia, proposito) DO NOTHING;
+
+INSERT INTO bitacora (evento_id, tipo, id_origen, contenido)
+VALUES (
+  'EVT-2026-02', 'decision', 'seed:used:EVT-2026-02:TA-8800-0002',
+  jsonb_build_object(
+    'tipo', 'decision', 'idOrigen', 'seed:used:EVT-2026-02:TA-8800-0002',
+    'lectorId', 'LX-2210-0107', 'puntoId', 'P-01', 'codigo', 'TA-8800-0002',
+    'zona', 'Z-NORTE', 'zonaSolicitada', 'Z-NORTE',
+    'decision', 'aceptado', 'motivo', 'PERMISO_VIGENTE',
+    'proposito', 'ingreso', 'admision', true, 'concurrente', false,
+    'anulacionEnTransito', false,
+    'evidencia', jsonb_build_object(
+      'via', 'Coordinador COORD-A', 'versionPermisos', 1,
+      'versionPoliticas', 1, 'antiguedadPermisosS', 60
+    ),
+    'instanteLector', now() - interval '2 minutes',
+    'instanteDecision', now() - interval '2 minutes'
+  )
+)
+ON CONFLICT (evento_id, tipo, id_origen) DO NOTHING;
+
+INSERT INTO outbox (bitacora_id, evento_id, tipo, id_origen, registro)
+SELECT id, evento_id, tipo, id_origen, contenido
+FROM bitacora
+WHERE evento_id = 'EVT-2026-02'
+  AND tipo = 'decision'
+  AND id_origen = 'seed:used:EVT-2026-02:TA-8800-0002'
+ON CONFLICT (evento_id, tipo, id_origen) DO NOTHING;
