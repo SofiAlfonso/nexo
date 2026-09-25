@@ -52,9 +52,10 @@ C2 con las variables de `deploy/compose/.env.example` (o de tu propio
      y espera a que D1, D2 y `otel-lgtm` estén `healthy`.
    - Corre migraciones (`src/local-coordinator/infrastructure/db/migrate.ts`,
      `src/central-core/infrastructure/db/migrate.ts`) y la semilla
-     (`deploy/scripts/seed-d1.ts`, `deploy/scripts/seed-d2.ts`) si ya existen;
-     si una sesión de la ola 1 (S1-data) todavía no las publicó, lo indica en
-     la consola y continúa sin fallar.
+     (`deploy/scripts/seed.ts --export tmp/dev-boletas.json`, un único script
+     que siembra D1 y D2 y exporta boletas reales para `dev:reader`) si ya
+     existen; si una sesión de la ola 1 (S1-data) todavía no las publicó, lo
+     indica en la consola y continúa sin fallar.
    - Arranca `node src/central-core/index.ts` (C4, puerto `CENTRAL_PORT`,
      por defecto `8080`) y `node src/local-coordinator/index.ts` (C2, puerto
      `COORDINATOR_PORT`, por defecto `8081`), con la salida de cada uno
@@ -88,3 +89,41 @@ evento `intento` en `GET /api/stream`. Mientras C4 o C2 todavía no
 respondan (piezas de otras sesiones de la ola 1), la suite se omite sola
 con un aviso indicando qué falta; no hace falta editarla a mano para
 activarla.
+
+### Paso a paso para correr M1 completo localmente
+
+1. Clona el repo y desde la raíz corre `npm ci` (una sola vez, o tras
+   cambios en `package-lock.json`).
+2. Verifica que Docker Desktop esté corriendo. Si compartes máquina con
+   otras sesiones de la ola 1, revisa la advertencia de "Entorno
+   compartido" más arriba antes de continuar.
+3. (Opcional) copia `deploy/compose/.env.example` a `deploy/compose/.env`
+   si quieres sobreescribir algún valor local; `npm run dev` funciona con
+   los valores de ejemplo tal cual (sin secretos reales).
+4. En una terminal, desde la raíz del repo:
+   ```powershell
+   npm run dev
+   ```
+   Esto deja D1/D2/`otel-lgtm` arriba en Docker Compose, corre migraciones
+   y semilla (si ya están publicadas por S1-data) y arranca C4 (`:8080`) y
+   C2 (`:8081`) como procesos de Node con salida prefijada por servicio.
+   Déjalo corriendo en esa terminal.
+5. (Opcional, en otra terminal) para simular el lector físico C1 contra el
+   C2 recién levantado:
+   ```powershell
+   npm run dev:reader
+   ```
+   Usa automáticamente la exportación de boletas que dejó el paso 4 en
+   `tmp/dev-boletas.json`; si no existe (S1-data aún no publicó la semilla),
+   pasa tu propia ruta con `-- --boletas <ruta>`.
+6. (En una tercera terminal) para validar M1 de punta a punta:
+   ```powershell
+   npm run test:m1
+   ```
+   Si C4/C2 todavía no responden (u otra sesión de la ola 1 no ha llegado a
+   `main`), la suite se omite sola con un aviso; no es un fallo.
+7. Para parar C4/C2 sin tocar los datos: `Ctrl+C` en la terminal del paso 4,
+   luego (opcional) `npm run dev:down` para además detener los contenedores
+   de Docker (conservando sus volúmenes). Sólo agrega `-- --reset` si
+   ninguna otra sesión de la ola 1 necesita esos datos — borra los
+   volúmenes de D1/D2.
