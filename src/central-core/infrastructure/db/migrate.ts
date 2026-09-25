@@ -46,10 +46,15 @@ export async function migrate(pool: Pool): Promise<void> {
 
     for (const { version, filename } of migrations) {
       const sql = await readFile(join(directory, filename), 'utf8');
-      const checksum = createHash('sha256').update(sql).digest('hex');
+      const normalized = sql.replace(/\r\n?/g, '\n');
+      const checksum = createHash('sha256').update(normalized).digest('hex');
       const previous = applied.rows.find((row) => row.version === version);
       if (previous) {
-        if (previous.checksum !== checksum) throw new Error(`Modified D2 migration: ${filename}`);
+        if (previous.checksum !== checksum) {
+          const crlfChecksum = createHash('sha256').update(normalized.replaceAll('\n', '\r\n')).digest('hex');
+          if (previous.checksum !== crlfChecksum) throw new Error(`Modified D2 migration: ${filename}`);
+          await client.query('UPDATE public.d2_schema_migrations SET checksum = $1 WHERE version = $2', [checksum, version]);
+        }
         continue;
       }
       await applyMigration(client, version, filename, sql, checksum);
