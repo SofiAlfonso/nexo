@@ -22,7 +22,12 @@ VALUES
     ('EVT-2026-03', 'REC-01', 'Fecha 16 · Cordillera vs. Unión Norte', 'Fecha 16',
      'TaquillaAndina', '2026-10-04 17:00:00-05', '2026-10-04 20:15:00-05',
      0, true, 'preparacion', 1, '2026-10-04 16:20:00-05')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+    SET apertura = EXCLUDED.apertura,
+        cierre = EXCLUDED.cierre,
+        estado = 'abierto'
+WHERE m1_config_permisos.eventos.id = 'EVT-2026-02'
+  AND m1_config_permisos.eventos.estado IN ('preparacion', 'abierto');
 
 INSERT INTO m1_config_permisos.zonas(id, evento_id, nombre)
 VALUES
@@ -92,6 +97,15 @@ SELECT 'EVT-2026-02',
        CASE WHEN n = 1 THEN now() - interval '4 minutes' END
 FROM grupos CROSS JOIN LATERAL generate_series(inicio, inicio + cantidad - 1) AS n
 ON CONFLICT (evento_id, referencia) DO NOTHING;
+
+-- Repair a prior seed of this fixture without touching decisions or other tickets.
+UPDATE m1_config_permisos.boletas
+SET anulada = true,
+    anulacion_emitida_en = COALESCE(anulacion_emitida_en, now() - interval '5 minutes'),
+    anulacion_recibida_en = COALESCE(anulacion_recibida_en, now() - interval '4 minutes')
+WHERE evento_id = 'EVT-2026-02'
+  AND referencia = 'TA-8800-0001'
+  AND (NOT anulada OR anulacion_emitida_en IS NULL OR anulacion_recibida_en IS NULL);
 
 INSERT INTO m2_evidencia.puntos_estado(evento_id, punto_id)
 SELECT evento_id, id FROM m1_config_permisos.puntos
