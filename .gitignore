@@ -3,10 +3,12 @@
 .env.*
 !.env.example
 !config/examples/*.example.env
-*secret*
-*secrets*
-!**/README.md
-!**/*secrets.example.env
+*.secret.*
+secrets/
+*.pem
+*.key
+*.crt
+!config/examples/**
 
 # Credenciales y configuración local de Kubernetes/Minikube
 kubeconfig
@@ -35,6 +37,8 @@ build/
 dist/
 out/
 target/
+coverage/
+*.tsbuildinfo
 *.class
 *.o
 *.dll
