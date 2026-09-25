@@ -52,7 +52,7 @@ NEXO.vistas.pmu = (function () {
             '<a class="btn btn--ghost btn--sm" href="#/incidentes">Ver todo' + ico('arrow-right', 14) + '</a></div>' +
             '<div class="card__body" data-slot="atencion"></div></section>' +
           '<section class="card"><div class="card__head"><h2>Últimas decisiones</h2>' +
-            c.tip('Cada fila es un intento real del simulador, decidido por las mismas reglas del modelo de dominio. Las referencias son técnicas: no identifican a nadie.', 'ADR-006 · sin datos personales') +
+            c.tip('Cada fila es un intento real, decidido por las mismas reglas del modelo de dominio. Las referencias son técnicas: no identifican a nadie.', 'ADR-006 · sin datos personales') +
             '</div><div class="card__body" data-slot="decisiones"></div></section>' +
           '<section class="card"><div class="card__head"><h2>Actividad</h2></div>' +
             '<div class="card__body"><div class="feed" data-slot="actividad"></div></div></section>' +

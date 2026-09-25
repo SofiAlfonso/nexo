@@ -118,17 +118,6 @@ NEXO.util = (function () {
 
   // ---------- números ----------
 
-  /** Generador pseudoaleatorio con semilla (mulberry32): demo reproducible. */
-  function prng(semilla) {
-    var a = semilla >>> 0;
-    return function () {
-      a |= 0; a = (a + 0x6D2B79F5) | 0;
-      var t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
   function percentil(muestra, p) {
     if (!muestra.length) return 0;
     var orden = muestra.slice().sort(function (a, b) { return a - b; });
@@ -157,7 +146,7 @@ NEXO.util = (function () {
 
   return {
     esc: esc, icono: icono, ranura: ranura, ranuras: ranuras,
-    fmt: fmt, prng: prng, percentil: percentil, limitar: limitar,
+    fmt: fmt, percentil: percentil, limitar: limitar,
     iniciales: iniciales, prefs: prefs
   };
 })();

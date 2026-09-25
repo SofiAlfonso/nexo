@@ -54,7 +54,7 @@ NEXO.vistas.comunes = (function () {
 
   /** Avatar de un rol del servicio (nunca de un asistente). */
   function avatar(autor, grande) {
-    var limpio = String(autor || '').replace(' (simulado)', '');
+    var limpio = String(autor || '');
     var i = ROLES.indexOf(limpio);
     var sys = limpio === 'NEXO' || limpio === 'Sistema';
     var cls = 'avatar' + (grande ? ' avatar--lg' : '') + (sys ? ' avatar--sys' : ' avatar--r' + (i < 0 ? 0 : i));

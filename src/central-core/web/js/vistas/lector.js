@@ -2,8 +2,8 @@
    vistas/lector.js — Lector en puerta
 
    Lo que ve el operador de puerta y, al lado, por qué. Cada caso de
-   prueba pasa por el mismo servicio de decisión que el tráfico
-   simulado: el resultado no está escrito a mano. El lector no tiene
+   prueba pasa por el mismo servicio de decisión que usa el tráfico
+   real: el resultado no está escrito a mano. El lector no tiene
    ningún campo de identidad del asistente (R1, ADR-006).
    ============================================================ */
 
