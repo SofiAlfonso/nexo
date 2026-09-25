@@ -16,8 +16,8 @@ VALUES
      'TaquillaAndina', '2026-08-30 17:00:00-05', '2026-08-30 20:15:00-05',
      14212, false, 'cerrado', 1, '2026-08-30 16:20:00-05'),
     ('EVT-2026-02', 'REC-01', 'Fecha 14 · Cordillera vs. Real Pacífico', 'Fecha 14',
-     'TaquillaAndina', '2026-09-16 17:00:00-05', '2026-09-16 20:15:00-05',
-     15000, false, 'preparacion', 1, '2026-09-16 16:20:00-05'),
+     'TaquillaAndina', now() - interval '1 hour', now() + interval '6 hours',
+     15000, false, 'abierto', 1, now() - interval '1 minute'),
     ('EVT-2026-03', 'REC-01', 'Fecha 16 · Cordillera vs. Unión Norte', 'Fecha 16',
      'TaquillaAndina', '2026-10-04 17:00:00-05', '2026-10-04 20:15:00-05',
      0, true, 'preparacion', 1, '2026-10-04 16:20:00-05')
@@ -82,10 +82,13 @@ WITH grupos(zona_id, inicio, cantidad) AS (
            ('Z-ORIENTAL', 8340, 4010), ('Z-OCCIDENTAL', 12350, 3360),
            ('Z-PALCOS', 15710, 530)
 )
-INSERT INTO m1_config_permisos.boletas(evento_id, referencia, zona_id, version)
+INSERT INTO m1_config_permisos.boletas
+    (evento_id, referencia, zona_id, version, anulada, anulacion_emitida_en, anulacion_recibida_en)
 SELECT 'EVT-2026-02',
        'TA-' || (8800 + (n / 1000))::text || '-' || lpad((n % 1000)::text, 4, '0'),
-       zona_id, 1
+       zona_id, 1, n = 1,
+       CASE WHEN n = 1 THEN now() - interval '5 minutes' END,
+       CASE WHEN n = 1 THEN now() - interval '4 minutes' END
 FROM grupos CROSS JOIN LATERAL generate_series(inicio, inicio + cantidad - 1) AS n
 ON CONFLICT (evento_id, referencia) DO NOTHING;
 
