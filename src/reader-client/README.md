@@ -22,4 +22,5 @@ circunstancia, incluso ante pérdida de conectividad con C2.
 - `cli/` — ejecución del lector emulado y perfiles de carga.
 
 El lector envía heartbeats cada 10 s. Los perfiles de carga viven en
-`tests/load/`.
+`tests/load/`. Para arrancar N lectores y obtener el contador independiente,
+consulte [CLI](cli/README.md) y [formato de boletas y perfiles](../../tests/load/README.md).
