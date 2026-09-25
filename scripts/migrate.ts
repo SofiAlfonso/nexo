@@ -5,7 +5,7 @@
 //
 // Uso: node scripts/migrate.ts d1 | node scripts/migrate.ts d2
 
-import { loadDevEnv, repoRoot } from "./env.mjs";
+import { buildD1Url, buildD2Url, loadDevEnv, repoRoot } from "./env.mjs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -20,26 +20,8 @@ for (const [key, value] of Object.entries(env)) {
   if (process.env[key] === undefined) process.env[key] = value;
 }
 
-function buildD1Url(): string {
-  const host = "localhost";
-  const port = env.D1_PORT ?? "5433";
-  const db = env.D1_POSTGRES_DB ?? "nexo_venue";
-  const user = env.D1_POSTGRES_USER ?? "nexo_venue";
-  const password = env.D1_POSTGRES_PASSWORD ?? "nexo_venue_dev";
-  return `postgres://${user}:${password}@${host}:${port}/${db}`;
-}
-
-function buildD2Url(): string {
-  const host = "localhost";
-  const port = env.D2_PORT ?? "5434";
-  const db = env.D2_POSTGRES_DB ?? "nexo_central";
-  const user = env.D2_POSTGRES_USER ?? "nexo_central";
-  const password = env.D2_POSTGRES_PASSWORD ?? "nexo_central_dev";
-  return `postgres://${user}:${password}@${host}:${port}/${db}`;
-}
-
 if (target === "d1") {
-  process.env.D1_DATABASE_URL ??= buildD1Url();
+  process.env.D1_DATABASE_URL ??= buildD1Url(env);
   const { migrate } = await import(
     pathToFileURL(path.join(repoRoot, "src/local-coordinator/infrastructure/db/migrate.ts")).href
   );
@@ -54,7 +36,7 @@ if (target === "d1") {
     await pool.end();
   }
 } else {
-  process.env.D2_DATABASE_URL ??= buildD2Url();
+  process.env.D2_DATABASE_URL ??= buildD2Url(env);
   const { migrate } = await import(
     pathToFileURL(path.join(repoRoot, "src/central-core/infrastructure/db/migrate.ts")).href
   );

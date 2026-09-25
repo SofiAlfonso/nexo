@@ -23,11 +23,20 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { composeFile, loadDevEnv, logStep, repoRoot } from "./env.mjs";
+import { buildD1Url, buildD2Url, composeFile, loadDevEnv, logStep, repoRoot } from "./env.mjs";
 
 const env = loadDevEnv();
+// createD1Pool/createD2Pool (S1-data) requieren D1_DATABASE_URL/
+// D2_DATABASE_URL (o LOCAL_POSTGRES_*/CENTRAL_POSTGRES_*); los scripts que
+// hablan directo con D1/D2 (p. ej. deploy/scripts/seed.ts) los necesitan en
+// su propio entorno de proceso.
+const dbEnv = {
+  D1_DATABASE_URL: env.D1_DATABASE_URL ?? buildD1Url(env),
+  D2_DATABASE_URL: env.D2_DATABASE_URL ?? buildD2Url(env),
+};
 const COMPOSE_PROJECT = "nexo-dev";
 const DB_SERVICES = [
   { container: `${COMPOSE_PROJECT}-d1-1`, label: "D1 (venue)" },
@@ -94,7 +103,7 @@ async function waitForHealthy({ container, label }, timeoutMs = 120_000) {
  * sesión) distinto del que realmente se ejecuta (un wrapper propio de
  * scripts/, como scripts/migrate.ts).
  */
-async function runOptionalScript(scope, presenceRelativePath, args = [], runRelativePath = presenceRelativePath) {
+async function runOptionalScript(scope, presenceRelativePath, args = [], runRelativePath = presenceRelativePath, extraEnv = {}) {
   const presencePath = path.join(repoRoot, presenceRelativePath);
   if (!existsSync(presencePath)) {
     logStep(scope, `omitido: ${presenceRelativePath} aún no existe (pendiente en otra sesión de la ola 1).`);
@@ -102,7 +111,7 @@ async function runOptionalScript(scope, presenceRelativePath, args = [], runRela
   }
   const runPath = path.join(repoRoot, runRelativePath);
   logStep(scope, `ejecutando ${runRelativePath} ${args.join(" ")}...`.trim());
-  await run("node", [runPath, ...args], { env });
+  await run("node", [runPath, ...args], { env: { ...env, ...extraEnv } });
   logStep(scope, `${runRelativePath} ${args.join(" ")} completado.`.trim());
 }
 
@@ -169,10 +178,13 @@ async function main() {
   // SEED_OPERATOR_PASSWORD (ver deploy/compose/.env.example) y admite
   // `--export <ruta>` para dejar una exportación real de boletas lista para
   // `npm run dev:reader` (tmp/dev-boletas.json, ignorado por git).
+  await mkdir(path.join(repoRoot, "tmp"), { recursive: true });
   await runOptionalScript(
     "seed",
     path.join("deploy", "scripts", "seed.ts"),
     ["--export", path.join("tmp", "dev-boletas.json")],
+    path.join("deploy", "scripts", "seed.ts"),
+    dbEnv,
   );
 
   spawnService("central", path.join("src", "central-core", "index.ts"), {

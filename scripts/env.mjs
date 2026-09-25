@@ -44,3 +44,29 @@ export function loadDevEnv() {
 export function logStep(scope, message) {
   console.log(`[dev:${scope}] ${message}`);
 }
+
+/**
+ * Construye D1_DATABASE_URL/D2_DATABASE_URL a partir de los valores locales
+ * de `deploy/compose/.env.example` (D1_PORT/D1_POSTGRES_*, D2_PORT/
+ * D2_POSTGRES_*). `createD1Pool`/`createD2Pool` (S1-data) leen
+ * D1_DATABASE_URL/D2_DATABASE_URL o, si faltan, LOCAL_POSTGRES_* /
+ * CENTRAL_POSTGRES_*; construir la URL aquí evita repetir la lógica en cada
+ * script de scripts/ que necesita hablarle a D1/D2 directamente.
+ */
+export function buildD1Url(env) {
+  const host = "localhost";
+  const port = env.D1_PORT ?? "5433";
+  const db = env.D1_POSTGRES_DB ?? "nexo_venue";
+  const user = env.D1_POSTGRES_USER ?? "nexo_venue";
+  const password = env.D1_POSTGRES_PASSWORD ?? "nexo_venue_dev";
+  return `postgres://${user}:${password}@${host}:${port}/${db}`;
+}
+
+export function buildD2Url(env) {
+  const host = "localhost";
+  const port = env.D2_PORT ?? "5434";
+  const db = env.D2_POSTGRES_DB ?? "nexo_central";
+  const user = env.D2_POSTGRES_USER ?? "nexo_central";
+  const password = env.D2_POSTGRES_PASSWORD ?? "nexo_central_dev";
+  return `postgres://${user}:${password}@${host}:${port}/${db}`;
+}
