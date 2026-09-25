@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexo-application
+  labels:
+    app.kubernetes.io/part-of: nexo
+    nexo.io/purpose: application
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexo-data
+  labels:
+    app.kubernetes.io/part-of: nexo
+    nexo.io/purpose: data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexo-observability
+  labels:
+    app.kubernetes.io/part-of: nexo
+    nexo.io/purpose: observability
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexo-chaos
+  labels:
+    app.kubernetes.io/part-of: nexo
+    nexo.io/purpose: chaos
