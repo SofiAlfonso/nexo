@@ -8,7 +8,7 @@ import { LoteEvidencia, RUTAS } from '@nexo/shared/contracts';
 import { ServicioAuth } from '../application/auth/servicioAuth.ts';
 import { ServicioO2 } from '../application/o2/servicio-o2.ts';
 import { AuthRepositorioPg, SesionesRepositorioPg } from '../infrastructure/auth-repositorio.ts';
-import { EstadoOperativoRepositorioPg, IntentosRepositorioPg, PreparacionConciliacionRepositorioPg } from '../infrastructure/o2-repositorio.ts';
+import { EstadoOperativoRepositorioPg, IntentosRepositorioPg, PreparacionConciliacionRepositorioPg, AccionesRepositorioPg, BoletasRepositorioPg, ActividadRepositorioPg } from '../infrastructure/o2-repositorio.ts';
 import { crearServicioPermisos, registrarRutasPermisos } from '../modules/configuration-permissions/api/index.ts';
 import { EventoConfigRepositorioPg, PuntoConfigRepositorioPg } from '../modules/configuration-permissions/infrastructure/index.ts';
 import {
@@ -49,6 +49,9 @@ export function crearApp(pool: Pool): AppC4 {
     incidentesRepositorio,
     new PreparacionConciliacionRepositorioPg(pool),
     intentosRepositorio,
+    new AccionesRepositorioPg(pool),
+    new BoletasRepositorioPg(pool),
+    new ActividadRepositorioPg(pool),
   );
   const hub = new HubStream();
 

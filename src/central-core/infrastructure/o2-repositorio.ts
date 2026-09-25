@@ -1,8 +1,8 @@
 import type { Pool } from 'pg';
-import { Intento, type EstadoCoordinador, type EstadoPunto } from '@nexo/shared/contracts';
+import { Intento, type Accion, type Boleta, type EntradaActividad, type EstadoCoordinador, type EstadoPunto } from '@nexo/shared/contracts';
 import type {
-  ConsultaIntentosOpciones, ContadoresDecisiones, EstadoCoordinadorLeido, EstadoOperativoRepositorio,
-  EstadoPuntoLeido, IntentosRepositorio,
+  AccionesRepositorio, ActividadRepositorio, BoletasRepositorio, ConsultaIntentosOpciones, ContadoresDecisiones,
+  EstadoCoordinadorLeido, EstadoOperativoRepositorio, EstadoPuntoLeido, IntentosRepositorio, ResultadoDecisionAccion,
 } from '../application/o2/puertos.ts';
 import type { ConciliacionLeida, PreparacionConciliacionRepositorio, PreparacionLeida } from '../application/o2/puertos-preparacion.ts';
 
@@ -278,5 +278,176 @@ export class IntentosRepositorioPg implements IntentosRepositorio {
       [eventoId, idOrigenes],
     );
     return rows.map(leerIntento);
+  }
+}
+
+interface FilaAccion {
+  id: string;
+  tipo: Accion['tipo'];
+  titulo: string;
+  detalle: string;
+  si: string;
+  no: string | null;
+  rol: Accion['rol'];
+  incidente_id: string | null;
+  enlace: string | null;
+  decisiva: boolean;
+  estado: Accion['estado'];
+  creada_en: Date;
+  decidida_en: Date | null;
+  autor_rol: Accion['rol'] | null;
+  nota: string | null;
+}
+
+const CONSULTA_ACCIONES = `
+  SELECT a.id, a.tipo, a.titulo, a.detalle, a.si, a.no, a.rol, a.incidente_id, a.enlace, a.decisiva,
+         a.estado, a.creada_en, a.decidida_en, op.rol AS autor_rol, a.nota
+  FROM m2_evidencia.acciones a
+  LEFT JOIN auth.operadores op ON op.id = a.operador_id`;
+
+function leerAccion(fila: FilaAccion): Accion {
+  return {
+    id: fila.id,
+    tipo: fila.tipo,
+    titulo: fila.titulo,
+    detalle: fila.detalle,
+    si: fila.si,
+    no: fila.no,
+    rol: fila.rol,
+    incidenteId: fila.incidente_id,
+    enlace: fila.enlace,
+    decisiva: fila.decisiva,
+    estado: fila.estado,
+    creadaEnS: segundosDelDia(fila.creada_en),
+    decididaEnS: fila.decidida_en ? segundosDelDia(fila.decidida_en) : null,
+    autor: fila.autor_rol,
+    nota: fila.nota,
+  };
+}
+
+/** Lectura/escritura de acciones pendientes (`m2_evidencia.acciones`) para `/api/acciones`. */
+export class AccionesRepositorioPg implements AccionesRepositorio {
+  private readonly pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async listar(eventoId: string): Promise<Accion[]> {
+    const { rows } = await this.pool.query<FilaAccion>(
+      `${CONSULTA_ACCIONES} WHERE a.evento_id = $1 ORDER BY a.creada_en DESC`,
+      [eventoId],
+    );
+    return rows.map(leerAccion);
+  }
+
+  async decidir(
+    eventoId: string, id: string, aprobar: boolean, nota: string | undefined, usuario: string,
+  ): Promise<ResultadoDecisionAccion> {
+    const { rows: existente } = await this.pool.query<{ estado: Accion['estado'] }>(
+      'SELECT estado FROM m2_evidencia.acciones WHERE evento_id = $1 AND id = $2', [eventoId, id],
+    );
+    const actual = existente[0];
+    if (!actual) return { tipo: 'no-encontrada' };
+    if (actual.estado !== 'pendiente') return { tipo: 'ya-decidida', estado: actual.estado };
+
+    const nuevoEstado = aprobar ? 'aprobada' : 'rechazada';
+    const { rowCount } = await this.pool.query(
+      `UPDATE m2_evidencia.acciones
+       SET estado = $1, decidida_en = now(), operador_id = (SELECT id FROM auth.operadores WHERE usuario = $2), nota = $3
+       WHERE evento_id = $4 AND id = $5 AND estado = 'pendiente'`,
+      [nuevoEstado, usuario, nota ?? null, eventoId, id],
+    );
+    if (rowCount === 0) return { tipo: 'ya-decidida', estado: actual.estado };
+
+    const { rows } = await this.pool.query<FilaAccion>(`${CONSULTA_ACCIONES} WHERE a.evento_id = $1 AND a.id = $2`, [eventoId, id]);
+    const accion = rows[0];
+    if (!accion) return { tipo: 'no-encontrada' };
+    return { tipo: 'ok', accion: leerAccion(accion) };
+  }
+}
+
+interface FilaBoleta {
+  referencia: string;
+  zona: string;
+  excluida: boolean;
+  anulacion_emitida_en: Date | null;
+  anulacion_recibida_en: Date | null;
+  ultimo_uso: Date | null;
+  ultimo_punto: string | null;
+}
+
+/** Lectura de boletas (`m1_config_permisos.boletas` + última decisión admitida) para `GET /api/boletas/{ref}`. */
+export class BoletasRepositorioPg implements BoletasRepositorio {
+  private readonly pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async obtener(eventoId: string, referencia: string): Promise<Boleta | null> {
+    const { rows } = await this.pool.query<FilaBoleta>(
+      `SELECT b.referencia, z.nombre AS zona, b.excluida, b.anulacion_emitida_en, b.anulacion_recibida_en,
+              d.instante_decision AS ultimo_uso, d.punto_id AS ultimo_punto
+       FROM m1_config_permisos.boletas b
+       JOIN m1_config_permisos.zonas z ON z.evento_id = b.evento_id AND z.id = b.zona_id
+       LEFT JOIN LATERAL (
+         SELECT instante_decision, punto_id FROM m2_evidencia.decisiones d
+         WHERE d.evento_id = b.evento_id AND d.referencia = b.referencia AND d.admision
+         ORDER BY d.instante_decision DESC LIMIT 1
+       ) d ON true
+       WHERE b.evento_id = $1 AND b.referencia = $2`,
+      [eventoId, referencia],
+    );
+    const fila = rows[0];
+    if (!fila) return null;
+    return {
+      ref: fila.referencia,
+      zona: fila.zona,
+      consumidaEnS: fila.ultimo_uso ? segundosDelDia(fila.ultimo_uso) : null,
+      consumidaEnPunto: fila.ultimo_punto,
+      ultimoUsoS: fila.ultimo_uso ? segundosDelDia(fila.ultimo_uso) : null,
+      anulacion: fila.anulacion_emitida_en
+        ? { emitidaEnS: segundosDelDia(fila.anulacion_emitida_en), recibidaEnS: fila.anulacion_recibida_en ? segundosDelDia(fila.anulacion_recibida_en) : null }
+        : null,
+      excluida: fila.excluida,
+    };
+  }
+}
+
+interface FilaBitacora {
+  creada_en: Date;
+  tipo: string;
+  texto: string;
+  prioridad: 'critica' | 'alta' | 'media' | 'baja' | null;
+}
+
+/** Deriva `tono` de la prioridad del incidente enlazado (si lo hay) o del tipo de entrada. */
+function tonoBitacora(fila: FilaBitacora): EntradaActividad['tono'] {
+  if (fila.prioridad === 'critica' || fila.prioridad === 'alta') return 'no';
+  if (fila.prioridad === 'media') return 'warn';
+  if (fila.tipo === 'accion') return 'ok';
+  return 'info';
+}
+
+/** Lectura de actividad reciente (`m2_evidencia.bitacora`) para `GET /api/actividad`: no inventa narrativa. */
+export class ActividadRepositorioPg implements ActividadRepositorio {
+  private readonly pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async listar(eventoId: string): Promise<EntradaActividad[]> {
+    const { rows } = await this.pool.query<FilaBitacora>(
+      `SELECT b.creada_en, b.tipo, b.texto, i.prioridad
+       FROM m2_evidencia.bitacora b
+       LEFT JOIN m2_evidencia.incidentes i ON i.id = b.incidente_id
+       WHERE b.evento_id = $1
+       ORDER BY b.creada_en DESC
+       LIMIT 40`,
+      [eventoId],
+    );
+    return rows.map(fila => ({ t: segundosDelDia(fila.creada_en), texto: fila.texto, tono: tonoBitacora(fila) }));
   }
 }

@@ -136,6 +136,67 @@ describe('C4 - composición Fastify (login, O2, M2 E1, incidentes)', () => {
     const incidentes = respuesta.json() as Array<{ clasificacion: string; puntoId: string | null }>;
     expect(incidentes.some((i) => i.clasificacion === 'SIN_COMUNICACION' && i.puntoId === puntoId(2))).toBe(true);
   });
+
+  it('GET /api/boletas/:ref devuelve la boleta sembrada', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuesta = await app.fastify.inject({ method: 'GET', url: '/api/boletas/BOL-0001', cookies: cookie });
+    expect(respuesta.statusCode).toBe(200);
+    const boleta = respuesta.json() as { ref: string; zona: string; excluida: boolean };
+    expect(boleta.ref).toBe('BOL-0001');
+    expect(boleta.zona).toBe('General');
+  });
+
+  it('GET /api/boletas/:ref responde 404 si no existe', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuesta = await app.fastify.inject({ method: 'GET', url: '/api/boletas/NO-EXISTE', cookies: cookie });
+    expect(respuesta.statusCode).toBe(404);
+  });
+
+  it('GET /api/acciones y POST /api/acciones/:id deciden una acción pendiente', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuestaLista = await app.fastify.inject({ method: 'GET', url: '/api/acciones', cookies: cookie });
+    expect(respuestaLista.statusCode).toBe(200);
+    const acciones = respuestaLista.json() as Array<{ id: string; estado: string }>;
+    expect(acciones.some((a) => a.id === 'ACC-1' && a.estado === 'pendiente')).toBe(true);
+
+    const respuestaDecision = await app.fastify.inject({
+      method: 'POST', url: '/api/acciones/ACC-1', cookies: cookie, payload: { aprobar: true, nota: 'ok' },
+    });
+    expect(respuestaDecision.statusCode).toBe(200);
+    const accion = respuestaDecision.json() as { estado: string; autor: string | null; nota: string | null };
+    expect(accion.estado).toBe('aprobada');
+    expect(accion.autor).toBe('SUPERVISOR');
+    expect(accion.nota).toBe('ok');
+
+    const respuestaRepetida = await app.fastify.inject({
+      method: 'POST', url: '/api/acciones/ACC-1', cookies: cookie, payload: { aprobar: true },
+    });
+    expect(respuestaRepetida.statusCode).toBe(409);
+  });
+
+  it('POST /api/acciones/:id responde 404 si la acción no existe', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuesta = await app.fastify.inject({
+      method: 'POST', url: '/api/acciones/ACC-999', cookies: cookie, payload: { aprobar: true },
+    });
+    expect(respuesta.statusCode).toBe(404);
+  });
+
+  it('GET /api/actividad refleja la bitácora del incidente SIN_COMUNICACION', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuesta = await app.fastify.inject({ method: 'GET', url: '/api/actividad', cookies: cookie });
+    expect(respuesta.statusCode).toBe(200);
+    const actividad = respuesta.json() as Array<{ texto: string; tono: string }>;
+    expect(actividad.length).toBeGreaterThan(0);
+  });
+
+  it('rutas de preparación/cierre fuera de alcance de M1 responden 501', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuesta = await app.fastify.inject({
+      method: 'POST', url: '/api/preparacion/confirmar', cookies: cookie,
+    });
+    expect(respuesta.statusCode).toBe(501);
+  });
 });
 
 async function iniciarSesion(app: AppC4): Promise<Record<string, string>> {
@@ -193,6 +254,17 @@ async function sembrarDatos(pool: Pool): Promise<void> {
   await pool.query(
     `INSERT INTO m2_evidencia.eventos_estado (evento_id, coordinador_estado, enlace_en_linea)
      VALUES ($1, 'operando', true)`,
+    [EVENTO_ID],
+  );
+
+  await pool.query(
+    'INSERT INTO m1_config_permisos.boletas (evento_id, referencia, zona_id, version) VALUES ($1, $2, $3, 0)',
+    [EVENTO_ID, 'BOL-0001', 'GENERAL'],
+  );
+
+  await pool.query(
+    `INSERT INTO m2_evidencia.acciones (id, evento_id, tipo, titulo, detalle, si, no, rol, decisiva, estado)
+     VALUES ('ACC-1', $1, 'redirigir', 'Redirigir zona', 'Detalle de prueba', 'Sí, redirigir', 'No redirigir', 'SUPERVISOR', true, 'pendiente')`,
     [EVENTO_ID],
   );
 }

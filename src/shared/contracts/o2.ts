@@ -329,6 +329,7 @@ export const EntradaActividad = z.object({
   texto: z.string(),
   tono: z.enum(['ok', 'warn', 'no', 'info', 'mute', 'violet', 'gold']),
 });
+export type EntradaActividad = z.infer<typeof EntradaActividad>;
 export const ListaActividad = z.array(EntradaActividad).max(40);
 
 /** `GET /api/boletas/{ref}`: búsqueda por referencia técnica (no identifica a nadie). */

@@ -1,10 +1,13 @@
 import type {
-  EstadoActual, EstadoPunto, Incidente, Intento, PuntoDetalle, PuntoResumen,
+  Accion, Boleta, EntradaActividad, EstadoActual, EstadoPunto, Incidente, Intento, PuntoDetalle, PuntoResumen,
 } from '@nexo/shared/contracts';
 import { ControlPreparacion } from '@nexo/shared/contracts';
 import type { EventoConfigRepositorio, PuntoConfigRepositorio } from '../../modules/configuration-permissions/application/index.ts';
 import type { IncidenteRepositorio } from '../../modules/evidence-ingestion/application/index.ts';
-import type { ConsultaIntentosOpciones, EstadoOperativoRepositorio, EstadoPuntoLeido, IntentosRepositorio } from './puertos.ts';
+import type {
+  AccionesRepositorio, ActividadRepositorio, BoletasRepositorio, ConsultaIntentosOpciones, EstadoOperativoRepositorio,
+  EstadoPuntoLeido, IntentosRepositorio, ResultadoDecisionAccion,
+} from './puertos.ts';
 import type { PreparacionConciliacionRepositorio } from './puertos-preparacion.ts';
 
 const ESTADO_PUNTO_VACIO: EstadoPunto = 'sin-abrir';
@@ -47,6 +50,9 @@ export class ServicioO2 {
   private readonly incidentes: IncidenteRepositorio;
   private readonly preparacionConciliacion: PreparacionConciliacionRepositorio;
   private readonly intentos: IntentosRepositorio;
+  private readonly acciones: AccionesRepositorio;
+  private readonly boletas: BoletasRepositorio;
+  private readonly actividad: ActividadRepositorio;
   private readonly ahora: () => Date;
 
   constructor(
@@ -56,6 +62,9 @@ export class ServicioO2 {
     incidentes: IncidenteRepositorio,
     preparacionConciliacion: PreparacionConciliacionRepositorio,
     intentos: IntentosRepositorio,
+    acciones: AccionesRepositorio,
+    boletas: BoletasRepositorio,
+    actividad: ActividadRepositorio,
     ahora: () => Date = () => new Date(),
   ) {
     this.eventosConfig = eventosConfig;
@@ -64,6 +73,9 @@ export class ServicioO2 {
     this.incidentes = incidentes;
     this.preparacionConciliacion = preparacionConciliacion;
     this.intentos = intentos;
+    this.acciones = acciones;
+    this.boletas = boletas;
+    this.actividad = actividad;
     this.ahora = ahora;
   }
 
@@ -212,5 +224,30 @@ export class ServicioO2 {
     const evento = await this.eventosConfig.obtenerEventoActual();
     if (!evento) return [];
     return this.intentos.listar(evento.id, opciones);
+  }
+
+  async listarAcciones(): Promise<Accion[]> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return [];
+    return this.acciones.listar(evento.id);
+  }
+
+  /** `null` si no hay evento actual (se traduce a 404 en la ruta, igual que "acción no encontrada"). */
+  async decidirAccion(id: string, aprobar: boolean, nota: string | undefined, usuario: string): Promise<ResultadoDecisionAccion | null> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return null;
+    return this.acciones.decidir(evento.id, id, aprobar, nota, usuario);
+  }
+
+  async obtenerBoleta(referencia: string): Promise<Boleta | null> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return null;
+    return this.boletas.obtener(evento.id, referencia);
+  }
+
+  async listarActividad(): Promise<EntradaActividad[]> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return [];
+    return this.actividad.listar(evento.id);
   }
 }
