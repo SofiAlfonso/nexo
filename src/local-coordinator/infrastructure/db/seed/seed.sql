@@ -1,5 +1,5 @@
 -- Local fixture only: no buyer identity, credentials, or real signed P2 package.
--- Run after migrate(pool), in one psql transaction (seed.ps1 uses --single-transaction).
+-- Run after migrations; seed.ts applies this file in a database transaction.
 -- Re-running refreshes only the demo event's open window; confirmed consumptions
 -- and audit/outbox rows are never reset.
 INSERT INTO evento (
@@ -8,12 +8,16 @@ INSERT INTO evento (
   reingreso_permitido, permisos_recibidos_en
 ) VALUES (
   'EVT-2026-02', 'CLI-001', 'BOL-01', 'REC-01', 'abierto',
-  now() - interval '1 hour', now() + interval '6 hours', 1, 1,
+  now() - interval '1 hour', now() + interval '12 hours', 1, 1,
   false, now() - interval '1 minute'
 )
 ON CONFLICT (evento_id) DO UPDATE SET
+  estado = EXCLUDED.estado,
   apertura_en = EXCLUDED.apertura_en,
   cierre_en = EXCLUDED.cierre_en,
+  version_permisos = EXCLUDED.version_permisos,
+  version_politicas = EXCLUDED.version_politicas,
+  reingreso_permitido = false,
   permisos_recibidos_en = EXCLUDED.permisos_recibidos_en;
 
 -- Provenance of the pre-installed demo permission version. Deliberately not a
@@ -28,23 +32,30 @@ SELECT evento_id, 1, 0, 'instantanea',
   permisos_recibidos_en, cierre_en, apertura_en, cierre_en, 1
 FROM evento
 WHERE evento_id = 'EVT-2026-02'
-ON CONFLICT (evento_id, version) DO NOTHING;
+ON CONFLICT (evento_id, version) DO UPDATE SET
+  paquete = EXCLUDED.paquete,
+  emitido_en = EXCLUDED.emitido_en,
+  vigente_hasta = EXCLUDED.vigente_hasta,
+  apertura_en = EXCLUDED.apertura_en,
+  cierre_en = EXCLUDED.cierre_en,
+  version_politicas = EXCLUDED.version_politicas;
 
 WITH asignacion AS (
   SELECT n,
-    CASE WHEN n <= 5 THEN 'Z-NORTE'
-         WHEN n <= 9 THEN 'Z-SUR'
-         WHEN n <= 14 THEN 'Z-ORIENTAL'
-         WHEN n <= 18 THEN 'Z-OCCIDENTAL'
-         ELSE 'Z-PALCOS' END AS zona
+    CASE WHEN n <= 5 THEN 'Norte'
+         WHEN n <= 9 THEN 'Sur'
+         WHEN n <= 14 THEN 'Oriental'
+         WHEN n <= 18 THEN 'Occidental'
+         ELSE 'Palcos' END AS zona
   FROM generate_series(1, 20) AS n
 )
 INSERT INTO punto (evento_id, punto_id, zonas, habilitado)
 SELECT 'EVT-2026-02', 'P-' || lpad(n::text, 2, '0'),
-  CASE WHEN n IN (1, 7) THEN ARRAY[zona, 'Z-PALCOS'] ELSE ARRAY[zona] END,
+  CASE WHEN n IN (1, 7) THEN ARRAY[zona, 'Palcos'] ELSE ARRAY[zona] END,
   true
 FROM asignacion
-ON CONFLICT (evento_id, punto_id) DO NOTHING;
+ON CONFLICT (evento_id, punto_id) DO UPDATE SET zonas = EXCLUDED.zonas
+WHERE punto.zonas IS DISTINCT FROM EXCLUDED.zonas;
 
 INSERT INTO lector (evento_id, lector_id, punto_id, habilitado, revocado)
 SELECT 'EVT-2026-02', 'LX-2210-' || lpad((100 + 7 * n)::text, 4, '0'),
@@ -55,14 +66,14 @@ ON CONFLICT (evento_id, lector_id) DO NOTHING;
 -- Five zone distributions: 4,980 + 3,360 + 4,010 + 3,360 + 530 = 16,240.
 -- Samples at P-01: TA-8800-0000 valid, TA-8804-0980 other zone,
 -- TA-8800-0001 annulled, TA-8800-0002 already used; any absent code
--- is unknown. Racing an unused reference at P-01/P-07 exercises
+-- is unknown. Racing an unused reference at P-01/P-02 exercises
 -- the global unique-consumption constraint.
 WITH grupos(zona, inicio, cantidad) AS (
-  VALUES ('Z-NORTE', 0, 4980),
-         ('Z-SUR', 4980, 3360),
-         ('Z-ORIENTAL', 8340, 4010),
-         ('Z-OCCIDENTAL', 12350, 3360),
-         ('Z-PALCOS', 15710, 530)
+  VALUES ('Norte', 0, 4980),
+         ('Sur', 4980, 3360),
+         ('Oriental', 8340, 4010),
+         ('Occidental', 12350, 3360),
+         ('Palcos', 15710, 530)
 )
 INSERT INTO boleta (
   evento_id, referencia, zona, anulada_en, anulacion_recibida_en, version
@@ -75,7 +86,18 @@ SELECT 'EVT-2026-02',
   1
 FROM grupos
 CROSS JOIN LATERAL generate_series(inicio, inicio + cantidad - 1) AS n
-ON CONFLICT (evento_id, referencia) DO NOTHING;
+ON CONFLICT (evento_id, referencia) DO UPDATE SET zona = EXCLUDED.zona
+WHERE boleta.zona IS DISTINCT FROM EXCLUDED.zona;
+
+UPDATE boleta
+SET anulada_en = LEAST(COALESCE(anulada_en, now() - interval '5 minutes'),
+                       now() - interval '5 minutes'),
+    anulacion_recibida_en = LEAST(COALESCE(anulacion_recibida_en, now() - interval '4 minutes'),
+                                  now() - interval '4 minutes')
+WHERE evento_id = 'EVT-2026-02'
+  AND referencia = 'TA-8800-0001'
+  AND (anulada_en IS NULL OR anulacion_recibida_en IS NULL
+       OR anulada_en > now() OR anulacion_recibida_en > now());
 
 -- Deterministic used-ticket fixture: preserve the complete original
 -- acceptance (identity, decision, consumption, immutable audit and outbox).
@@ -87,7 +109,7 @@ INSERT INTO intento (
 VALUES (
   'EVT-2026-02', 'seed:used:EVT-2026-02:TA-8800-0002',
   '1d26a4f2de55e46762986d7485dd11f5184a1ca1be1f29967b3a8b3bf1229672',
-  'LX-2210-0107', 'P-01', 'TA-8800-0002', 'ingreso', 'Z-NORTE',
+  'LX-2210-0107', 'P-01', 'TA-8800-0002', 'ingreso', 'Norte',
   now() - interval '2 minutes', 'aceptado', 'PERMISO_VIGENTE',
   jsonb_build_object(
     'idOrigen', 'seed:used:EVT-2026-02:TA-8800-0002',
@@ -134,7 +156,7 @@ VALUES (
   jsonb_build_object(
     'tipo', 'decision', 'idOrigen', 'seed:used:EVT-2026-02:TA-8800-0002',
     'lectorId', 'LX-2210-0107', 'puntoId', 'P-01', 'codigo', 'TA-8800-0002',
-    'zona', 'Z-NORTE', 'zonaSolicitada', 'Z-NORTE',
+    'zona', 'Norte', 'zonaSolicitada', 'Norte',
     'decision', 'aceptado', 'motivo', 'PERMISO_VIGENTE',
     'proposito', 'ingreso', 'admision', true, 'concurrente', false,
     'anulacionEnTransito', false,

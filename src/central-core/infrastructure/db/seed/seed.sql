@@ -1,4 +1,4 @@
--- Run after D2 migrations with psql --set=operator_password_hash=<argon2 hash>.
+-- Run after D2 migrations; seed.ts substitutes the Argon2 operator hash.
 -- No personal data or plaintext credentials are stored.
 INSERT INTO m1_config_permisos.clientes(id, nombre)
 VALUES ('CLI-001', 'Club Deportivo Cordillera (ficticio)')
@@ -17,7 +17,7 @@ VALUES
      'TaquillaAndina', '2026-08-30 17:00:00-05', '2026-08-30 20:15:00-05',
      14212, false, 'cerrado', 1, '2026-08-30 16:20:00-05'),
     ('EVT-2026-02', 'REC-01', 'Fecha 14 · Cordillera vs. Real Pacífico', 'Fecha 14',
-     'TaquillaAndina', now() - interval '1 hour', now() + interval '6 hours',
+     'TaquillaAndina', now() - interval '1 hour', now() + interval '12 hours',
      15000, false, 'abierto', 1, now() - interval '1 minute'),
     ('EVT-2026-03', 'REC-01', 'Fecha 16 · Cordillera vs. Unión Norte', 'Fecha 16',
      'TaquillaAndina', '2026-10-04 17:00:00-05', '2026-10-04 20:15:00-05',
@@ -25,6 +25,8 @@ VALUES
 ON CONFLICT (id) DO UPDATE
     SET apertura = EXCLUDED.apertura,
         cierre = EXCLUDED.cierre,
+        version_permisos = EXCLUDED.version_permisos,
+        ultimo_cambio_recibido = EXCLUDED.ultimo_cambio_recibido,
         estado = 'abierto'
 WHERE m1_config_permisos.eventos.id = 'EVT-2026-02'
   AND m1_config_permisos.eventos.estado IN ('preparacion', 'abierto');
@@ -76,7 +78,12 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO m1_config_permisos.politicas
     (evento_id, version, reingreso_permitido, reingreso_tras_min, reingreso_suspendido)
 VALUES ('EVT-2026-02', 1, false, 10, false)
-ON CONFLICT (evento_id) DO NOTHING;
+ON CONFLICT (evento_id) DO UPDATE
+    SET version = EXCLUDED.version,
+        reingreso_permitido = false,
+        reingreso_tras_min = EXCLUDED.reingreso_tras_min,
+        reingreso_suspendido = false,
+        actualizada_en = now();
 INSERT INTO m1_config_permisos.versiones_politica
     (evento_id, version, reingreso_permitido, reingreso_tras_min, reingreso_suspendido)
 VALUES ('EVT-2026-02', 1, false, 10, false)
@@ -101,11 +108,14 @@ ON CONFLICT (evento_id, referencia) DO NOTHING;
 -- Repair a prior seed of this fixture without touching decisions or other tickets.
 UPDATE m1_config_permisos.boletas
 SET anulada = true,
-    anulacion_emitida_en = COALESCE(anulacion_emitida_en, now() - interval '5 minutes'),
-    anulacion_recibida_en = COALESCE(anulacion_recibida_en, now() - interval '4 minutes')
+    anulacion_emitida_en = LEAST(COALESCE(anulacion_emitida_en, now() - interval '5 minutes'),
+                                 now() - interval '5 minutes'),
+    anulacion_recibida_en = LEAST(COALESCE(anulacion_recibida_en, now() - interval '4 minutes'),
+                                  now() - interval '4 minutes')
 WHERE evento_id = 'EVT-2026-02'
   AND referencia = 'TA-8800-0001'
-  AND (NOT anulada OR anulacion_emitida_en IS NULL OR anulacion_recibida_en IS NULL);
+  AND (NOT anulada OR anulacion_emitida_en IS NULL OR anulacion_recibida_en IS NULL
+       OR anulacion_emitida_en > now() OR anulacion_recibida_en > now());
 
 INSERT INTO m2_evidencia.puntos_estado(evento_id, punto_id)
 SELECT evento_id, id FROM m1_config_permisos.puntos
@@ -113,7 +123,10 @@ WHERE evento_id = 'EVT-2026-02'
 ON CONFLICT (evento_id, punto_id) DO NOTHING;
 INSERT INTO m2_evidencia.eventos_estado(evento_id, version_permisos, version_politicas)
 VALUES ('EVT-2026-02', 1, 1)
-ON CONFLICT (evento_id) DO NOTHING;
+ON CONFLICT (evento_id) DO UPDATE
+    SET version_permisos = EXCLUDED.version_permisos,
+        version_politicas = EXCLUDED.version_politicas,
+        actualizado_en = now();
 
 INSERT INTO m3_conciliacion.conciliaciones(evento_id, estado, preliminar_en, definitivo_en)
 VALUES
@@ -126,7 +139,7 @@ INSERT INTO m4_liquidacion.contratos
     (id, cliente_id, tarifa_por_admision, minimo, moneda, condiciones)
 VALUES
     ('CT-2026-014', 'CLI-001', 0.40, 500.00, 'USD',
-     '{"acordadoEn":"2026-08-20","origen":"Acuerdo nuevo · piloto de tres eventos","recompraDias":60,"anticipoEvento01":"3500.00","costosEvento01":"318.00","costosTopeEvento03":"600.00"}'::jsonb)
+     '{"acordadoEn":"2026-08-20","origen":"Acuerdo nuevo · piloto de tres eventos","recompraDias":60,"anticipoEvento01":"3500.00","costosEvento01":"318.00","costosTopeEvento03":"600.00","fechasPrototipo":{"EVT-2026-02":{"fecha":"2026-09-16","apertura":"17:00","cierre":"20:15"}}}'::jsonb)
 ON CONFLICT (id) DO UPDATE
     SET condiciones = EXCLUDED.condiciones || m4_liquidacion.contratos.condiciones;
 
