@@ -1,0 +1,7 @@
+{
+  "error": "CONFLICTO_IDEMPOTENCIA",
+  "mensaje": "El idOrigen ya existe con otro contenido",
+  "detalles": {
+    "idOrigen": "LX-2210-0149:000001234"
+  }
+}

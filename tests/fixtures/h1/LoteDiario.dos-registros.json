@@ -1,0 +1,26 @@
+{
+  "idLote": "LX-2210-0149:diario:0007",
+  "lectorId": "LX-2210-0149",
+  "puntoId": "P-07",
+  "eventoId": "EVT-2026-02",
+  "registros": [
+    {
+      "idOrigen": "LX-2210-0149:000001236",
+      "codigo": "TA-8834-1122",
+      "proposito": "ingreso",
+      "zonaSolicitada": "Sur",
+      "instanteLector": "2026-09-16T17:42:14.000-05:00",
+      "motivoLocal": "SIN_COORDINADOR",
+      "latenciaMs": null
+    },
+    {
+      "idOrigen": "LX-2210-0149:000001237",
+      "codigo": "TA-8834-9981",
+      "proposito": "ingreso",
+      "zonaSolicitada": "Sur",
+      "instanteLector": "2026-09-16T17:42:19.000-05:00",
+      "motivoLocal": "SIN_COORDINADOR",
+      "latenciaMs": null
+    }
+  ]
+}

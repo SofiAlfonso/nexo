@@ -1,0 +1,41 @@
+{
+  "confirmada": false,
+  "controles": [
+    {
+      "id": "permisos",
+      "titulo": "Boletas y reglas verificadas",
+      "ok": true,
+      "detalle": "Sin datos aún."
+    },
+    {
+      "id": "contingencia",
+      "titulo": "Conectividad y contingencia acordadas",
+      "ok": true,
+      "detalle": "Sin datos aún."
+    },
+    {
+      "id": "reemplazo",
+      "titulo": "Puntos y repuestos probados",
+      "ok": false,
+      "detalle": "Sin datos aún."
+    },
+    {
+      "id": "integridad",
+      "titulo": "Integridad comprobada",
+      "ok": true,
+      "detalle": "Sin datos aún."
+    },
+    {
+      "id": "privacidad",
+      "titulo": "Seguimiento exclusivo a la boleta",
+      "ok": true,
+      "detalle": "Sin datos aún."
+    },
+    {
+      "id": "adicionales",
+      "titulo": "Adicionales aceptados por el cliente",
+      "ok": false,
+      "detalle": "Sin datos aún."
+    }
+  ]
+}

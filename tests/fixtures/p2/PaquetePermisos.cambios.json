@@ -1,0 +1,162 @@
+{
+  "eventoId": "EVT-2026-02",
+  "origen": "M1 · TaquillaAndina",
+  "emitidoEn": "2026-09-16T17:50:00.000-05:00",
+  "vigenteHasta": "2026-09-16T21:15:00.000-05:00",
+  "ventana": {
+    "aperturaEn": "2026-09-16T17:00:00.000-05:00",
+    "cierreEn": "2026-09-16T20:15:00.000-05:00"
+  },
+  "politicas": {
+    "version": 2,
+    "reingresoPermitido": true,
+    "reingresoTrasMin": 10,
+    "reingresoSuspendido": false
+  },
+  "puntos": [
+    {
+      "puntoId": "P-01",
+      "zonas": [
+        "Norte",
+        "Palcos"
+      ]
+    },
+    {
+      "puntoId": "P-02",
+      "zonas": [
+        "Norte"
+      ]
+    },
+    {
+      "puntoId": "P-03",
+      "zonas": [
+        "Norte"
+      ]
+    },
+    {
+      "puntoId": "P-04",
+      "zonas": [
+        "Norte"
+      ]
+    },
+    {
+      "puntoId": "P-05",
+      "zonas": [
+        "Norte"
+      ]
+    },
+    {
+      "puntoId": "P-06",
+      "zonas": [
+        "Sur"
+      ]
+    },
+    {
+      "puntoId": "P-07",
+      "zonas": [
+        "Sur",
+        "Palcos"
+      ]
+    },
+    {
+      "puntoId": "P-08",
+      "zonas": [
+        "Sur"
+      ]
+    },
+    {
+      "puntoId": "P-09",
+      "zonas": [
+        "Sur"
+      ]
+    },
+    {
+      "puntoId": "P-10",
+      "zonas": [
+        "Oriental"
+      ]
+    },
+    {
+      "puntoId": "P-11",
+      "zonas": [
+        "Oriental"
+      ]
+    },
+    {
+      "puntoId": "P-12",
+      "zonas": [
+        "Oriental"
+      ]
+    },
+    {
+      "puntoId": "P-13",
+      "zonas": [
+        "Oriental"
+      ]
+    },
+    {
+      "puntoId": "P-14",
+      "zonas": [
+        "Oriental"
+      ]
+    },
+    {
+      "puntoId": "P-15",
+      "zonas": [
+        "Occidental"
+      ]
+    },
+    {
+      "puntoId": "P-16",
+      "zonas": [
+        "Occidental"
+      ]
+    },
+    {
+      "puntoId": "P-17",
+      "zonas": [
+        "Occidental"
+      ]
+    },
+    {
+      "puntoId": "P-18",
+      "zonas": [
+        "Occidental"
+      ]
+    },
+    {
+      "puntoId": "P-19",
+      "zonas": [
+        "Palcos"
+      ]
+    },
+    {
+      "puntoId": "P-20",
+      "zonas": [
+        "Palcos"
+      ]
+    }
+  ],
+  "tipo": "cambios",
+  "desdeVersion": 37,
+  "hastaVersion": 38,
+  "cambios": [
+    {
+      "tipo": "anulacion",
+      "version": 38,
+      "referencia": "TA-8834-1122",
+      "anuladaEn": "2026-09-16T17:49:30.000-05:00"
+    },
+    {
+      "tipo": "cambio-zona",
+      "version": 38,
+      "referencia": "TA-8855-7777",
+      "zona": "Oriental"
+    }
+  ],
+  "firma": {
+    "algoritmo": "HMAC-SHA256",
+    "kid": "lab-m1-2026",
+    "valor": "q3v2k0m6Jx1c9Q3oVbXl0aYp8mN1sR5tU7wZ2dE4fGh"
+  }
+}

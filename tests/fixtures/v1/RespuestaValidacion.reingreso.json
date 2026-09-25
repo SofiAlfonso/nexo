@@ -1,0 +1,18 @@
+{
+  "idOrigen": "LX-2210-0149:000001301",
+  "decision": "aceptado",
+  "motivo": "REINGRESO_AUTORIZADO",
+  "proposito": "reingreso",
+  "admision": false,
+  "concurrente": false,
+  "anulacionEnTransito": false,
+  "versionPermisos": 37,
+  "evidencia": {
+    "via": "Coordinador COORD-A",
+    "versionPermisos": 37,
+    "versionPoliticas": 2,
+    "antiguedadPermisosS": 42
+  },
+  "instanteDecision": "2026-09-16T18:05:00.050-05:00",
+  "repetida": false
+}

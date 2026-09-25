@@ -1,0 +1,12 @@
+{
+  "idLote": "LX-2210-0149:diario:0007",
+  "recibidoEn": "2026-09-16T17:45:01.000-05:00",
+  "aceptados": [
+    "LX-2210-0149:000001237"
+  ],
+  "duplicados": [],
+  "yaDecididos": [
+    "LX-2210-0149:000001236"
+  ],
+  "repetido": false
+}

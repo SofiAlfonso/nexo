@@ -1,0 +1,9 @@
+{
+  "operador": {
+    "usuario": "supervisor",
+    "nombre": "Supervisor de laboratorio",
+    "rol": "SUPERVISOR",
+    "rolTexto": "Supervisor del operador"
+  },
+  "expiraEn": "2026-09-16T23:59:00.000-05:00"
+}

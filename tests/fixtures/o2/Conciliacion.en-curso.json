@@ -1,0 +1,46 @@
+{
+  "estado": "en-curso",
+  "preliminarEnS": null,
+  "definitivoEnS": null,
+  "diferencias": [
+    {
+      "id": "DIF-001",
+      "tipo": "anulacion",
+      "titulo": "TA-8834-1122 aceptada antes de recibir su anulación",
+      "origen": "Integración con la boletería",
+      "detalle": "La anulación llegó 40 s después de la aceptación.",
+      "casos": 1,
+      "referencia": "TA-8834-1122",
+      "intentoId": "LX-2210-0149:000001240",
+      "opciones": [
+        {
+          "id": "excluir",
+          "texto": "Excluir del cobro"
+        },
+        {
+          "id": "mantener",
+          "texto": "Mantener la admisión",
+          "nota": "Solo si el cliente lo acuerda por escrito"
+        }
+      ],
+      "estado": "abierta",
+      "detectadaEnS": 73000,
+      "resolucion": null,
+      "resueltaPor": null,
+      "resueltaEnS": null
+    }
+  ],
+  "saldoCobrado": false,
+  "condiciones": [
+    {
+      "id": "ventana",
+      "texto": "Ventana de ingreso cerrada",
+      "ok": false
+    },
+    {
+      "id": "diarios",
+      "texto": "Diarios de los 20 lectores sincronizados",
+      "ok": false
+    }
+  ]
+}

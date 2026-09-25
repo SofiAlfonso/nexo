@@ -1,0 +1,25 @@
+{
+  "tipo": "intento",
+  "datos": {
+    "id": "LX-2210-0149:000001234",
+    "ref": "TA-8812-3456",
+    "zona": "Sur",
+    "puntoId": "P-07",
+    "lector": "LX-2210-0149",
+    "t": 63730,
+    "decision": "aceptado",
+    "motivo": "PERMISO_VIGENTE",
+    "proposito": "ingreso",
+    "admision": true,
+    "concurrente": false,
+    "latenciaMs": 68,
+    "evidencia": {
+      "via": "Coordinador COORD-A",
+      "versionPermisos": 37,
+      "versionPoliticas": 2,
+      "antiguedadPermisosS": 42
+    },
+    "enDiario": false,
+    "manual": false
+  }
+}

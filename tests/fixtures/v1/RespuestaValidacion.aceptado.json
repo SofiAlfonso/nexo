@@ -1,0 +1,18 @@
+{
+  "idOrigen": "LX-2210-0149:000001234",
+  "decision": "aceptado",
+  "motivo": "PERMISO_VIGENTE",
+  "proposito": "ingreso",
+  "admision": true,
+  "concurrente": false,
+  "anulacionEnTransito": false,
+  "versionPermisos": 37,
+  "evidencia": {
+    "via": "Coordinador COORD-A",
+    "versionPermisos": 37,
+    "versionPoliticas": 2,
+    "antiguedadPermisosS": 42
+  },
+  "instanteDecision": "2026-09-16T17:42:10.188-05:00",
+  "repetida": false
+}

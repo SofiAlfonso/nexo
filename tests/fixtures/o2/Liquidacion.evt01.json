@@ -1,0 +1,12 @@
+{
+  "moneda": "USD",
+  "admisiones": 14212,
+  "excluidas": 0,
+  "facturables": 14212,
+  "importe": "6184.80",
+  "anticipo": "3500.00",
+  "saldo": "2684.80",
+  "costos": "318.00",
+  "contribucion": "5866.80",
+  "margen": "0.948584"
+}

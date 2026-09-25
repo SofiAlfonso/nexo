@@ -1,0 +1,31 @@
+{
+  "numero": 0,
+  "eventoExterno": "TA-EV-5521",
+  "publicadaEn": "2026-09-10T09:00:00.000-05:00",
+  "instantanea": true,
+  "cambios": [
+    {
+      "operacion": "emision",
+      "referenciaExterna": "TA-8812-3456",
+      "localidad": "SUR",
+      "instante": "2026-09-01T10:00:00.000-05:00",
+      "comprador": {
+        "nombre": "Persona Ficticia",
+        "documento": "0000000",
+        "correo": "ficticia@example.invalid"
+      }
+    },
+    {
+      "operacion": "emision",
+      "referenciaExterna": "TA-8834-1122",
+      "localidad": "SUR",
+      "instante": "2026-09-01T10:05:00.000-05:00"
+    },
+    {
+      "operacion": "emision",
+      "referenciaExterna": "TA-8855-7777",
+      "localidad": "PALCOS",
+      "instante": "2026-09-02T11:00:00.000-05:00"
+    }
+  ]
+}

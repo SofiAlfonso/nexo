@@ -1,0 +1,88 @@
+{
+  "idLote": "COORD-A:lote:000000412",
+  "recintoId": "REC-01",
+  "eventoId": "EVT-2026-02",
+  "coordinadorId": "COORD-A",
+  "emitidoEn": "2026-09-16T17:42:11.000-05:00",
+  "registros": [
+    {
+      "tipo": "decision",
+      "idOrigen": "LX-2210-0149:000001234",
+      "lectorId": "LX-2210-0149",
+      "puntoId": "P-07",
+      "codigo": "TA-8812-3456",
+      "zona": "Sur",
+      "zonaSolicitada": "Sur",
+      "decision": "aceptado",
+      "motivo": "PERMISO_VIGENTE",
+      "proposito": "ingreso",
+      "admision": true,
+      "concurrente": false,
+      "anulacionEnTransito": false,
+      "evidencia": {
+        "via": "Coordinador COORD-A",
+        "versionPermisos": 37,
+        "versionPoliticas": 2,
+        "antiguedadPermisosS": 42
+      },
+      "instanteLector": "2026-09-16T17:42:10.120-05:00",
+      "instanteDecision": "2026-09-16T17:42:10.188-05:00"
+    },
+    {
+      "tipo": "decision",
+      "idOrigen": "LX-2210-0107:000000988",
+      "lectorId": "LX-2210-0107",
+      "puntoId": "P-01",
+      "codigo": "TA-8899-0000",
+      "zona": null,
+      "zonaSolicitada": "Norte",
+      "decision": "rechazado",
+      "motivo": "CODIGO_DESCONOCIDO",
+      "proposito": null,
+      "admision": false,
+      "concurrente": false,
+      "anulacionEnTransito": false,
+      "evidencia": {
+        "via": "Coordinador COORD-A",
+        "versionPermisos": 37,
+        "versionPoliticas": 2,
+        "antiguedadPermisosS": 42
+      },
+      "instanteLector": "2026-09-16T17:42:10.120-05:00",
+      "instanteDecision": "2026-09-16T17:42:10.188-05:00"
+    },
+    {
+      "tipo": "intento-diario",
+      "idOrigen": "LX-2210-0149:000001237",
+      "lectorId": "LX-2210-0149",
+      "puntoId": "P-07",
+      "codigo": "TA-8834-9981",
+      "zonaSolicitada": "Sur",
+      "proposito": "ingreso",
+      "motivoLocal": "SIN_COORDINADOR",
+      "instanteLector": "2026-09-16T17:42:19.000-05:00",
+      "recibidoEnCoordinador": "2026-09-16T17:45:01.000-05:00"
+    },
+    {
+      "tipo": "latido-punto",
+      "idOrigen": "COORD-A:latido:P-07:000256",
+      "lectorId": "LX-2210-0149",
+      "puntoId": "P-07",
+      "estadoLector": "operativo",
+      "instanteLector": "2026-09-16T17:42:10.000-05:00",
+      "pendientesDiario": 0,
+      "diarioTotal": 3
+    },
+    {
+      "tipo": "estado-coordinador",
+      "idOrigen": "COORD-A:estado:000000412",
+      "coordinadorId": "COORD-A",
+      "estado": "operando",
+      "instante": "2026-09-16T17:42:11.000-05:00",
+      "versionPermisos": 37,
+      "versionPoliticas": 2,
+      "outboxPendientes": 5,
+      "outboxEdadMaxS": 1.2
+    }
+  ]
+}

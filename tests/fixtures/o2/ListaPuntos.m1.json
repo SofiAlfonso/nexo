@@ -1,0 +1,90 @@
+[
+  {
+    "id": "P-01",
+    "nombre": "Puerta Norte 1",
+    "zona": "Norte",
+    "zonas": [
+      "Norte",
+      "Palcos"
+    ],
+    "estado": "en-linea",
+    "ultimaComunicacionS": 63725,
+    "pendientesDiario": 0,
+    "diarioTotal": 0,
+    "sincronizandoDesdeS": null,
+    "decisionesMinuto": 38,
+    "serie": [
+      30,
+      35,
+      41,
+      38
+    ],
+    "averiadoDesdeS": null,
+    "redirigido": false,
+    "recuperacionS": null,
+    "lectorActual": {
+      "id": "LX-2210-0107",
+      "familia": "Zebra TC21",
+      "procedencia": "Cliente",
+      "credencial": "CRED-P-01-A",
+      "desdeS": 57600,
+      "hastaS": null
+    }
+  },
+  {
+    "id": "P-07",
+    "nombre": "Puerta Sur 2",
+    "zona": "Sur",
+    "zonas": [
+      "Sur",
+      "Palcos"
+    ],
+    "estado": "sin-comunicacion",
+    "ultimaComunicacionS": 63680,
+    "pendientesDiario": 2,
+    "diarioTotal": 3,
+    "sincronizandoDesdeS": null,
+    "decisionesMinuto": 38,
+    "serie": [
+      30,
+      35,
+      41,
+      38
+    ],
+    "averiadoDesdeS": null,
+    "redirigido": false,
+    "recuperacionS": null,
+    "lectorActual": {
+      "id": "LX-2210-0149",
+      "familia": "Zebra TC21",
+      "procedencia": "Cliente",
+      "credencial": "CRED-P-07-A",
+      "desdeS": 57600,
+      "hastaS": null
+    }
+  },
+  {
+    "id": "P-19",
+    "nombre": "Puerta Palcos 1",
+    "zona": "Palcos",
+    "zonas": [
+      "Palcos"
+    ],
+    "estado": "averiado",
+    "ultimaComunicacionS": 63725,
+    "pendientesDiario": 0,
+    "diarioTotal": 0,
+    "sincronizandoDesdeS": null,
+    "decisionesMinuto": 38,
+    "serie": [
+      30,
+      35,
+      41,
+      38
+    ],
+    "averiadoDesdeS": 63600,
+    "redirigido": false,
+    "recuperacionS": null,
+    "lectorActual": null
+  }
+]

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ACC-1",
+    "tipo": "redirigir",
+    "titulo": "Redirigir el flujo de Puerta Sur 2",
+    "detalle": "Enviar a los asistentes a Puerta Sur 1 y Puerta Sur 3.",
+    "si": "Redirigir",
+    "no": "Posponer",
+    "rol": "SUPERVISOR",
+    "incidenteId": "INC-0001",
+    "enlace": "#/incidentes/INC-0001",
+    "decisiva": false,
+    "estado": "pendiente",
+    "creadaEnS": 63710,
+    "decididaEnS": null,
+    "autor": null,
+    "nota": null
+  }
+]

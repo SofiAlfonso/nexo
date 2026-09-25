@@ -1,0 +1,18 @@
+{
+  "idOrigen": "LX-2210-0149:000001236",
+  "decision": "sin-respuesta",
+  "motivo": "SIN_COORDINADOR",
+  "proposito": null,
+  "admision": false,
+  "concurrente": false,
+  "anulacionEnTransito": false,
+  "versionPermisos": 37,
+  "evidencia": {
+    "via": "Diario del lector",
+    "versionPermisos": 37,
+    "versionPoliticas": 2,
+    "antiguedadPermisosS": 42
+  },
+  "instanteDecision": "2026-09-16T17:42:14.400-05:00",
+  "repetida": false
+}

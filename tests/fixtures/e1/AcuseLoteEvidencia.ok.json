@@ -1,0 +1,34 @@
+{
+  "idLote": "COORD-A:lote:000000412",
+  "recibidoEn": "2026-09-16T17:42:11.090-05:00",
+  "aceptados": 4,
+  "duplicados": 1,
+  "repetido": false,
+  "resultados": [
+    {
+      "tipo": "decision",
+      "idOrigen": "LX-2210-0149:000001234",
+      "estado": "aceptado"
+    },
+    {
+      "tipo": "decision",
+      "idOrigen": "LX-2210-0107:000000988",
+      "estado": "aceptado"
+    },
+    {
+      "tipo": "intento-diario",
+      "idOrigen": "LX-2210-0149:000001237",
+      "estado": "aceptado"
+    },
+    {
+      "tipo": "latido-punto",
+      "idOrigen": "COORD-A:latido:P-07:000256",
+      "estado": "duplicado"
+    },
+    {
+      "tipo": "estado-coordinador",
+      "idOrigen": "COORD-A:estado:000000412",
+      "estado": "aceptado"
+    }
+  ]
+}

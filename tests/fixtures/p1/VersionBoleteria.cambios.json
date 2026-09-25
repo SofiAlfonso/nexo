@@ -1,0 +1,20 @@
+{
+  "numero": 2,
+  "eventoExterno": "TA-EV-5521",
+  "publicadaEn": "2026-09-16T17:49:30.000-05:00",
+  "instantanea": false,
+  "cambios": [
+    {
+      "operacion": "anulacion",
+      "referenciaExterna": "TA-8834-1122",
+      "localidad": "SUR",
+      "instante": "2026-09-16T17:49:30.000-05:00"
+    },
+    {
+      "operacion": "cambio-localidad",
+      "referenciaExterna": "TA-8855-7777",
+      "localidad": "ORIENTAL",
+      "instante": "2026-09-16T17:49:30.000-05:00"
+    }
+  ]
+}

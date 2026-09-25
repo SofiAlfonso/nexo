@@ -1,0 +1,42 @@
+{
+  "id": "INC-0001",
+  "tipo": "SIN_COMUNICACION",
+  "clasificacion": "SIN_COMUNICACION",
+  "prioridad": "alta",
+  "puntoId": "P-07",
+  "componente": null,
+  "zona": "Sur",
+  "titulo": "Puerta Sur 2 sin comunicación",
+  "descripcion": "El punto lleva 30 s o más sin reportar.",
+  "responsable": "SUPERVISOR",
+  "estado": "nuevo",
+  "recibidaEnS": 63710,
+  "actuadaEnS": null,
+  "resueltaEnS": null,
+  "recuperadaEnS": null,
+  "metaRecuperacionS": 300,
+  "relojDesdeS": 63710,
+  "destacado": false,
+  "checklist": [
+    {
+      "texto": "Redirigir el flujo a las puertas vecinas",
+      "hecho": false
+    },
+    {
+      "texto": "Revisar el enlace de red de la puerta",
+      "hecho": false
+    },
+    {
+      "texto": "Confirmar la sincronización del diario",
+      "hecho": false
+    }
+  ],
+  "bitacora": [
+    {
+      "t": 63710,
+      "autor": "sistema",
+      "tipo": "sistema",
+      "texto": "Incidente abierto: sin latido desde hace 30 s."
+    }
+  ]
+}

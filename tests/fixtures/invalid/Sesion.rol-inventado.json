@@ -1,0 +1,9 @@
+{
+  "operador": {
+    "usuario": "x",
+    "nombre": "X",
+    "rol": "ADMIN",
+    "rolTexto": "Administrador"
+  },
+  "expiraEn": "2026-09-16T23:59:00.000-05:00"
+}

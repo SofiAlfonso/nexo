@@ -1,0 +1,7 @@
+{
+  "tipo": "aviso",
+  "datos": {
+    "texto": "Reconectado: estado recuperado.",
+    "tono": "info"
+  }
+}

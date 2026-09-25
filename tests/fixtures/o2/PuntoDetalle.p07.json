@@ -1,0 +1,86 @@
+{
+  "id": "P-07",
+  "nombre": "Puerta Sur 2",
+  "zona": "Sur",
+  "zonas": [
+    "Sur",
+    "Palcos"
+  ],
+  "estado": "en-linea",
+  "ultimaComunicacionS": 63725,
+  "pendientesDiario": 0,
+  "diarioTotal": 0,
+  "sincronizandoDesdeS": null,
+  "decisionesMinuto": 38,
+  "serie": [
+    30,
+    35,
+    41,
+    38
+  ],
+  "averiadoDesdeS": null,
+  "redirigido": false,
+  "recuperacionS": null,
+  "lectorActual": {
+    "id": "LX-2210-0149",
+    "familia": "Zebra TC21",
+    "procedencia": "Cliente",
+    "credencial": "CRED-P-07-A",
+    "desdeS": 57600,
+    "hastaS": null
+  },
+  "latencias": [
+    61,
+    68,
+    72,
+    55
+  ],
+  "recientes": [
+    {
+      "id": "LX-2210-0149:000001234",
+      "ref": "TA-8812-3456",
+      "zona": "Sur",
+      "puntoId": "P-07",
+      "lector": "LX-2210-0149",
+      "t": 63730,
+      "decision": "aceptado",
+      "motivo": "PERMISO_VIGENTE",
+      "proposito": "ingreso",
+      "admision": true,
+      "concurrente": false,
+      "latenciaMs": 68,
+      "evidencia": {
+        "via": "Coordinador COORD-A",
+        "versionPermisos": 37,
+        "versionPoliticas": 2,
+        "antiguedadPermisosS": 42
+      },
+      "enDiario": false,
+      "manual": false
+    }
+  ],
+  "preparacion": {
+    "lector": true,
+    "credencial": true,
+    "zonas": true,
+    "version": true,
+    "prueba": true
+  },
+  "lectores": [
+    {
+      "id": "LX-2210-0149",
+      "familia": "Zebra TC21",
+      "procedencia": "Cliente",
+      "credencial": "CRED-P-07-A",
+      "desdeS": 57600,
+      "hastaS": null
+    }
+  ],
+  "actividad": [
+    {
+      "t": 54000,
+      "tipo": "sistema",
+      "texto": "Lector registrado con credencial individual (alcance: evento y punto)."
+    }
+  ]
+}

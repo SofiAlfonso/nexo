@@ -1,0 +1,22 @@
+{
+  "boleteria": "TaquillaAndina",
+  "eventoExterno": "TA-EV-5521",
+  "ultimaVersion": 2,
+  "versiones": [
+    {
+      "numero": 0,
+      "publicadaEn": "2026-09-10T09:00:00.000-05:00",
+      "cambios": 3
+    },
+    {
+      "numero": 1,
+      "publicadaEn": "2026-09-16T16:10:00.000-05:00",
+      "cambios": 1
+    },
+    {
+      "numero": 2,
+      "publicadaEn": "2026-09-16T17:49:30.000-05:00",
+      "cambios": 2
+    }
+  ]
+}
