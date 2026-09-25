@@ -10,7 +10,7 @@ import {
   AcuseLatido, AcuseLoteDiario, Latido, LoteDiario, RespuestaValidacion, SolicitudValidacion,
 } from '@nexo/shared/contracts';
 import { LectorEmulado } from './application/index.ts';
-import { cargarPerfil, ejecutarCarga } from './load/index.ts';
+import { cargarPerfil, ejecutarCarga, ejecutarPares } from './load/index.ts';
 
 const ejecutarArchivo = promisify(execFile);
 const directorios: string[] = [];
@@ -231,3 +231,42 @@ it('CLI start/status/stop/report usa boletas exportadas y escribe JSON fuera del
     if (JSON.parse(estado.stdout).activo) await comando('stop', '--datos', directorio);
   }
 }, 20_000);
+
+it('pares concurrentes reciben exactamente una aceptación de C2 falso por boleta', async () => {
+  const mapa = new Map<string, { zona: string; estado: string; usada: boolean }>();
+  const boletas = Array.from({ length: 10 }, (_, indice) => {
+    const boleta = { codigo: `PAR-${indice}`, zona: 'Sur', estado: 'vigente' as const, usada: false };
+    mapa.set(boleta.codigo, boleta);
+    return boleta;
+  });
+  const falso = await servidorFalso(mapa);
+  const directorio = await mkdtemp(join(tmpdir(), 'nexo-lector-pares-'));
+  directorios.push(directorio);
+  const clientes = await Promise.all([0, 1].map(async (indice) => {
+    const cliente = new LectorEmulado({
+      lectorId: `LX-PAIR-${indice}`, puntoId: `P-0${indice + 1}`,
+      eventoId: 'EVT-2026-02', directorio, coordinador: falso.url,
+      logger: { warn: vi.fn(), error: vi.fn() },
+    });
+    lectores.push(cliente);
+    await cliente.iniciar();
+    return cliente;
+  }));
+  const perfil = await cargarPerfil(fileURLToPath(new URL('../../tests/load/pico.json', import.meta.url)));
+  perfil.eventos = ['EVT-2026-02'];
+  perfil.lectores = 2;
+  perfil.mezcla = { valid: 100, used: 0, cancelled: 0, 'wrong-zone': 0, unknown: 0 };
+  const reporte = await ejecutarPares({
+    perfil, exportacion: { eventos: [{ eventoId: 'EVT-2026-02', boletas }] }, pares: 5,
+    present: async (intento) => {
+      const cliente = clientes[intento.idCarga.endsWith('-A') ? 0 : 1]!;
+      const resultado = await cliente.presentar({ codigo: intento.codigo, zonaSolicitada: intento.zonaSolicitada });
+      return { decision: resultado.decision, solicitud: resultado.solicitud };
+    },
+  });
+  expect(reporte.paresEvaluados).toBe(5);
+  expect(reporte.paresIncorrectos).toBe(0);
+  expect(reporte.eventos[0]?.aceptacionesEsperadas).toBe(5);
+  expect(reporte.eventos[0]?.aceptacionesObtenidas).toBe(5);
+  expect(new Set(reporte.registros.map((r) => r.idOrigen)).size).toBe(10);
+}, 10_000);
