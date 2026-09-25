@@ -357,18 +357,23 @@ NEXO.api = (function () {
     e.cargando = false;
   }
 
-  /** Arranca la hidratación real y el flujo en vivo. Se llama una vez, tras el login. */
+  /**
+   * Arranca la hidratación real y el flujo en vivo. Se llama una vez, tras el login.
+   * Usa `allSettled` (no `all`) porque, mientras C4 termina de implementar cada
+   * consulta, es normal que una falle (404) sin que eso deba tumbar las demás
+   * vistas: cada `cargarX()` ya escribe su propio dato en el store al resolver.
+   */
   function iniciar() {
-    return Promise.all([
+    return Promise.allSettled([
       cargarEstado(), cargarPuntos(), cargarIntentos(), cargarIncidentes(), cargarAcciones(), cargarActividad()
-    ]).then(function () {
-      store.notificar();
-      conectarFlujo();
-    }, function (err) {
-      console.error('No se pudo cargar el estado inicial:', err);
+    ]).then(function (resultados) {
+      resultados.forEach(function (r) {
+        // Aviso, no error: mientras C4 termina cada consulta es normal que
+        // alguna aun no exista (404); la vista ya muestra su estado vacio.
+        if (r.status === 'rejected') console.warn('No se pudo cargar parte del estado inicial:', r.reason);
+      });
       store.get().cargando = false;
       store.notificar();
-      // Reintenta el flujo igualmente: puede que solo una consulta fallara.
       conectarFlujo();
     });
   }
