@@ -1,0 +1,14 @@
+{
+  "eventos": [
+    {
+      "eventoId": "EVT-TEST",
+      "boletas": [
+        { "codigo": "TEST-A", "zona": "Norte", "estado": "vigente", "usada": false },
+        { "codigo": "TEST-B", "zona": "Sur", "estado": "vigente", "usada": false },
+        { "codigo": "TEST-C", "zona": "Norte", "estado": "vigente", "usada": false },
+        { "codigo": "TEST-D", "zona": "Norte", "estado": "vigente", "usada": true },
+        { "codigo": "TEST-E", "zona": "Sur", "estado": "anulada", "usada": false }
+      ]
+    }
+  ]
+}

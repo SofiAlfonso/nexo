@@ -1,0 +1,14 @@
+{
+  "nombre": "nominal",
+  "eventos": ["EVT-2026-02"],
+  "lectores": 20,
+  "ciclos": 4,
+  "fases": [
+    { "duracionSegundos": 840, "tps": 4.714285714285714 },
+    { "duracionSegundos": 60, "tps": 16.5 }
+  ],
+  "mezcla": { "valid": 75, "used": 10, "cancelled": 5, "wrong-zone": 8, "unknown": 2 },
+  "zonas": ["Norte", "Sur", "Oriental", "Occidental", "Palcos"],
+  "semilla": 2401,
+  "timeoutMs": 2000
+}
