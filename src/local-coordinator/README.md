@@ -1,24 +1,64 @@
-# Coordinador local (C2)
+# Coordinador local C2
 
-**Responsabilidad**: unidad desplegable separada en el recinto. Es la
-**única autoridad lógica de validación del evento**: evalúa reglas y
-confirma durablemente consumo, decisión, idempotencia y outbox (ver D1)
-antes de devolver una aceptación al cliente de puerta (C1).
+C2 es la **única autoridad** de ingreso del recinto. El lector C1 nunca decide sin
+confirmación de C2; C4 recibe evidencia, pero nunca autoriza. En D1, consumo único,
+idempotencia por `idOrigen`, decisión y outbox se confirman en una misma transacción;
+la bitácora y el outbox son solo-adición. Un timeout no revierte un commit tardío:
+el lector conserva el intento en su diario y reintenta con el mismo `idOrigen`.
 
-**Qué no debe implementarse aquí**: reglas de negocio que dependan de
-disponibilidad del núcleo central (C4) para decidir en el momento del
-evento; la validación debe poder resolverse localmente. Tampoco debe
-delegarse la autoridad de decisión a la nube/plataforma central.
+## API
 
-**Componente relacionado**: C2 — Coordinador local, junto con D1
-(persistencia transaccional local).
+| Método | Ruta | Función |
+| --- | --- | --- |
+| POST | `/v1/validaciones` | V1: decisión o `sin-respuesta` ante falta de confirmación |
+| POST | `/v1/heartbeats` | H1: latido del lector |
+| POST | `/v1/diario/lotes` | H1: recuperar evidencia, sin decidir de nuevo |
+| GET | `/salud` | Proceso vivo |
+| GET | `/listo` | D1 disponible; 503 si no lo está |
 
-**Stack**: TypeScript, Node 24, Fastify, `pg` y PostgreSQL 16 como D1.
+## Ejecución local
 
-## Estructura interna
+Node 24: `npm start -w @nexo/local-coordinator`. Sin `LOCAL_POSTGRES_HOST`
+se crea un almacén **volátil de demostración**, con puntos, lectores y boletas
+de prueba. Para D1 persistente, inicie PostgreSQL del archivo
+`deploy/compose/docker-compose.dev.yml` y configure `LOCAL_POSTGRES_HOST=localhost`,
+`LOCAL_POSTGRES_PORT=5433`, `LOCAL_POSTGRES_DB=nexo_venue` y
+`LOCAL_POSTGRES_USER=nexo_venue`; la contraseña se proporciona por variable de
+entorno, nunca se guarda en Git. Las migraciones y permisos del evento deben
+estar instalados antes de aceptar ingresos. `CENTRAL_URL` habilita el envío E1.
 
-- `index.ts` — punto de entrada del componente.
-- `domain/` — reglas del dominio de validación local.
-- `application/` — casos de uso y orquestación.
-- `infrastructure/` — adaptadores; `infrastructure/db/` contiene las migraciones de D1 PostgreSQL, propiedad de la sesión de datos.
-- `api/` — V1 `POST /v1/validaciones`, H1 `POST /v1/heartbeats` y `POST /v1/diario/lotes`.
+| Variable | Predeterminado | Descripción |
+| --- | --- | --- |
+| `PORT` | `8081` | Puerto HTTP |
+| `HOST` | `0.0.0.0` | Interfaz de escucha |
+| `EVENTO_ID` | `EVT-2026-02` | Evento activo |
+| `RECINTO_ID` | `REC-01` | Recinto |
+| `COORDINADOR_ID` | `COORD-A` | Nodo de autoridad |
+| `CENTRAL_URL` | sin valor | Sin valor, E1 apagado |
+| `PLAZO_VALIDACION_MS` | `500` | Plazo máximo de V1 |
+| `LOTE_EVIDENCIA_MAX` | `100` | Capacidad máxima por lote E1 |
+| `INTERVALO_LATIDO_S` | `10` | Cadencia solicitada al lector |
+| `LOCAL_POSTGRES_HOST` | sin valor | Sin valor, D1 en memoria |
+| `LOCAL_POSTGRES_PORT` | `5432` | Puerto D1 (`5433` desde Compose) |
+| `LOCAL_POSTGRES_DB` | `nexo_venue` | Base D1 |
+| `LOCAL_POSTGRES_USER` | `nexo_venue` | Usuario D1 |
+| `LOCAL_POSTGRES_PASSWORD` | sin valor | Contraseña D1, solo en entorno |
+
+Ejemplo de V1 en PowerShell (la primera boleta Norte de la semilla):
+
+```powershell
+@'
+{"idOrigen":"LX-2210-107:ejemplo1","eventoId":"EVT-2026-02","lectorId":"LX-2210-107","puntoId":"P-01","codigo":"TA-8800-0001","proposito":"ingreso","zonaSolicitada":"Norte","instanteLector":"2026-09-25T17:00:00.000Z"}
+'@ | Set-Content -Encoding utf8 solicitud.json
+curl.exe -H "Content-Type: application/json" --data-binary "@solicitud.json" http://localhost:8081/v1/validaciones
+Remove-Item solicitud.json
+```
+
+En bash:
+
+```bash
+curl -H 'Content-Type: application/json' -d '{"idOrigen":"LX-2210-107:ejemplo1","eventoId":"EVT-2026-02","lectorId":"LX-2210-107","puntoId":"P-01","codigo":"TA-8800-0001","proposito":"ingreso","zonaSolicitada":"Norte","instanteLector":"2026-09-25T17:00:00.000Z"}' http://localhost:8081/v1/validaciones
+```
+
+En producción, V1/H1 requieren mTLS; el enlace entre `lectorId` y el
+certificado es trabajo de T25, no está habilitado todavía.
