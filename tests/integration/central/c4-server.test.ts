@@ -70,7 +70,7 @@ describe('C4 - composición Fastify (login, O2, M2 E1, incidentes)', () => {
     expect(cuerpo).toHaveLength(CANTIDAD_PUNTOS);
   });
 
-  it('un lote E1 aceptado por curl/HTTP se refleja en /api/eventos/actual/estado', async () => {
+  it('un lote E1 aceptado por curl/HTTP se refleja en /api/eventos/actual/estado y en /api/intentos', async () => {
     const cookie = await iniciarSesion(app);
     const idOrigen = 'decision-prueba-1';
     const lote = {
@@ -112,6 +112,16 @@ describe('C4 - composición Fastify (login, O2, M2 E1, incidentes)', () => {
     });
     expect(respuestaEstado.statusCode).toBe(200);
     expect(respuestaEstado.json().evento.id).toBe(EVENTO_ID);
+
+    const respuestaIntentos = await app.fastify.inject({
+      method: 'GET', url: `/api/intentos?puntoId=${puntoId(1)}&limite=10`, cookies: cookie,
+    });
+    expect(respuestaIntentos.statusCode).toBe(200);
+    const intentos = respuestaIntentos.json() as Array<{ id: string; zona: string | null; admision: boolean }>;
+    const intento = intentos.find((i) => i.id === idOrigen);
+    expect(intento).toBeDefined();
+    expect(intento?.zona).toBe('General');
+    expect(intento?.admision).toBe(true);
   });
 
   it('un punto sin latido > 60 s genera un incidente SIN_COMUNICACION', async () => {

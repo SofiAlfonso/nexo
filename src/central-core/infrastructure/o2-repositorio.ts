@@ -1,9 +1,15 @@
 import type { Pool } from 'pg';
-import type { EstadoCoordinador, EstadoPunto } from '@nexo/shared/contracts';
+import { Intento, type EstadoCoordinador, type EstadoPunto } from '@nexo/shared/contracts';
 import type {
-  ContadoresDecisiones, EstadoCoordinadorLeido, EstadoOperativoRepositorio, EstadoPuntoLeido,
+  ConsultaIntentosOpciones, ContadoresDecisiones, EstadoCoordinadorLeido, EstadoOperativoRepositorio,
+  EstadoPuntoLeido, IntentosRepositorio,
 } from '../application/o2/puertos.ts';
 import type { ConciliacionLeida, PreparacionConciliacionRepositorio, PreparacionLeida } from '../application/o2/puertos-preparacion.ts';
+
+/** Segundos desde la medianoche local; misma convención usada por `servicio-o2.ts` y M2. */
+function segundosDelDia(instante: Date): number {
+  return instante.getHours() * 3600 + instante.getMinutes() * 60 + instante.getSeconds();
+}
 
 interface FilaPuntoEstado {
   id: string;
@@ -189,5 +195,88 @@ export class PreparacionConciliacionRepositorioPg implements PreparacionConcilia
       confirmada: evento.rows[0]?.apertura_confirmada_en !== null && evento.rows[0]?.apertura_confirmada_en !== undefined,
       controles: controles.rows.map(fila => ({ id: fila.id, titulo: fila.titulo, ok: fila.confirmado })),
     };
+  }
+}
+
+interface FilaDecision {
+  id_origen: string;
+  referencia: string | null;
+  zona: string | null;
+  punto_id: string | null;
+  lector_id: string | null;
+  instante_decision: Date;
+  decision: string;
+  motivo: string;
+  proposito: string | null;
+  admision: boolean;
+  concurrente: boolean;
+  latencia_ms: string | null;
+  via: string | null;
+  version_permisos: number | null;
+  version_politicas: number | null;
+  antiguedad_permisos_s: number | null;
+}
+
+const CONSULTA_DECISIONES = `
+  SELECT d.id_origen, d.referencia, z.nombre AS zona, d.punto_id, d.lector_id, d.instante_decision,
+         d.decision, d.motivo, d.proposito, d.admision, d.concurrente, d.latencia_ms,
+         d.via, d.version_permisos, d.version_politicas, d.antiguedad_permisos_s
+  FROM m2_evidencia.decisiones d
+  LEFT JOIN m1_config_permisos.zonas z ON z.evento_id = d.evento_id AND z.id = d.zona_id`;
+
+function leerIntento(fila: FilaDecision): Intento {
+  // M1 (ola 1) no proyecta aún el diario del lector ni las acciones manuales del panel sobre un
+  // intento puntual: `enDiario`/`manual` quedan en `false` hasta que M2/O2 los necesiten.
+  return Intento.parse({
+    id: fila.id_origen,
+    ref: fila.referencia ?? '',
+    zona: fila.zona,
+    puntoId: fila.punto_id,
+    lector: fila.lector_id ?? '',
+    t: segundosDelDia(fila.instante_decision),
+    decision: fila.decision,
+    motivo: fila.motivo,
+    proposito: fila.proposito,
+    admision: fila.admision,
+    concurrente: fila.concurrente,
+    latenciaMs: fila.latencia_ms === null ? null : Number(fila.latencia_ms),
+    evidencia: {
+      via: fila.via && fila.via.length > 0 ? fila.via : 'desconocido',
+      versionPermisos: fila.version_permisos ?? 0,
+      versionPoliticas: fila.version_politicas ?? 0,
+      antiguedadPermisosS: fila.antiguedad_permisos_s ?? 0,
+    },
+    enDiario: false,
+    manual: false,
+  });
+}
+
+/** Lectura de intentos (`m2_evidencia.decisiones`) para `GET /api/intentos` y el SSE `intento`. */
+export class IntentosRepositorioPg implements IntentosRepositorio {
+  private readonly pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async listar(eventoId: string, opciones: ConsultaIntentosOpciones): Promise<Intento[]> {
+    const condicionPunto = opciones.puntoId ? 'AND d.punto_id = $2' : '';
+    const parametros = opciones.puntoId ? [eventoId, opciones.puntoId, opciones.limite] : [eventoId, opciones.limite];
+    const { rows } = await this.pool.query<FilaDecision>(
+      `${CONSULTA_DECISIONES} WHERE d.evento_id = $1 ${condicionPunto}
+       ORDER BY d.instante_decision DESC LIMIT $${parametros.length}`,
+      parametros,
+    );
+    return rows.map(leerIntento);
+  }
+
+  async listarPorIdOrigen(eventoId: string, idOrigenes: string[]): Promise<Intento[]> {
+    if (idOrigenes.length === 0) return [];
+    const { rows } = await this.pool.query<FilaDecision>(
+      `${CONSULTA_DECISIONES} WHERE d.evento_id = $1 AND d.id_origen = ANY($2::text[])
+       ORDER BY d.instante_decision`,
+      [eventoId, idOrigenes],
+    );
+    return rows.map(leerIntento);
   }
 }

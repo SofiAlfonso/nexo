@@ -1,4 +1,4 @@
-import type { EstadoCoordinador, EstadoPunto } from '@nexo/shared/contracts';
+import type { EstadoCoordinador, EstadoPunto, Intento } from '@nexo/shared/contracts';
 
 /** Fila leída de `m2_evidencia.puntos_estado`, agregada con `m1_config_permisos.puntos`. */
 export interface EstadoPuntoLeido {
@@ -46,4 +46,16 @@ export interface EstadoOperativoRepositorio {
   obtenerPunto(eventoId: string, puntoId: string): Promise<EstadoPuntoLeido | null>;
   obtenerEstadoCoordinador(eventoId: string): Promise<EstadoCoordinadorLeido | null>;
   contarDecisiones(eventoId: string): Promise<ContadoresDecisiones>;
+}
+
+export interface ConsultaIntentosOpciones {
+  limite: number;
+  puntoId?: string;
+}
+
+/** Puerto de lectura de intentos (`m2_evidencia.decisiones`) para `GET /api/intentos` y el SSE `intento`. */
+export interface IntentosRepositorio {
+  listar(eventoId: string, opciones: ConsultaIntentosOpciones): Promise<Intento[]>;
+  /** Usado tras aceptar un lote E1 para difundir por SSE solo las decisiones recién ingeridas. */
+  listarPorIdOrigen(eventoId: string, idOrigenes: string[]): Promise<Intento[]>;
 }

@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { EstadoActual, ListaPuntos, PuntoDetalle, RUTAS, type CodigoError } from '@nexo/shared/contracts';
+import {
+  ConsultaIntentos, EstadoActual, ListaIntentos, ListaPuntos, PuntoDetalle, RUTAS, type CodigoError,
+} from '@nexo/shared/contracts';
 import type { ServicioO2 } from '../../application/o2/servicio-o2.ts';
 
-/** `GET /api/eventos/actual/estado`, `GET /api/puntos`, `GET /api/puntos/:id` (O2 mínimo). */
+/** `GET /api/eventos/actual/estado`, `GET /api/puntos`, `GET /api/puntos/:id`, `GET /api/intentos` (O2 mínimo). */
 export function registrarRutasO2(fastify: FastifyInstance, servicio: ServicioO2): void {
   fastify.get(RUTAS.estado.ruta, async (_request, reply) => {
     const estado = await servicio.obtenerEstadoActual();
@@ -22,5 +24,15 @@ export function registrarRutasO2(fastify: FastifyInstance, servicio: ServicioO2)
       return reply.code(404).send(cuerpo);
     }
     return PuntoDetalle.parse(punto);
+  });
+
+  fastify.get(RUTAS.intentos.ruta, async (request, reply) => {
+    const parseo = ConsultaIntentos.safeParse(request.query);
+    if (!parseo.success) {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'SOLICITUD_INVALIDA', mensaje: 'Consulta de intentos inválida' };
+      return reply.code(400).send(cuerpo);
+    }
+    const intentos = await servicio.listarIntentos({ limite: parseo.data.limite, puntoId: parseo.data.puntoId });
+    return ListaIntentos.parse(intentos);
   });
 }

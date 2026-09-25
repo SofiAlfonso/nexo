@@ -1,10 +1,10 @@
 import type {
-  EstadoActual, EstadoPunto, Incidente, PuntoDetalle, PuntoResumen,
+  EstadoActual, EstadoPunto, Incidente, Intento, PuntoDetalle, PuntoResumen,
 } from '@nexo/shared/contracts';
 import { ControlPreparacion } from '@nexo/shared/contracts';
 import type { EventoConfigRepositorio, PuntoConfigRepositorio } from '../../modules/configuration-permissions/application/index.ts';
 import type { IncidenteRepositorio } from '../../modules/evidence-ingestion/application/index.ts';
-import type { EstadoOperativoRepositorio, EstadoPuntoLeido } from './puertos.ts';
+import type { ConsultaIntentosOpciones, EstadoOperativoRepositorio, EstadoPuntoLeido, IntentosRepositorio } from './puertos.ts';
 import type { PreparacionConciliacionRepositorio } from './puertos-preparacion.ts';
 
 const ESTADO_PUNTO_VACIO: EstadoPunto = 'sin-abrir';
@@ -46,6 +46,7 @@ export class ServicioO2 {
   private readonly operativo: EstadoOperativoRepositorio;
   private readonly incidentes: IncidenteRepositorio;
   private readonly preparacionConciliacion: PreparacionConciliacionRepositorio;
+  private readonly intentos: IntentosRepositorio;
   private readonly ahora: () => Date;
 
   constructor(
@@ -54,6 +55,7 @@ export class ServicioO2 {
     operativo: EstadoOperativoRepositorio,
     incidentes: IncidenteRepositorio,
     preparacionConciliacion: PreparacionConciliacionRepositorio,
+    intentos: IntentosRepositorio,
     ahora: () => Date = () => new Date(),
   ) {
     this.eventosConfig = eventosConfig;
@@ -61,6 +63,7 @@ export class ServicioO2 {
     this.operativo = operativo;
     this.incidentes = incidentes;
     this.preparacionConciliacion = preparacionConciliacion;
+    this.intentos = intentos;
     this.ahora = ahora;
   }
 
@@ -203,5 +206,11 @@ export class ServicioO2 {
 
   async obtenerIncidente(id: string): Promise<Incidente | null> {
     return this.incidentes.obtener(id);
+  }
+
+  async listarIntentos(opciones: ConsultaIntentosOpciones): Promise<Intento[]> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return [];
+    return this.intentos.listar(evento.id, opciones);
   }
 }

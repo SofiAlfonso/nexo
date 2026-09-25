@@ -4,11 +4,11 @@ import fastifyCors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
-import { RUTAS } from '@nexo/shared/contracts';
+import { LoteEvidencia, RUTAS } from '@nexo/shared/contracts';
 import { ServicioAuth } from '../application/auth/servicioAuth.ts';
 import { ServicioO2 } from '../application/o2/servicio-o2.ts';
 import { AuthRepositorioPg, SesionesRepositorioPg } from '../infrastructure/auth-repositorio.ts';
-import { EstadoOperativoRepositorioPg, PreparacionConciliacionRepositorioPg } from '../infrastructure/o2-repositorio.ts';
+import { EstadoOperativoRepositorioPg, IntentosRepositorioPg, PreparacionConciliacionRepositorioPg } from '../infrastructure/o2-repositorio.ts';
 import { crearServicioPermisos, registrarRutasPermisos } from '../modules/configuration-permissions/api/index.ts';
 import { EventoConfigRepositorioPg, PuntoConfigRepositorioPg } from '../modules/configuration-permissions/infrastructure/index.ts';
 import {
@@ -41,12 +41,14 @@ export function crearApp(pool: Pool): AppC4 {
   const servicioIngesta = crearServicioIngestaEvidencia(pool);
   const servicioVigilancia = crearServicioVigilanciaLatidos(pool);
   const incidentesRepositorio = new RepositorioIncidentesPg(pool);
+  const intentosRepositorio = new IntentosRepositorioPg(pool);
   const servicioO2 = new ServicioO2(
     new EventoConfigRepositorioPg(pool),
     new PuntoConfigRepositorioPg(pool),
     new EstadoOperativoRepositorioPg(pool),
     incidentesRepositorio,
     new PreparacionConciliacionRepositorioPg(pool),
+    intentosRepositorio,
   );
   const hub = new HubStream();
 
@@ -78,13 +80,28 @@ export function crearApp(pool: Pool): AppC4 {
   registrarRutaStream(fastify, servicioO2, hub);
 
   // Difunde por SSE cuando un lote E1 se acepta (no en reintentos repetidos): la reconexión ya
-  // recupera el estado completo, así que basta con republicar el snapshot tras cada ingesta.
+  // recupera el estado completo, así que basta con republicar el snapshot tras cada ingesta; los
+  // registros `decision` recién aceptados también se emiten como eventos `intento` puntuales.
   fastify.addHook('onResponse', (request, reply, done) => {
     const esLoteEvidencia = request.method === 'POST' && request.url.split('?')[0] === RUTAS.loteEvidencia.ruta;
     if (esLoteEvidencia && reply.statusCode === RUTAS.loteEvidencia.estado) {
-      servicioO2.obtenerEstadoActual()
-        .then(estado => { if (estado) hub.publicar({ tipo: 'estado', datos: estado }); })
-        .catch(error => fastify.log.error(error, 'No se pudo difundir el estado tras un lote E1'));
+      void (async () => {
+        try {
+          const estado = await servicioO2.obtenerEstadoActual();
+          if (estado) hub.publicar({ tipo: 'estado', datos: estado });
+
+          const lote = LoteEvidencia.safeParse(request.body);
+          if (!lote.success) return;
+          const idOrigenesDecision = lote.data.registros
+            .filter(registro => registro.tipo === 'decision')
+            .map(registro => registro.idOrigen);
+          if (idOrigenesDecision.length === 0) return;
+          const intentos = await intentosRepositorio.listarPorIdOrigen(lote.data.eventoId, idOrigenesDecision);
+          for (const intento of intentos) hub.publicar({ tipo: 'intento', datos: intento });
+        } catch (error) {
+          fastify.log.error(error, 'No se pudo difundir el estado/intento tras un lote E1');
+        }
+      })();
     }
     done();
   });
