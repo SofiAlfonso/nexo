@@ -1,3 +1,4 @@
+import { iniciarTelemetria } from '@nexo/shared/telemetry';
 import { ejecutarComoProceso } from './main.ts';
 
 export { crearServidor } from './api/servidor.ts';
@@ -6,4 +7,7 @@ export { crearAlmacenMemoria, semillaDemo } from './infrastructure/persistence/m
 export { ejecutarComoProceso, iniciarCoordinador } from './main.ts';
 
 // `npm run dev` y la imagen Docker arrancan este archivo directamente.
-if (import.meta.main) ejecutarComoProceso();
+if (import.meta.main) {
+  iniciarTelemetria({ servicio: 'nexo-local-coordinator' });
+  ejecutarComoProceso();
+}
