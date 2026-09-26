@@ -87,13 +87,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(nexo_c2_validacion_duracion_ms_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_bucket[5m])) by (le))",
           "legendFormat": "p95 C2",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(nexo_c1_validacion_duracion_ms_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(nexo_c1_validacion_duracion_ms_milliseconds_bucket[5m])) by (le))",
           "legendFormat": "p95 C1 (extremo a extremo)",
           "refId": "B"
         }
@@ -123,7 +123,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(nexo_c2_validacion_duracion_ms_bucket{le=\"300\"}[5m])) / sum(rate(nexo_c2_validacion_duracion_ms_count[5m]))",
+          "expr": "sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_bucket{le=\"300\"}[5m])) / sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_count[5m]))",
           "legendFormat": "≤ 300 ms",
           "refId": "A"
         }

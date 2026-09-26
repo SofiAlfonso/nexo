@@ -48,8 +48,8 @@ groups:
             model:
               refId: A
               expr: >-
-                sum(rate(nexo_c2_validacion_duracion_ms_bucket{le="300"}[1m]))
-                / sum(rate(nexo_c2_validacion_duracion_ms_count[1m]))
+                sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_bucket{le="300"}[1m]))
+                / sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_count[1m]))
               instant: true
           - refId: C
             datasourceUid: "__expr__"

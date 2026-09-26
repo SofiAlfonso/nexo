@@ -17,6 +17,9 @@ spec:
         app.kubernetes.io/name: nexo-alert-webhook
         app.kubernetes.io/part-of: nexo
     spec:
+      # Sin esto Kubernetes inyecta NEXO_ALERT_WEBHOOK_PORT=tcp://<ip>:9099 (enlace del
+      # Service homónimo) y el receptor lo interpreta como puerto y termina con NaN.
+      enableServiceLinks: false
       containers:
         - name: webhook-receptor
           image: node:24-alpine

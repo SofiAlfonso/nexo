@@ -58,6 +58,8 @@ async function ensureSecrets() {
   await ensureSecret("nexo-central", "nexo-central-app", {
     SESSION_COOKIE_SECRET: s.SESSION_COOKIE_SECRET, PERMISOS_FIRMA_SECRETO: s.PERMISOS_FIRMA_SECRETO,
   });
+  // C2 verifica la firma de P2 con el mismo secreto con que M1 la emite.
+  await ensureSecret("nexo-venue", "nexo-venue-app", { PERMISOS_FIRMA_SECRETO: s.PERMISOS_FIRMA_SECRETO });
   if (!s.SEED_OPERATOR_PASSWORD) {
     throw new Error(
       "SEED_OPERATOR_PASSWORD es obligatoria (contraseña de laboratorio de los 5 operadores). " +

@@ -5,11 +5,14 @@
  * descartan en silencio) y las validaciones de negocio nunca esperan a la telemetría (PB-21).
  *
  * No incluye instrumentación específica de un componente ni reglas de negocio: cada componente
- * (C1, C2, C4) usa `trace.getTracer(...)` y `metrics.getMeter(...)` (API global de OTel) tras
- * llamar una vez a `iniciarTelemetria` en su arranque (`main.ts`/`index.ts`).
+ * (C1, C2, C4) usa `trace.getTracer(...)` y `metrics.getMeter(...)` (este módulo; instrumentos
+ * diferidos, válidos aunque se creen al importar) y llama una vez a `iniciarTelemetria` en su
+ * arranque (`main.ts`/`index.ts`).
  */
-import { context, metrics, propagation, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import type { Context, Span, Tracer } from '@opentelemetry/api';
+import { context, metrics as metricsApi, propagation, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import type {
+  Context, Meter, MeterOptions, MeterProvider as ProveedorMedidores, Observable, ObservableCallback, Span, Tracer,
+} from '@opentelemetry/api';
 import { W3CBaggagePropagator, W3CTraceContextPropagator, CompositePropagator } from '@opentelemetry/core';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
@@ -21,8 +24,116 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
-export { context, propagation, SpanKind, SpanStatusCode, trace, metrics };
+export { context, propagation, SpanKind, SpanStatusCode, trace };
 export type { Context, Span, Tracer };
+
+/**
+ * Límites de los histogramas de latencia V1 (C1 y C2). Los predeterminados de OTel no incluyen
+ * 300 ni 400 ms, así que la proporción de T1 (≤ 300 ms, T2 §8.2) no se podía calcular con
+ * `le="300"`; 500 ms es el p95 de CA2 y 2000 ms el plazo del perfil de carga.
+ */
+export const LIMITES_LATENCIA_MS: readonly number[] = [
+  5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000,
+];
+
+/**
+ * A diferencia de `trace`, la API de métricas de OTel no tiene proveedor proxy: un
+ * `metrics.getMeter()` ejecutado al importar un módulo, antes de `iniciarTelemetria`, devuelve un
+ * medidor no-op para siempre. Los puntos de entrada importan su grafo de módulos antes de iniciar
+ * la telemetría, así que los instrumentos se crean aquí de forma diferida y se vuelven a enlazar
+ * cada vez que cambia el proveedor global.
+ */
+const revinculadores = new Set<() => void>();
+
+function getMeterDiferido(nombre: string, version?: string, opciones?: MeterOptions): Meter {
+  let proveedor: ProveedorMedidores = metricsApi.getMeterProvider();
+  let real = proveedor.getMeter(nombre, version, opciones);
+  const actual = (): Meter => {
+    const vigente = metricsApi.getMeterProvider();
+    if (vigente !== proveedor) {
+      proveedor = vigente;
+      real = vigente.getMeter(nombre, version, opciones);
+    }
+    return real;
+  };
+  const sincrono = <T>(crear: (m: Meter) => T): (() => T) => {
+    let origen = actual();
+    let instrumento = crear(origen);
+    return () => {
+      const m = actual();
+      if (m !== origen) {
+        origen = m;
+        instrumento = crear(m);
+      }
+      return instrumento;
+    };
+  };
+  const observable = <T extends Observable>(crear: (m: Meter) => T): T => {
+    const callbacks = new Set<ObservableCallback>();
+    let origen: Meter | undefined;
+    let instrumento: T | undefined;
+    const vincular = (): T => {
+      const m = actual();
+      if (m !== origen || !instrumento) {
+        if (instrumento) for (const cb of callbacks) instrumento.removeCallback(cb);
+        origen = m;
+        instrumento = crear(m);
+        for (const cb of callbacks) instrumento.addCallback(cb);
+      }
+      return instrumento;
+    };
+    vincular();
+    revinculadores.add(() => { vincular(); });
+    const proxy: Observable = {
+      addCallback(cb) {
+        const i = vincular();
+        if (callbacks.has(cb)) return;
+        callbacks.add(cb);
+        i.addCallback(cb);
+      },
+      removeCallback(cb) {
+        callbacks.delete(cb);
+        vincular().removeCallback(cb);
+      },
+    };
+    return proxy as T;
+  };
+  return {
+    createCounter(n, o) {
+      const i = sincrono((m) => m.createCounter(n, o));
+      return { add: (v, a, c) => i().add(v, a, c) };
+    },
+    createUpDownCounter(n, o) {
+      const i = sincrono((m) => m.createUpDownCounter(n, o));
+      return { add: (v, a, c) => i().add(v, a, c) };
+    },
+    createHistogram(n, o) {
+      const i = sincrono((m) => m.createHistogram(n, o));
+      return { record: (v, a, c) => i().record(v, a, c) };
+    },
+    createGauge(n, o) {
+      const i = sincrono((m) => m.createGauge(n, o));
+      return { record: (v, a, c) => i().record(v, a, c) };
+    },
+    createObservableGauge: (n, o) => observable((m) => m.createObservableGauge(n, o)),
+    createObservableCounter: (n, o) => observable((m) => m.createObservableCounter(n, o)),
+    createObservableUpDownCounter: (n, o) => observable((m) => m.createObservableUpDownCounter(n, o)),
+    // Los callbacks por lote reciben instrumentos del SDK; con los proxies de aquí no aplican.
+    addBatchObservableCallback: (cb, obs) => actual().addBatchObservableCallback(cb, obs),
+    removeBatchObservableCallback: (cb, obs) => actual().removeBatchObservableCallback(cb, obs),
+  };
+}
+
+export const metrics = {
+  getMeter: getMeterDiferido,
+  getMeterProvider: (): ProveedorMedidores => metricsApi.getMeterProvider(),
+  /** Registra el proveedor global y reenlaza los instrumentos observables ya creados. */
+  setGlobalMeterProvider(provider: ProveedorMedidores): boolean {
+    const registrado = metricsApi.setGlobalMeterProvider(provider);
+    for (const revincular of revinculadores) revincular();
+    return registrado;
+  },
+};
 
 export interface OpcionesTelemetria {
   /** Nombre estable del servicio (p. ej. `nexo-reader-client`, `nexo-local-coordinator`). */

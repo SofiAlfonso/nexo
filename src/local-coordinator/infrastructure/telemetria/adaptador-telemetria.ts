@@ -4,7 +4,7 @@
  * N2) y en un log JSON estructurado (T2 §8.4). Sus fallas nunca deben llegar al llamador (PB-21);
  * el motor ya invoca este adaptador dentro de un `try/catch` que descarta cualquier excepción.
  */
-import { metrics } from '@nexo/shared/telemetry';
+import { LIMITES_LATENCIA_MS, metrics } from '@nexo/shared/telemetry';
 import type { IntentoDeValidacion, ResultadoValidacion, Telemetria } from '@nexo/shared/domain';
 
 export interface LoggerBasico {
@@ -26,6 +26,7 @@ const validacionesTotal = meter.createCounter('nexo_c2_validaciones_total', {
 const validacionDuracionMs = meter.createHistogram('nexo_c2_validacion_duracion_ms', {
   description: 'Duración de una validación V1 confirmada en C2, desde la solicitud hasta la decisión',
   unit: 'ms',
+  advice: { explicitBucketBoundaries: [...LIMITES_LATENCIA_MS] },
 });
 
 /** `nexo_c2_errores_total{causa}`: T3, errores técnicos y solicitudes sin respuesta. */
