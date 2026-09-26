@@ -1,6 +1,9 @@
 import type { AcuseLoteEvidencia, LoteEvidencia, RegistroEvidencia } from '../../../../shared/contracts/e1.ts';
 import type { Incidente } from '../../../../shared/contracts/o2.ts';
-import { incidenteSinComunicacion, sinComunicacion, UMBRAL_SIN_COMUNICACION_MS, type NuevoIncidente } from '../domain/index.ts';
+import {
+  incidenteSinComunicacion, intentoDiarioPendiente, sinComunicacion, UMBRAL_SIN_COMUNICACION_MS,
+  type IntentoDiarioPendiente, type NuevoIncidente,
+} from '../domain/index.ts';
 
 export type Resultado = AcuseLoteEvidencia['resultados'][number];
 
@@ -17,10 +20,16 @@ export interface ProyeccionPuntosRepositorio {
   marcarSinComunicacion(eventoId: string, puntoId: string): Promise<void>;
 }
 
+/** Proyección de intentos del diario (PU-04-05), escrita en la misma transacción que su evidencia. */
+export interface ProyeccionIntentosDiarioRepositorio {
+  registrarPendiente(intento: IntentoDiarioPendiente): Promise<void>;
+}
+
 export type ProcesarAceptados = (
   registros: RegistroEvidencia[],
   puntos: ProyeccionPuntosRepositorio,
   incidentes: IncidenteRepositorio,
+  intentos: ProyeccionIntentosDiarioRepositorio,
 ) => Promise<void>;
 
 export interface LoteEvidenciaRepositorio {
@@ -46,7 +55,7 @@ export class ServicioIngestaEvidencia {
     const resultados: Resultado[] = lote.registros.map(({ tipo, idOrigen }) => ({
       tipo, idOrigen, estado: 'aceptado',
     }));
-    await this.lotes.guardarLoteYRegistros(lote, resultados, async (registros, puntos, incidentes) => {
+    await this.lotes.guardarLoteYRegistros(lote, resultados, async (registros, puntos, incidentes, intentos) => {
       for (const registro of registros) {
         if (registro.tipo === 'latido-punto') {
           await puntos.actualizarLatidoPunto(
@@ -55,7 +64,9 @@ export class ServicioIngestaEvidencia {
           );
           await incidentes.resolverActivoPorPunto(lote.eventoId, registro.puntoId, new Date());
         }
-        // TODO(M2): proyectar intentos del diario y agregados de decisiones para O2.
+        if (registro.tipo === 'intento-diario') {
+          await intentos.registrarPendiente(intentoDiarioPendiente(lote.eventoId, registro));
+        }
       }
     });
     const acuse = await this.lotes.yaProcesado(lote.idLote, lote);

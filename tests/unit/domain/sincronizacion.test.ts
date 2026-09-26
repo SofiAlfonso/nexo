@@ -6,6 +6,7 @@ import type { LoteEvidenciaRepositorio, ProcesarAceptados, Resultado } from '../
 import { DespachadorOutbox } from '../../../src/local-coordinator/application/despachador-outbox.ts';
 import { RegistroLatidos } from '../../../src/local-coordinator/application/latidos.ts';
 import { ContadorV1 } from '../../../src/local-coordinator/application/prioridad.ts';
+import type { IntentoDiarioPendiente } from '../../../src/central-core/modules/evidence-ingestion/domain/index.ts';
 import type { OutboxPendiente, PendienteOutbox } from '../../../src/shared/domain/index.ts';
 import { BASE, EVENTO } from './dobles.ts';
 
@@ -24,6 +25,7 @@ const lote = LoteEvidencia.parse({
 class LotesDobles implements LoteEvidenciaRepositorio {
   readonly acuses = new Map<string, AcuseLoteEvidencia>();
   readonly guardados: RegistroEvidencia[] = [];
+  readonly pendientes: IntentoDiarioPendiente[] = [];
   readonly guardar = vi.fn(async (l: LoteEvidencia, resultados: Resultado[], proyectar?: ProcesarAceptados) => {
     this.guardados.push(...l.registros);
     await proyectar?.(l.registros, {
@@ -32,6 +34,8 @@ class LotesDobles implements LoteEvidenciaRepositorio {
     }, {
       crearSiNoExisteActivo: vi.fn(), resolverActivoPorPunto: vi.fn(),
       listar: vi.fn(async () => []), obtener: vi.fn(async () => null),
+    }, {
+      registrarPendiente: vi.fn(async (intento: IntentoDiarioPendiente) => { this.pendientes.push(intento); }),
     });
     this.acuses.set(l.idLote, {
       idLote: l.idLote, recibidoEn: l.emitidoEn, repetido: false,
@@ -56,7 +60,20 @@ class OutboxDoble implements OutboxPendiente {
 }
 
 describe('PU-04: sincronización con dobles de los puertos E1', () => {
-  it.todo('PU-04-05 M2 proyecta un intento histórico sin decisión como pendiente, sin aceptación retroactiva');
+  it('PU-04-05 M2 proyecta un intento histórico sin decisión como pendiente, sin aceptación retroactiva', async () => {
+    const repo = new LotesDobles();
+    const ingesta = new ServicioIngestaEvidencia(repo);
+    await ingesta.procesarLote(lote);
+    await ingesta.procesarLote(lote);
+    expect(repo.pendientes).toEqual([{
+      eventoId: EVENTO, idOrigen: historico.idOrigen, referencia: 'COD-001', zonaSolicitada: 'Norte',
+      proposito: 'ingreso', puntoId: 'P-01', lectorId: 'LEC-001', motivoLocal: 'SIN_COORDINADOR',
+      instanteLector: historico.instanteLector, recibidoEnCoordinador: historico.recibidoEnCoordinador,
+      estado: 'pendiente',
+    }]);
+    expect(repo.pendientes[0]).not.toHaveProperty('admision');
+    expect(repo.pendientes[0]).not.toHaveProperty('decision');
+  });
 
   it('PU-04-02 el mismo lote devuelve el mismo acuse sin volver a persistirlo', async () => {
     const repo = new LotesDobles();

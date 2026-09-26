@@ -74,7 +74,7 @@ class LotesMemoria implements LoteEvidenciaRepositorio {
       this.registros.set(clave, JSON.stringify(registro));
       return true;
     });
-    await procesarAceptados?.(aceptados, this.puntos, this.incidentes);
+    await procesarAceptados?.(aceptados, this.puntos, this.incidentes, { registrarPendiente: async () => {} });
     this.lotes.set(lote.idLote, {
       idLote: lote.idLote, recibidoEn: new Date().toISOString(), repetido: false,
       aceptados: aceptados.length, duplicados: resultados.length - aceptados.length, resultados,
