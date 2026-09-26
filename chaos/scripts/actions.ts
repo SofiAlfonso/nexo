@@ -75,6 +75,46 @@ function requireReady(resource: RecordValue): void {
   }
 }
 
+function deploymentSelector(deployment: RecordValue): string {
+  const selector = object(object(deployment.spec, 'spec').selector, 'deployment selector');
+  const expressions = selector.matchExpressions;
+  if (expressions !== undefined && (!Array.isArray(expressions) || expressions.length !== 0)) {
+    throw new Error('Deployment selector matchExpressions are not supported for scale verification');
+  }
+  const labels = Object.entries(object(selector.matchLabels, 'deployment matchLabels'));
+  if (!labels.length || labels.some(([key, value]) =>
+    !/^[a-zA-Z0-9][\w./-]*$/.test(key) || typeof value !== 'string' || !/^[a-zA-Z0-9][\w.-]*$/.test(value))) {
+    throw new Error('Deployment needs a safe, nonempty matchLabels selector');
+  }
+  return labels.map(([key, value]) => `${key}=${value}`).join(',');
+}
+
+async function verifyDeploymentCut(action: Extract<Action, { type: 'scale' }>, before: Extract<Before, { type: 'scale' }>, deps: Dependencies, selector: string): Promise<void> {
+  const deadline = Date.now() + 90_000;
+  for (;;) {
+    const deployment = await get(deps, action.namespace, 'deployment', action.name);
+    assertUid(deployment, before.uid);
+    if (deploymentSelector(deployment) !== selector || object(deployment.spec, 'spec').replicas !== 0) {
+      throw new Error('Deployment selector or desired replica count changed during scale verification');
+    }
+    const metadata = object(deployment.metadata, 'metadata');
+    const status = deployment.status === undefined ? {} : object(deployment.status, 'status');
+    const generation = integer(metadata.generation, 'deployment generation');
+    const observed = status.observedGeneration === undefined ? 0 : integer(status.observedGeneration, 'observedGeneration');
+    const readyReplicas = status.readyReplicas === undefined ? 0 : integer(status.readyReplicas, 'readyReplicas');
+    const availableReplicas = status.availableReplicas === undefined ? 0 : integer(status.availableReplicas, 'availableReplicas');
+    const pods = json(await kubectl(deps, action.namespace, ['get', 'pods', '-l', selector, '-o', 'json']), 'deployment pods').items;
+    if (!Array.isArray(pods)) throw new Error('Invalid deployment pod list');
+    const active = pods.some((item: unknown) => {
+      const phase = string(object(object(item, 'pod').status, 'pod status').phase, 'pod phase');
+      return phase !== 'Succeeded' && phase !== 'Failed';
+    });
+    if (observed >= generation && readyReplicas === 0 && availableReplicas === 0 && !active) return;
+    if (Date.now() >= deadline) throw new Error('Deployment scale-to-zero did not stop all selected pods within 90 seconds');
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+}
+
 function beforeOf<T extends Before['type']>(value: unknown, type: T): Extract<Before, { type: T }> {
   const state = object(value, 'restoration snapshot');
   if (state.type !== type) throw new Error(`Missing ${type} restoration snapshot`);
@@ -338,11 +378,14 @@ export async function applyAction(action: Action, before: unknown, deps: Depende
       const saved = beforeOf(before, 'scale');
       const current = await get(deps, action.namespace, action.kind, action.name);
       assertUid(current, saved.uid);
+      const selector = action.kind === 'deployment' ? deploymentSelector(current) : undefined;
       const replicas = object(current.spec, 'spec').replicas;
-      if (replicas === 0) return;
-      if (replicas !== saved.replicas) throw new Error('Replica count changed after prepare');
-      requireReady(current);
-      await kubectl(deps, action.namespace, ['scale', `${action.kind}/${name(action.name, 'workload')}`, '--replicas=0', `--current-replicas=${integer(saved.replicas, 'saved replicas', 1)}`]);
+      if (replicas !== 0) {
+        if (replicas !== saved.replicas) throw new Error('Replica count changed after prepare');
+        requireReady(current);
+        await kubectl(deps, action.namespace, ['scale', `${action.kind}/${name(action.name, 'workload')}`, '--replicas=0', `--current-replicas=${integer(saved.replicas, 'saved replicas', 1)}`]);
+      }
+      if (selector !== undefined) await verifyDeploymentCut(action, saved, deps, selector);
       return;
     }
     case 'networkPolicy': {
