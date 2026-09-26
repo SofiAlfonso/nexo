@@ -61,9 +61,20 @@ Los seis componentes (C1–C5, D1–D2) están implementados: el lector emulado
 manifiestos de Minikube (`deploy/`), la observabilidad (`observability/`) y
 `nexo-chaos` (`chaos/`). El hito M1 (login, panel con datos reales, V1 → D1 →
 E1 → D2 → SSE) está en `main` y `npm run test:m1` lo verifica de punta a
-punta. Los cuatro experimentos de fallos (F1 RED-01, F2 SER-06, F3 BD-01, F4
-REC-01) siguen `pendiente` de ejecutarse y documentarse en
-`docs/fault-experiments/` (ver `docs/context/taller3.md` §5, Fase 5). El
+punta. Los cuatro experimentos de fallos se ejecutaron en Minikube el
+26-09-2026:
+
+- F1 RED-01, corte C2→C4: aprobada;
+- F2 SER-06, caída de observabilidad: aprobada con degradación prevista;
+- F3 BD-01, D1 indisponible: aprobada con degradación prevista;
+- F4 REC-01, CPU de C2: no concluyente.
+
+Su análisis está en
+[`docs/fault-experiments/`](docs/fault-experiments/README.md) y la evidencia,
+en [`chaos/evidence/`](chaos/evidence/README.md). La vista `#/lector` del
+panel solo muestra intentos registrados: la validación manual desde C5 es un
+recorte (PR #33). El informe final está en
+[`docs/informe/taller3.md`](docs/informe/taller3.md). El
 estado detallado por tarea (T00–T64) está en
 [`docs/context/taller3.md`](docs/context/taller3.md) y la trazabilidad
 ADR ↔ código ↔ prueba ↔ experimento en
@@ -246,7 +257,9 @@ node chaos/scripts/nexo-chaos.ts restore
 
 Ver [chaos/README.md](chaos/README.md) para el detalle de cada subcomando,
 el watchdog de reversión (máx. 15 min) y el puerto de Toxiproxy requerido
-para F1. Cada ejecución deja su registro en `chaos/evidence/`.
+para F1. Cada ejecución deja su registro en `chaos/evidence/`, y
+`chaos/scripts/evidencias.ts` recolecta métricas, capturas e integridad
+([chaos/evidence/README.md](chaos/evidence/README.md)).
 
 ### 5. Ver Grafana (dashboards y alertas)
 
@@ -270,4 +283,5 @@ justificación de cada métrica.
   [`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
 - Guion del video demo: [`docs/demo/guion-video.md`](docs/demo/guion-video.md).
 - Informe y autoevaluación del taller 3: [`docs/informe/taller3.md`](docs/informe/taller3.md)
-  (enlaces verificados con `node scripts/check-links.mjs --code-paths docs/informe`).
+  (enlaces verificados con `node scripts/check-links.mjs --code-paths docs/informe docs/coherencia docs/fault-experiments`).
+- Resultados de F1–F4: [`docs/fault-experiments/`](docs/fault-experiments/README.md).

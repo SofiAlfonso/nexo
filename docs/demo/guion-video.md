@@ -42,12 +42,16 @@ ya tienen contraseña sembrada.
 - Mostrar en `#/puertas` cómo llegan validaciones en vivo; señalar que la
   decisión ya fue tomada por C2 (D1) antes de llegar al panel.
 
-## 4. Validación manual y trazabilidad (45–60 s)
+## 4. Historial del lector y trazabilidad (45–60 s)
 
-- Desde `#/lector`, ejecutar una validación manual contra C2 con credencial
-  de lector web (T31).
-- Mostrar la misma validación reflejada en el panel (`#/puertas`) y, si
-  Grafana está disponible, la traza o el evento correspondiente.
+- Abrir `#/lector` y mostrar los intentos ya registrados de un punto, que
+  vienen de D2. La vista **no** valida boletas: el flujo "Prueba un caso"
+  simulaba una V1 contra un endpoint inexistente y se retiró como recorte
+  (PR #33; recorte i de la
+  [matriz §3](../coherencia/matriz.md)). Decirlo en cámara: la única
+  autoridad de validación es C2 y el panel no la reemplaza.
+- Si Grafana está disponible, mostrar la traza lector → C2 → D1 de uno de
+  esos intentos (Tempo). No hay Span Link C2→C4 (recorte a).
 
 ## 5. Observabilidad (60–90 s)
 
@@ -62,39 +66,67 @@ ya tienen contraseña sembrada.
 
 ## 6. Un fallo (F1–F4) y su recuperación (90–120 s)
 
-Elegir **un solo** experimento según cuál esté disponible y evidenciado al
-momento de grabar (ver estado real en `docs/context/taller3.md` §5, Fase 5,
-y `docs/fault-experiments/`; T51–T57 seguían `pendiente` al cierre de esta
-sesión). Guion genérico, válido para cualquiera de los cuatro:
+Los cuatro experimentos se ejecutaron en Minikube el 26-09-2026, con
+evidencia versionada ([`docs/fault-experiments/`](../fault-experiments/README.md),
+[`chaos/evidence/`](../../chaos/evidence/README.md)). Se recomienda **F1
+RED-01**, el más demostrativo de la autoridad local y del outbox. Hay dos
+formas de mostrarlo.
 
-1. Mostrar el archivo `chaos/experiments/<experimento>/experiment.yaml`.
+**A. En vivo** (si el clúster está libre; un solo experimento a la vez):
+
+1. Mostrar `chaos/experiments/red-01-central-connection/experiment.yaml`.
 2. Ejecutar `node chaos/scripts/nexo-chaos.ts validate …` y luego `plan …`.
-3. Ejecutar `node chaos/scripts/nexo-chaos.ts run … --confirm` y narrar la
-   hipótesis (por ejemplo, para F1 RED-01: "el corte del enlace
-   recinto–central no debe impedir que C2 siga aceptando y rechazando
-   localmente").
-4. Mostrar en Grafana o en el panel el efecto esperado (degradación
-   temporal, crecimiento de pendientes, alerta disparada) según la métrica
-   que ese fallo mueve (tabla 3.1 de `docs/context/gaps.md`).
-5. Ejecutar `node chaos/scripts/nexo-chaos.ts restore` y mostrar la
-   recuperación: drenaje del outbox, alerta que se apaga, o validaciones que
-   vuelven a su latencia normal.
+3. Arrancar la carga (`node deploy/scripts/load.mjs`) y ejecutar
+   `node chaos/scripts/nexo-chaos.ts run … --confirm`. Narrar la hipótesis:
+   sin C4, C2 sigue aceptando y rechazando en D1 y acumula el outbox E1.
+4. En el tablero de sincronización y resiliencia, mostrar cómo crecen los
+   pendientes de T2 mientras N2 y T1 no cambian.
+5. Al restaurar (el temporizador o `nexo-chaos.ts restore`), mostrar el
+   drenaje del outbox.
 
-Si al momento de grabar F1–F4 aún no tienen evidencia formal ejecutada en
-Minikube, usar en su lugar la evidencia de carga ya documentada en
-`docs/evidence/load/f1-c2-degradacion-2026-09-25.md` (C2 con C4 inaccesible,
-sin dobles consumos, outbox drenando) y decirlo explícitamente en el video:
-es una prueba de integración equivalente, no una ejecución de
-`nexo-chaos` en el clúster.
+**B. Con la evidencia versionada** (si no se puede ejecutar en vivo). Decir
+explícitamente que son capturas de la corrida del 26-09-2026:
+
+1. Mostrar [f1-red-01.md](../fault-experiments/f1-red-01.md) (hipótesis y
+   resultado: **aprobada**).
+2. Mostrar los paneles del corte de 300 s:
+   [t2-pendientes.png](../../chaos/evidence/red-01-central-connection/capturas/t2-pendientes.png)
+   (hasta 1246 pendientes durante el corte),
+   [n2-disponibilidad.png](../../chaos/evidence/red-01-central-connection/capturas/n2-disponibilidad.png)
+   (100 %) y
+   [t1-p95.png](../../chaos/evidence/red-01-central-connection/capturas/t1-p95.png)
+   (p95 de C2 ≈ 24 ms).
+3. Mostrar el cierre en
+   [integridad.json](../../chaos/evidence/red-01-central-connection/integridad.json):
+   1410 pendientes al restaurar, los 1410 con acuse en 15 s, 0 pérdidas y
+   0 duplicados.
+
+Mencionar en una frase los otros tres resultados, sin forzarlos:
+
+- **F2 SER-06**, aprobada con degradación prevista: con `otel-lgtm` caído
+  15 min, la validación siguió, la cola llegó a 185/10000 y drenó, pero no
+  hubo alerta porque Grafana vive dentro de `otel-lgtm`.
+- **F3 BD-01**, aprobada con degradación prevista: sin D1 no hubo
+  aceptaciones, pero la caída solo se ve en el lector
+  ([lector-por-fase.txt](../../chaos/evidence/bd-01-local-persistence/lector-por-fase.txt)).
+- **F4 REC-01**, no concluyente: A6 no se disparó con el límite de 100m.
+
+No mostrar una alerta de fallo disparada: ninguna se disparó durante F1–F4
+([informe §2.3](../informe/taller3.md)).
 
 ## 7. Cierre (30–45 s)
 
 - Desde `#/cierre`, mostrar el cierre preliminar y, si los datos del evento
-  lo permiten, la liquidación (T31).
+  lo permiten, la liquidación. `#/cierre` también resuelve eventos `cerrado`
+  (PR #32).
 - Resumen final: qué invariantes quedaron demostrados (autoridad única de
-  C2, consumo atómico, bitácora de solo adición) y qué queda pendiente de
-  PoC según la matriz de coherencia (por ejemplo, mTLS bloqueante ADR-008,
-  aislamiento multicliente ADR-009 recortado).
+  C2, consumo atómico, bitácora de solo adición y outbox), con 0 duplicados
+  y 0 pérdidas en F1–F4. Luego, qué queda pendiente de PoC según la matriz
+  de coherencia: el corte de 15 min de ADR-002 y ADR-011, el mTLS
+  bloqueante de ADR-008 y el aislamiento multicliente recortado de
+  ADR-009. Cerrar con las brechas de observabilidad de §8.3 del informe:
+  el *dead-man's switch* externo, el readiness de C2 dependiente de D1 y
+  una variante fuerte de F4.
 - Cierre con el repositorio (`github.com/SofiAlfonso/nexo`) y agradecimiento.
 
 ## Notas de grabación

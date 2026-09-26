@@ -53,9 +53,9 @@ Otros scripts en `deploy/scripts/` (documentados en su propio
   representativa como ConfigMap y corre el lector emulado (C1) como Job de
   carga contra `nexo-coordinator` (perfil `nominal`, 30 s).
 
-`nexo-ticketing` (boletería simulada, `nexo-external`) queda en
-`CrashLoopBackOff` hasta que T23 la implemente en otra sesión; no bloquea el
-resto del despliegue.
+`nexo-ticketing` (boletería simulada, `nexo-external`) está implementada
+(T23, `src/ticketing-sim/`); si no arranca, no bloquea el resto del
+despliegue.
 
 **Prueba de frontera** (T26): `tests/integration/k8s/network-policies.test.ts`
 verifica contra el clúster vivo que C2 no alcanza D2 directamente, que C2
@@ -66,5 +66,6 @@ stack desplegado (`kubectl` en el `PATH` y `nexo-coordinator` Ready):
 npx vitest run --config vitest.integration.config.ts tests/integration/k8s/network-policies.test.ts
 ```
 
-**Decisiones pendientes**: addons adicionales para Toxiproxy/caos
-(S2-chaos) y automatización de la construcción de imágenes en CI.
+**Decisiones pendientes**: automatización de la construcción de imágenes en
+CI. Toxiproxy no necesita un addon: se despliega como Deployment en
+`nexo-venue` (`deploy/kubernetes/application/toxiproxy-deployment.yaml`).
