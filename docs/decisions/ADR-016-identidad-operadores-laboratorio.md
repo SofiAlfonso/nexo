@@ -2,7 +2,7 @@
 
 - **Estado**: Aceptado
 - **Fecha**: 25 de septiembre de 2026
-- **Origen**: taller 3, decisión Q14 de la orquestación (docs/context/taller3.md D8)
+- **Origen**: taller 3, decisión Q14 de la orquestación (plan del taller 3, D8)
 
 ## Contexto
 

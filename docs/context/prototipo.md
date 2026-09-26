@@ -1,6 +1,6 @@
 # Prototipo de interfaz de NEXO: especificación para implementar el panel C5
 
-Especificación autocontenida del prototipo del entregable 07 del taller 2 (`taller2/NEXO_07_Prototipo/`, abierto desde `index.html`). Sirve para portarlo como panel C5 del taller 3 sin tener que leer el código original. El resumen general del taller 2 está en [taller2.md](taller2.md) y el plan en [taller3.md](taller3.md).
+Especificación autocontenida del prototipo del entregable 07 del taller 2 (`taller2/NEXO_07_Prototipo/`, abierto desde `index.html`). Sirve para portarlo como panel C5 del taller 3 sin tener que leer el código original. El resumen general del taller 2 está en [taller2.md](taller2.md).
 
 Fuentes: el código del prototipo, su README y el registro de decisiones del equipo con quien construyó el prototipo (D-01 a D-27 y supuestos S-01 a S-07, 25 de septiembre de 2026), ya integrado en este documento. Las secciones 14 a 17 recogen de ese registro lo que no se ve en el código: principios, bloqueos, invariantes, reglas de medición, supuestos y el guion de fallas. El manual visual del prototipo es `taller2/NEXO_07_Prototipo-Manual.pdf` (58 páginas A4 horizontales, 57 capturas anotadas y una tabla de trazabilidad elemento → regla o ADR). Los tokens, componentes visuales y reglas de estilo están en [DESIGN.md](../../DESIGN.md); este archivo cubre comportamiento y datos.
 
@@ -395,7 +395,7 @@ Confirmar la apertura exige los seis controles y queda en la actividad con el ro
 
 ## 12. API que necesita la interfaz
 
-Borrador derivado de las pantallas; completa la sección 3.3 de [taller3.md](taller3.md).
+Borrador derivado de las pantallas; el contrato vigente está en `docs/architecture/contracts.md`.
 
 | Método y ruta | Uso | Pantallas |
 |---|---|---|

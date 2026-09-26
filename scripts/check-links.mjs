@@ -7,7 +7,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 const args = process.argv.slice(2);
 const codePaths = args.includes('--code-paths');
 const objetivos = args.filter((a) => !a.startsWith('--'));
-if (objetivos.length === 0) objetivos.push('docs/informe');
+if (objetivos.length === 0) objetivos.push('docs');
 
 const raiz = resolve(import.meta.dirname, '..');
 const PREFIJOS_REPO = ['src/', 'tests/', 'docs/', 'deploy/', 'observability/', 'chaos/', 'config/', 'scripts/', '.github/'];
