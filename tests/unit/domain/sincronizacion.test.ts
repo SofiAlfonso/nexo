@@ -34,6 +34,7 @@ class LotesDobles implements LoteEvidenciaRepositorio {
     }, {
       crearSiNoExisteActivo: vi.fn(), resolverActivoPorPunto: vi.fn(),
       listar: vi.fn(async () => []), obtener: vi.fn(async () => null),
+      aplicarAccion: vi.fn(async () => ({ tipo: 'no-encontrada' as const })),
     }, {
       registrarPendiente: vi.fn(async (intento: IntentoDiarioPendiente) => { this.pendientes.push(intento); }),
     });

@@ -174,7 +174,7 @@ NEXO.vistas.alertas = (function () {
     if (!items.length) {
       if (!e.incidentes.length) {
         return c.vacio('shield-check', 'Sin incidentes', e.evento.estado === 'abierto'
-          ? 'Todo opera con normalidad. Usa «Ir a los incidentes» en la simulación para ver cómo se gestiona una falla.'
+          ? 'Todo opera con normalidad. Si algo falla, aparecerá aquí con su plazo y responsable.'
           : 'El ingreso todavía no ha empezado. Los incidentes aparecerán aquí con su plazo y responsable.');
       }
       return c.vacio('filter', 'Nada con estos filtros', 'Prueba con otro contador o borra la búsqueda.');

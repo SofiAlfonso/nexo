@@ -144,9 +144,21 @@ NEXO.util = (function () {
     }
   };
 
+  // Marca efímera por pestaña (p. ej. "ya se mostró la bienvenida en esta
+  // sesión de navegador"), distinta de las preferencias permanentes de arriba.
+  var sesion = {
+    leer: function (k, def) {
+      try { var v = window.sessionStorage.getItem('nexo.' + k); return v === null ? def : JSON.parse(v); }
+      catch (e) { return def; }
+    },
+    guardar: function (k, v) {
+      try { window.sessionStorage.setItem('nexo.' + k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ }
+    }
+  };
+
   return {
     esc: esc, icono: icono, ranura: ranura, ranuras: ranuras,
     fmt: fmt, percentil: percentil, limitar: limitar,
-    iniciales: iniciales, prefs: prefs
+    iniciales: iniciales, prefs: prefs, sesion: sesion
   };
 })();

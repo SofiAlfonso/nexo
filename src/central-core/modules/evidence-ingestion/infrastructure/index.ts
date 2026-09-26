@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { AcuseLoteEvidencia, LoteEvidencia, RegistroDecision, RegistroEvidencia, RegistroEstadoCoordinador } from '../../../../shared/contracts/e1.ts';
-import { Incidente } from '../../../../shared/contracts/o2.ts';
+import { Incidente, type AccionIncidente } from '../../../../shared/contracts/o2.ts';
 import { ConflictoEvidencia } from '../application/index.ts';
 import type {
-  IncidenteRepositorio, LoteEvidenciaRepositorio, ProcesarAceptados, ProyeccionIntentosDiarioRepositorio,
-  ProyeccionPuntosRepositorio, Resultado,
+  AutorAccion, IncidenteRepositorio, LoteEvidenciaRepositorio, ProcesarAceptados, ProyeccionIntentosDiarioRepositorio,
+  ProyeccionPuntosRepositorio, Resultado, ResultadoAccionIncidente,
 } from '../application/index.ts';
 import { segundosDelDia, type IntentoDiarioPendiente, type NuevoIncidente } from '../domain/index.ts';
+
+/** Orden de escalación (Escalar sube un nivel; T2 §4 "Escalar al líder técnico"). */
+const SIGUIENTE_PRIORIDAD: Record<string, string> = { baja: 'media', media: 'alta', alta: 'critica', critica: 'critica' };
 
 type Conexion = Pool | PoolClient;
 
@@ -214,6 +217,121 @@ export class RepositorioIncidentesPg implements IncidenteRepositorio {
   async obtener(id: string): Promise<Incidente | null> {
     const { rows } = await this.db.query<FilaIncidente>(`${CONSULTA_INCIDENTES} WHERE i.id = $1`, [id]);
     return rows[0] ? leerIncidente(rows[0]) : null;
+  }
+
+  /**
+   * Aplica una acción de operador (T31, KR1.3): actualiza el incidente y agrega la entrada de
+   * bitácora correspondiente en la misma transacción. `tomar` fija `actuada_en` una sola vez
+   * (regla 6, bitácora de solo adición: nunca se corrige el reloj de reacción).
+   */
+  async aplicarAccion(id: string, accion: AccionIncidente, autor: AutorAccion): Promise<ResultadoAccionIncidente> {
+    const ejecutar = async (client: PoolClient): Promise<ResultadoAccionIncidente> => {
+      const { rows } = await client.query<{ evento_id: string; prioridad: string; destacado: boolean; checklist: Array<{ texto: string; hecho: boolean }> }>(
+        'SELECT evento_id, prioridad, destacado, checklist FROM m2_evidencia.incidentes WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+      const fila = rows[0];
+      if (!fila) return { tipo: 'no-encontrada' };
+      const eventoId = fila.evento_id;
+
+      let entrada: { tipo: 'accion' | 'nota' | 'estado'; texto: string } | null = null;
+      switch (accion.accion) {
+        case 'tomar':
+          await client.query(
+            `UPDATE m2_evidencia.incidentes SET
+               estado = CASE WHEN estado = 'nuevo' THEN 'en-curso' ELSE estado END,
+               actuada_en = COALESCE(actuada_en, now())
+             WHERE id = $1`,
+            [id],
+          );
+          entrada = { tipo: 'accion', texto: 'Incidente tomado.' };
+          break;
+        case 'nota':
+          entrada = { tipo: 'nota', texto: accion.texto };
+          break;
+        case 'escalar': {
+          const siguiente = SIGUIENTE_PRIORIDAD[fila.prioridad] ?? fila.prioridad;
+          await client.query(
+            `UPDATE m2_evidencia.incidentes SET prioridad = $2, actuada_en = COALESCE(actuada_en, now()) WHERE id = $1`,
+            [id, siguiente],
+          );
+          entrada = { tipo: 'estado', texto: 'Escalado a ' + siguiente + '.' + (accion.nota ? ' ' + accion.nota : '') };
+          break;
+        }
+        case 'descartar':
+          await client.query(
+            `UPDATE m2_evidencia.incidentes SET estado = 'descartado', resuelta_en = COALESCE(resuelta_en, now())
+             WHERE id = $1`,
+            [id],
+          );
+          entrada = { tipo: 'estado', texto: 'Descartado.' + (accion.nota ? ' ' + accion.nota : '') };
+          break;
+        case 'resolver':
+          await client.query(
+            `UPDATE m2_evidencia.incidentes SET estado = 'resuelto', resuelta_en = COALESCE(resuelta_en, now())
+             WHERE id = $1`,
+            [id],
+          );
+          entrada = { tipo: 'estado', texto: 'Resuelto.' + (accion.nota ? ' ' + accion.nota : '') };
+          break;
+        case 'actualizar': {
+          const cambios: string[] = [];
+          const notas: string[] = [];
+          if (accion.clasificacion) { cambios.push('clasificacion'); notas.push('clasificación ' + accion.clasificacion); }
+          if (accion.prioridad) { cambios.push('prioridad'); notas.push('prioridad ' + accion.prioridad); }
+          if (accion.responsable) { cambios.push('responsable'); notas.push('responsable ' + accion.responsable); }
+          if (cambios.length) {
+            const asignaciones = cambios.map((columna, i) => `${columna} = $${i + 2}`).join(', ');
+            const valores = cambios.map((columna) => {
+              if (columna === 'clasificacion') return accion.clasificacion;
+              if (columna === 'prioridad') return accion.prioridad;
+              return accion.responsable;
+            });
+            await client.query(`UPDATE m2_evidencia.incidentes SET ${asignaciones} WHERE id = $1`, [id, ...valores]);
+            entrada = { tipo: 'estado', texto: 'Actualizado: ' + notas.join(', ') + '.' };
+          }
+          break;
+        }
+        case 'destacar': {
+          const nuevo = accion.valor !== undefined ? accion.valor : !fila.destacado;
+          await client.query('UPDATE m2_evidencia.incidentes SET destacado = $2 WHERE id = $1', [id, nuevo]);
+          break;
+        }
+        case 'checklist':
+          await client.query(
+            `UPDATE m2_evidencia.incidentes SET checklist = jsonb_set(
+               checklist, ARRAY[$2::text, 'hecho'],
+               to_jsonb(NOT COALESCE((checklist -> $2::int ->> 'hecho')::boolean, false))
+             ) WHERE id = $1 AND jsonb_array_length(checklist) > $2::int`,
+            [id, accion.indice],
+          );
+          break;
+      }
+
+      if (entrada) {
+        await client.query(
+          `INSERT INTO m2_evidencia.bitacora (evento_id, incidente_id, operador_id, autor, tipo, texto)
+           VALUES ($1,$2,(SELECT id FROM auth.operadores WHERE usuario = $3),$4,$5,$6)`,
+          [eventoId, id, autor.usuario, autor.rol, entrada.tipo, entrada.texto],
+        );
+      }
+
+      const { rows: actualizado } = await client.query<FilaIncidente>(`${CONSULTA_INCIDENTES} WHERE i.id = $1`, [id]);
+      return { tipo: 'ok', incidente: leerIncidente(actualizado[0]!) };
+    };
+    if ('release' in this.db) return ejecutar(this.db);
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const resultado = await ejecutar(client);
+      await client.query('COMMIT');
+      return resultado;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

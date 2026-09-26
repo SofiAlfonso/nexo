@@ -271,7 +271,12 @@
     // para que ninguna pantalla se encuentre con `evento === null`.
     NEXO.api.iniciar().then(function () {
       R.iniciar(alCambiarRuta);
-      if (!u.prefs.leer('bienvenidaVista', false)) NEXO.vistas.ayuda.abrir('inicio');
+      // Se muestra como máximo una vez por sesión de navegador (pestaña), y nunca si el
+      // operador marcó «No volver a mostrar al abrir» (preferencia permanente).
+      if (!u.sesion.leer('bienvenidaMostrada', false) && !u.prefs.leer('bienvenidaVista', false)) {
+        u.sesion.guardar('bienvenidaMostrada', true);
+        NEXO.vistas.ayuda.abrir('inicio');
+      }
     });
   }
 

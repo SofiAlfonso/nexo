@@ -36,6 +36,10 @@ class IncidentesMemoria implements IncidenteRepositorio {
   async obtener(id: string): Promise<Incidente | null> {
     return [...this.activos.values()].find((incidente) => incidente.id === id) ?? null;
   }
+  async aplicarAccion(): Promise<{ tipo: 'no-encontrada' }> {
+    // No ejercitado por estas pruebas: la acción de operador se cubre en pruebas de integración.
+    return { tipo: 'no-encontrada' };
+  }
 }
 
 class PuntosMemoria implements ProyeccionPuntosRepositorio {

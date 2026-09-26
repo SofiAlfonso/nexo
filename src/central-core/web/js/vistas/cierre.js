@@ -86,12 +86,13 @@ NEXO.vistas.cierre = (function () {
   function pasos(e) {
     var cn = e.conciliacion, ev = e.evento;
     var cond = S().condicionesCierre(e);
-    var ok = function (id) { return cond.filter(function (x) { return x.id === id; })[0].ok; };
-    var registros = ok('diarios') && ok('buzon') && ok('cambios');
+    var sinDatos = cond.length === 0;
+    var ok = function (id) { var m = cond.filter(function (x) { return x.id === id; })[0]; return !!(m && m.ok); };
+    var registros = ok('diarios-sincronizados') && ok('buzon-vacio') && ok('cambios-al-dia');
     var abiertas = cn.diferencias.filter(function (x) { return x.estado === 'abierta'; }).length;
     var lista = [
       { t: 'Ventana cerrada', s: ev.estado === 'cerrado' ? 'a las ' + fmt.hora(ev.cierreS) : 'cierra a las ' + fmt.hora(ev.cierreS), ok: ev.estado === 'cerrado' },
-      { t: 'Registros completos', s: registros ? 'diarios, buzón y cambios al día' : 'falta sincronizar', ok: ev.estado === 'cerrado' && registros },
+      { t: 'Registros completos', s: sinDatos ? 'no disponible todavía' : (registros ? 'diarios, buzón y cambios al día' : 'falta sincronizar'), ok: ev.estado === 'cerrado' && registros },
       { t: 'Informe preliminar', s: cn.preliminarEnS !== null ? 'entregado a los ' + fmt.duracion(cn.preliminarEnS - ev.cierreS) : 'máximo 30 min', ok: cn.preliminarEnS !== null },
       { t: 'Diferencias resueltas', s: cn.diferencias.length ? (abiertas ? abiertas + ' abiertas' : 'todas resueltas') : 'ninguna detectada', ok: ev.estado === 'cerrado' && abiertas === 0 },
       { t: 'Conciliado', s: cn.definitivoEnS !== null ? 'a los ' + fmt.duracion(cn.definitivoEnS - ev.cierreS) : 'máximo 24 h', ok: cn.estado === 'conciliado' },
@@ -189,9 +190,11 @@ NEXO.vistas.cierre = (function () {
   function condiciones(e) {
     var cn = e.conciliacion, ev = e.evento;
     var cond = S().condicionesCierre(e);
-    var html = '<ul class="conds">' + cond.map(function (x) {
-      return '<li class="' + (x.ok ? 'ok' : '') + '">' + ico(x.ok ? 'circle-check' : 'circle-dashed', 18) + '<span>' + esc(x.texto) + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') + '</span></li>';
-    }).join('') + '</ul>';
+    var html = cond.length
+      ? '<ul class="conds">' + cond.map(function (x) {
+          return '<li class="' + (x.ok ? 'ok' : '') + '">' + ico(x.ok ? 'circle-check' : 'circle-dashed', 18) + '<span>' + esc(x.texto) + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') + '</span></li>';
+        }).join('') + '</ul>'
+      : '<p class="dim" style="font-size:12px">Las condiciones de cierre aún no tienen una fuente de datos real conectada al panel; esta sección se completará cuando exista.</p>';
     if (ev.estado === 'cerrado' && cn.estado !== 'conciliado') {
       var rp = ev.cierreS + d.Umbral.PRELIMINAR_S - e.ahoraS;
       var rd = ev.cierreS + d.Umbral.DEFINITIVO_S - e.ahoraS;

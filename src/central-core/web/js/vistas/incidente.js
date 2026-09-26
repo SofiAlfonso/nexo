@@ -22,7 +22,7 @@ NEXO.vistas.incidente = (function () {
 
     var e0 = NEXO.store.get();
     if (!buscar(e0, id)) {
-      raiz.innerHTML = c.vacio('search', 'No encontramos ' + esc(id), 'Puede que la simulación se haya reiniciado. <a href="#/incidentes">Volver a la bandeja</a>.');
+      raiz.innerHTML = c.vacio('search', 'No encontramos ' + esc(id), 'Puede que ya se haya resuelto o el código no exista. <a href="#/incidentes">Volver a la bandeja</a>.');
       return { actualizar: function () {}, desmontar: function () {} };
     }
 

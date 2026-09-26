@@ -122,13 +122,14 @@ NEXO.vistas.config = (function () {
   function pruebas() {
     var filas = [
       ['CA1', 'Contingencia probada', 'Tres cortes de 15 min (internet, servicio central, integración) con todos los casos resueltos.'],
-      ['CA2', 'Respuesta del motor', 'p95 de 312 ms con la carga prevista (meta: 500 ms para el 95 %).'],
-      ['CA3', 'Reglas probadas', '48 de 48 casos: duplicados concurrentes, anulaciones, zona y horario.'],
-      ['CA4', 'Presupuesto', 'Trabajo estimado USD 300 de 345 · nube USD 450 de 450.']
+      ['CA2', 'Respuesta del motor', 'p95 del intervalo previsto de carga (meta: 500 ms para el 95 %).'],
+      ['CA3', 'Reglas probadas', 'Duplicados concurrentes, anulaciones, zona y horario.'],
+      ['CA4', 'Presupuesto', 'Trabajo y nube dentro de lo estimado del contrato.']
     ];
     return '<div class="calist">' + filas.map(function (f) {
-      return '<div class="ca"><span class="ca__id">' + f[0] + '</span><div><b>' + esc(f[1]) + '</b><small>' + esc(f[2]) + '</small></div>' + ico('circle-check', 18, 'ok-t') + '</div>';
-    }).join('') + '</div>';
+      return '<div class="ca"><span class="ca__id">' + f[0] + '</span><div><b>' + esc(f[1]) + '</b><small>' + esc(f[2]) + '</small></div>' +
+        '<span class="dim" style="font-size:12px">' + ico('circle-dashed', 18, 'dim') + ' No disponible todavía</span></div>';
+    }).join('') + '</div><p class="dim" style="font-size:12px;margin-top:8px">Estas pruebas de aceptación aún no tienen una fuente de datos real conectada al panel; esta sección se completará cuando exista.</p>';
   }
 
   function coordinador(e) {
