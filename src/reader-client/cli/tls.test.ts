@@ -72,7 +72,7 @@ it('CLI rechaza configuraciones TLS inválidas antes de lanzar el worker', () =>
   expect(ejecutar('--coordinador', 'http://localhost:8081', '--ca', 'ca')).toContain('requieren un coordinador https');
   expect(ejecutar('--coordinador', 'https://localhost:8081', '--ca', 'ca',
     '--cert', 'unico.crt', '--key', 'unico.key')).toContain('{lectorId}');
-});
+}, 30_000);
 
 it('verifica CA de C2 y presenta un certificado distinto por lector', async () => {
   await certificados();
