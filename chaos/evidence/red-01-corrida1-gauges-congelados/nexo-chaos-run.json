@@ -1,0 +1,36 @@
+{
+  "id": "96aab326-f613-465a-8360-fef67c00a485",
+  "experiment": "red-01-central-connection",
+  "operator": "lab-operator",
+  "environment": "minikube",
+  "scope": {
+    "event": "lab-event-01",
+    "gate": "gate-01",
+    "instance": "venue-01",
+    "synthetic": true
+  },
+  "startedAt": "2026-09-26T04:26:56.593Z",
+  "expiresAt": "2026-09-26T04:31:56.593Z",
+  "status": "restored",
+  "dryRun": false,
+  "steps": [
+    {
+      "action": {
+        "type": "toxiproxy",
+        "namespace": "nexo-venue",
+        "service": "toxiproxy",
+        "proxy": "c2-to-c4",
+        "mode": "disable"
+      },
+      "before": {
+        "type": "toxiproxy",
+        "enabled": true,
+        "upstream": "nexo-central.nexo-central.svc:8080",
+        "serviceUid": "17f601cc-4041-4904-a9c2-b9c4920dc115",
+        "toxics": []
+      },
+      "restored": true
+    }
+  ],
+  "finishedAt": "2026-09-26T04:31:56.915Z"
+}

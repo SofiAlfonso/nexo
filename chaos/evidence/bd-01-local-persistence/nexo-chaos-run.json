@@ -1,0 +1,34 @@
+{
+  "id": "df36a9be-0f50-47d2-bcfb-a6feb56940b9",
+  "experiment": "bd-01-local-persistence",
+  "operator": "lab-operator",
+  "environment": "minikube",
+  "scope": {
+    "event": "lab-event-01",
+    "gate": "gate-01",
+    "instance": "venue-01",
+    "synthetic": true
+  },
+  "startedAt": "2026-09-26T05:38:01.181Z",
+  "expiresAt": "2026-09-26T05:40:01.181Z",
+  "status": "restored",
+  "dryRun": false,
+  "steps": [
+    {
+      "action": {
+        "type": "scale",
+        "namespace": "nexo-venue",
+        "kind": "statefulset",
+        "name": "nexo-d1",
+        "replicas": 0
+      },
+      "before": {
+        "type": "scale",
+        "uid": "ea18d37c-5a74-4415-8375-7b72b9dab2b2",
+        "replicas": 1
+      },
+      "restored": true
+    }
+  ],
+  "finishedAt": "2026-09-26T05:40:01.469Z"
+}

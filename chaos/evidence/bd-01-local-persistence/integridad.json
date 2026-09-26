@@ -1,0 +1,60 @@
+{
+  "evento": "EVT-2026-02",
+  "ventana": {
+    "desde": "2026-09-26T05:38:01.181Z",
+    "hasta": "2026-09-26T05:40:01.181Z",
+    "restaurado": "2026-09-26T05:40:01.181Z"
+  },
+  "d1": {
+    "intentos": 10229,
+    "decisiones": {
+      "rechazado": 2491,
+      "aceptado": 7738
+    },
+    "consumos": 7738,
+    "boletasConMasDeUnConsumo": 0,
+    "consumosSinDecisionAceptada": 0,
+    "aceptadosSinConsumo": 0,
+    "decisionesSinOutbox": 0,
+    "outbox": {
+      "total": 10229,
+      "acusadas": 10229,
+      "pendientes": 0,
+      "pendienteMasAntiguo": null
+    },
+    "drenado": {
+      "pendientesAlRestaurar": 1,
+      "acusadasEn5Min": 1,
+      "sinAcusar": 0,
+      "ultimoAcuse": "2026-09-26T05:40:34.905+00:00",
+      "maxAntiguedadS": 119.616976
+    },
+    "ventana": {
+      "aceptado": 2
+    },
+    "consumosEnVentana": 2
+  },
+  "d2": {
+    "decisiones": 10229,
+    "admisiones": 7738,
+    "boletasConMasDeUnaAdmision": 0,
+    "evidenciasPorTipo": {
+      "decision": 10229,
+      "estado-coordinador": 2132,
+      "intento-diario": 662,
+      "latido-punto": 2760
+    },
+    "ultimaRecepcion": "2026-09-26T05:46:28.674967+00:00"
+  },
+  "cruce": {
+    "decisionesD1": 10229,
+    "acusadasD1": 10229,
+    "pendientesD1": 0,
+    "decisionesD2": 10229,
+    "perdidas": 0,
+    "sinOrigenEnD1": 0,
+    "muestrasPerdidas": [],
+    "muestrasSinOrigen": [],
+    "drenadoEn5MinPct": 100
+  }
+}

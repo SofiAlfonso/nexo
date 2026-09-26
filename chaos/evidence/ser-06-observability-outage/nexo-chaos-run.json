@@ -1,0 +1,34 @@
+{
+  "id": "dd9f9d11-f4dd-493c-9c40-a7981f8ab529",
+  "experiment": "ser-06-observability-outage",
+  "operator": "lab-operator",
+  "environment": "minikube",
+  "scope": {
+    "event": "lab-event-01",
+    "gate": "gate-01",
+    "instance": "venue-01",
+    "synthetic": true
+  },
+  "startedAt": "2026-09-26T05:12:11.240Z",
+  "expiresAt": "2026-09-26T05:27:11.240Z",
+  "status": "restored",
+  "dryRun": false,
+  "steps": [
+    {
+      "action": {
+        "type": "scale",
+        "namespace": "nexo-observability",
+        "kind": "deployment",
+        "name": "nexo-otel-lgtm",
+        "replicas": 0
+      },
+      "before": {
+        "type": "scale",
+        "uid": "f5a7e842-ab1c-4a3b-b67e-726f4c4d7f5c",
+        "replicas": 1
+      },
+      "restored": true
+    }
+  ],
+  "finishedAt": "2026-09-26T05:27:11.518Z"
+}

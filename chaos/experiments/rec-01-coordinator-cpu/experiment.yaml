@@ -2,7 +2,7 @@ version: 1
 id: rec-01-coordinator-cpu
 environment: minikube
 owner: lab-operator
-durationSeconds: 120
+durationSeconds: 300
 scope:
   event: lab-event-01
   gate: gate-01

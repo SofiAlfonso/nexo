@@ -1,0 +1,325 @@
+{
+  "N1-admisiones-por-min": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 98.73,
+        "max": 208.8,
+        "media": 178.85,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "N1-validaciones-por-decision": [
+    {
+      "etiquetas": {
+        "decision": "aceptado"
+      },
+      "antes": {
+        "min": 1.65,
+        "max": 3.48,
+        "media": 2.98,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "decision": "rechazado"
+      },
+      "antes": {
+        "min": 0.38,
+        "max": 1.52,
+        "media": 1.09,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "N2-disponibilidad": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 1,
+        "max": 1,
+        "media": 1,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "N3-conflictos-decision": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T1-p95-c2-ms": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 23.73,
+        "max": 23.93,
+        "media": 23.83,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T1-p95-c1-ms": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 24.25,
+        "max": 24.56,
+        "media": 24.42,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T1-pct-300ms-c2": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 1,
+        "max": 1,
+        "media": 1,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "C1-resultados-por-decision": [
+    {
+      "etiquetas": {
+        "decision": "aceptado"
+      },
+      "antes": {
+        "min": 1.41,
+        "max": 3.44,
+        "media": 2.85,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "decision": "rechazado"
+      },
+      "antes": {
+        "min": 0.29,
+        "max": 1.56,
+        "media": 1.08,
+        "n": 7
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T2-outbox-pendientes": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T2-outbox-edad-max-s": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T2-c4-lotes-por-resultado": [
+    {
+      "etiquetas": {
+        "resultado": "aceptado"
+      },
+      "antes": {
+        "min": 0.2,
+        "max": 1.06,
+        "media": 0.8,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T2-c4-registros-por-min": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 12,
+        "max": 462.03,
+        "media": 321.93,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "T3-errores-c2": [],
+  "C2-latidos-descartados": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "Collector-cola": [
+    {
+      "etiquetas": {
+        "exporter": "otlp_grpc/profiles"
+      },
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/logs"
+      },
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/metrics"
+      },
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/traces"
+      },
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "Collector-capacidad": [
+    {
+      "etiquetas": {
+        "exporter": "otlp_grpc/profiles"
+      },
+      "antes": {
+        "min": 1000,
+        "max": 1000,
+        "media": 1000,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/logs"
+      },
+      "antes": {
+        "min": 1000,
+        "max": 1000,
+        "media": 1000,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/metrics"
+      },
+      "antes": {
+        "min": 1000,
+        "max": 1000,
+        "media": 1000,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    },
+    {
+      "etiquetas": {
+        "exporter": "otlp_http/traces"
+      },
+      "antes": {
+        "min": 1000,
+        "max": 1000,
+        "media": 1000,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ],
+  "Collector-fallos-envio": [
+    {
+      "etiquetas": {},
+      "antes": {
+        "min": 0,
+        "max": 0,
+        "media": 0,
+        "n": 9
+      },
+      "durante": null,
+      "despues": null
+    }
+  ]
+}

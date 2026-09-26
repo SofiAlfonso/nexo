@@ -1,0 +1,14 @@
+{
+ "antes|aceptado|": 396,
+ "antes|rechazado|": 140,
+ "durante|aceptado|": 1079,
+ "durante|rechazado|": 307,
+ "durante|sin-respuesta|timeout": 29,
+ "despues|aceptado|": 1512,
+ "despues|rechazado|": 491,
+ "despues|sin-respuesta|timeout": 6
+}
+antes n 536 p95 29.4 pct300 1.0000
+durante n 1386 p95 65.1 pct300 0.9906
+despues n 2003 p95 31.5 pct300 0.9990
+{"timeouts":35,"falsosRechazos":0,"discrepancias":35,"lat":{"min":14.5893100000103,"promedio":29.91760387853558,"p50":22.371054999995977,"p95":35.11457400000654,"p99":404.73999600001844,"max":501.1420869999856}}

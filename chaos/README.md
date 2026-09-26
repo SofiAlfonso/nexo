@@ -1,10 +1,10 @@
 # nexo-chaos (solo laboratorio Minikube)
 
-La CLI prepara perturbaciones reproducibles para F1–F4. **No ejecute los YAML
-reales hasta la ola 3**, después de confirmar los nombres de recursos con
-S2-k8s y de medir el estado estable descrito en `docs/context/taller2.md`
-§11.3. Las definiciones están en `experiments/*/experiment.yaml`; use datos
-sintéticos, un evento, un punto y una instancia. Producción está bloqueada.
+La CLI prepara perturbaciones reproducibles para F1–F4. Las corridas de la
+ola 3 (T51–T54) ya se ejecutaron en Minikube con datos sintéticos, un evento,
+un punto y una instancia; el análisis está en
+[`docs/fault-experiments/`](../docs/fault-experiments/README.md). Producción
+está bloqueada.
 
 ```powershell
 node chaos/scripts/nexo-chaos.ts validate chaos/experiments/red-01-central-connection/experiment.yaml
