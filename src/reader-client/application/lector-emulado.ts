@@ -10,7 +10,7 @@ import {
 } from '@nexo/shared/contracts';
 import type { Decision, Proposito } from '@nexo/shared/contracts';
 import { ClienteHttpCoordinador, ErrorHttpCoordinador } from '../infrastructure/cliente-coordinador.ts';
-import type { CoordinadorLector } from '../infrastructure/cliente-coordinador.ts';
+import type { CoordinadorLector, CredencialesCoordinador } from '../infrastructure/cliente-coordinador.ts';
 import { DiarioJsonl } from '../infrastructure/diario-jsonl.ts';
 
 export interface OpcionesLector {
@@ -20,6 +20,7 @@ export interface OpcionesLector {
   /** Ruta absoluta externa al repositorio, exclusiva para la instancia local del lector. */
   directorio: string;
   coordinador: string | URL | CoordinadorLector;
+  tls?: CredencialesCoordinador;
   timeoutMs?: number;
   heartbeatMs?: number;
   logger?: Pick<Console, 'warn' | 'error'>;
@@ -40,6 +41,7 @@ export class LectorEmulado {
   private readonly opciones: OpcionesLector;
   private readonly diario: DiarioJsonl;
   private readonly coordinador: CoordinadorLector;
+  private readonly clientePropio?: ClienteHttpCoordinador;
   private readonly timeoutMs: number;
   private readonly heartbeatMs: number;
   private readonly logger: Pick<Console, 'warn' | 'error'>;
@@ -59,9 +61,13 @@ export class LectorEmulado {
         !Number.isFinite(this.heartbeatMs) || this.heartbeatMs <= 0) {
       throw new RangeError('timeoutMs y heartbeatMs deben ser positivos');
     }
-    this.coordinador = typeof opciones.coordinador === 'string' || opciones.coordinador instanceof URL
-      ? new ClienteHttpCoordinador(opciones.coordinador)
-      : opciones.coordinador;
+    if (typeof opciones.coordinador === 'string' || opciones.coordinador instanceof URL) {
+      this.clientePropio = new ClienteHttpCoordinador(opciones.coordinador, opciones.tls);
+      this.coordinador = this.clientePropio;
+    } else {
+      if (opciones.tls) throw new Error('TLS requiere URL de coordinador');
+      this.coordinador = opciones.coordinador;
+    }
     this.logger = opciones.logger ?? console;
     this.diario = new DiarioJsonl(opciones.directorio, opciones);
   }
@@ -85,6 +91,7 @@ export class LectorEmulado {
     this.intervalo = undefined;
     await Promise.allSettled([...this.enVuelo.values(), this.sincronizacion, this.latidoEnVuelo]);
     await this.diario.cerrar();
+    await this.clientePropio?.cerrar();
     this.iniciado = false;
   }
 

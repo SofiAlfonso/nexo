@@ -1,0 +1,3 @@
+# The CA key, reader keys, issued certificates and persistent revocations
+# belong to the laboratory operator, never to the repository.
+private/

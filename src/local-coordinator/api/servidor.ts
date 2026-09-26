@@ -12,6 +12,7 @@ import type { Almacen } from '../application/puertos.ts';
 import type { RegistroLatidos } from '../application/latidos.ts';
 import type { ServicioValidacion } from '../application/servicio-validacion.ts';
 import type { ConfigCoordinador } from '../config.ts';
+import { opcionesTlsCoordinador, registrarAutenticacionLectores } from './tls.ts';
 
 interface Dependencias {
   servicio: ServicioValidacion;
@@ -27,7 +28,9 @@ function error(status: number, codigo: ErrorRespuesta['error'], mensaje: string,
 }
 
 export function crearServidor(deps: Dependencias): FastifyInstance {
-  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1024 * 1024 });
+  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1024 * 1024,
+    https: opcionesTlsCoordinador(deps.config.tls) ?? null });
+  registrarAutenticacionLectores(app, deps.config.tls);
   const ahora = () => deps.reloj?.ahora() ?? new Date();
   const responderSinConfirmacion = (idOrigen: string) => RespuestaValidacion.parse({
     ...resultadoSinConfirmacion(idOrigen, ahora(), deps.config.coordinadorId, null),
@@ -52,7 +55,6 @@ export function crearServidor(deps: Dependencias): FastifyInstance {
       return reply.code(e.status).send(e.cuerpo);
     }
     const s = parseado.data;
-    // T25 enlazará lectorId con la identidad de la credencial mTLS.
     try {
       return respuesta(await deps.servicio.ejecutar({ ...s, instanteLector: new Date(s.instanteLector) }));
     } catch (fallo) {

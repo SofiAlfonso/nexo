@@ -4,9 +4,13 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, InvalidArgumentError } from 'commander';
+import { cargarPerfil } from '../load/index.ts';
 import { limpiarControl, leerEjecucion, procesoVivo, rutasControl, solicitarParada } from './control.ts';
+import { cargarTls, validarTls } from './tls.ts';
+import type { RutasTls } from './tls.ts';
+import { identidades } from './identidades.ts';
 
-export interface Configuracion {
+export interface Configuracion extends RutasTls {
   perfil: string;
   lectores: number;
   coordinador: string;
@@ -39,10 +43,23 @@ function rutaDatos(valor: string): string {
 
 async function iniciar(configuracion: Configuracion): Promise<void> {
   const datos = rutaDatos(configuracion.datos);
-  const url = new URL(configuracion.coordinador);
-  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('El coordinador debe usar http o https');
-  if (url.username || url.password) throw new Error('No se admiten credenciales en la URL');
+  validarTls(configuracion.coordinador, configuracion.lectores, configuracion);
   if (!isAbsolute(configuracion.boletas)) configuracion.boletas = resolve(configuracion.boletas);
+  if (configuracion.ca) {
+    const exportacion: unknown = JSON.parse(await readFile(configuracion.boletas, 'utf8'));
+    if (typeof exportacion !== 'object' || exportacion === null || !('lectores' in exportacion) ||
+        !Array.isArray(exportacion.lectores)) {
+      throw new Error('HTTPS requiere identidades de lector en el export de boletas');
+    }
+    const nombre = configuracion.perfil === 'estres' ? 'stress' : configuracion.perfil;
+    if (!['nominal', 'pico', 'stress'].includes(nombre)) throw new Error(`Perfil desconocido: ${configuracion.perfil}`);
+    const perfil = await cargarPerfil(fileURLToPath(new URL(`../../../tests/load/${nombre}.json`, import.meta.url)));
+    if (configuracion.eventoId) perfil.eventos = [configuracion.eventoId];
+    perfil.lectores = configuracion.lectores;
+    for (const identidad of identidades(exportacion, perfil)) {
+      await cargarTls(configuracion, identidad.lectorId);
+    }
+  }
   await mkdir(datos, { recursive: true });
   const raizReal = await realpath(fileURLToPath(new URL('../../../', import.meta.url)));
   const rutaReal = relative(raizReal, await realpath(datos));
@@ -103,17 +120,22 @@ programa.command('start')
   .option('--evento <id>', 'limita la corrida a este evento')
   .option('--datos <dir>', 'diarios, control y reporte fuera del repositorio', directorioDefault)
   .option('--timeout <ms>', 'plazo de V1', numeroPositivo, 500)
+  .option('--ca <archivo>', 'CA de C2 para verificar HTTPS')
+  .option('--cert <archivo>', 'certificado cliente (usar {lectorId} para varios lectores)')
+  .option('--key <archivo>', 'clave cliente (usar {lectorId} para varios lectores)')
   .option('--duracion <segundos>', 'duración para una corrida corta', numeroPositivo)
   .option('--pares', 'dos lecturas concurrentes por boleta')
   .option('--pares-cantidad <n>', 'número de boletas para el modo pares', numeroPositivo, 500)
   .action(async (opciones: {
     perfil: string; lectores: number; coordinador: string; boletas: string; evento: string;
     datos: string; timeout: number; duracion?: number; pares?: boolean; paresCantidad: number;
+    ca?: string; cert?: string; key?: string;
   }) => iniciar({
     perfil: opciones.perfil, lectores: opciones.lectores, coordinador: opciones.coordinador,
     eventoId: opciones.evento, boletas: opciones.boletas, datos: opciones.datos,
     timeoutMs: opciones.timeout, duracionS: opciones.duracion, pares: opciones.pares ?? false,
     paresCantidad: opciones.paresCantidad,
+    ca: opciones.ca, cert: opciones.cert, key: opciones.key,
   }));
 programa.command('status').option('--datos <dir>', 'directorio de datos', directorioDefault)
   .action(async ({ datos }: { datos: string }) => estado(datos));
