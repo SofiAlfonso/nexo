@@ -31,7 +31,7 @@ La escala de resultado es la de T2 §11.3: **aprobada**, **aprobada con degradac
 | Experimento | Mapeo T2 §11.3 | Resultado | Cifras clave | Análisis |
 |---|---|---|---|---|
 | F1 RED-01 | EXP 01, recortado a C2 -> C4 por 5 min según Taller 3 | Aprobada | N2 100 %; T1 C2 p95 ~24 ms; 1410 pendientes al restaurar; 100 % drenado en 15 s; 0 pérdidas/duplicados | [f1-red-01.md](f1-red-01.md) |
-| F2 SER-06 | EXP 06, salida de observabilidad | Aprobada con degradación prevista | Validación e integridad intactas; cola 185 batches/señal (<2 % de 10000) y drenaje ~45 s; ~1 min de telemetría no visible; alerta no aplicable porque Grafana cayó con LGTM | [f2-ser-06.md](f2-ser-06.md) |
+| F2 SER-06 | EXP 06, salida de observabilidad | Aprobada con degradación prevista | Validación e integridad intactas; cola 185 batches/señal (<2 % de 10000) y drenaje ~46 s tras el máximo (~68 s tras restaurar); ~1 min de telemetría no visible; alerta no aplicable porque Grafana cayó con LGTM | [f2-ser-06.md](f2-ser-06.md) |
 | F3 BD-01 | EXP 05, variante D1 indisponible, no llenado de disco | Aprobada con degradación prevista | 0 aceptaciones sin D1 durable; 666 timeouts del lector; reconexión ~21 s; 0 pérdidas/duplicados | [f3-bd-01.md](f3-bd-01.md) |
 | F4 REC-01 | Sin fila directa en T2; valida degradación T1/A6 bajo restricción de recursos | No concluyente | 100m fue leve salvo cold start; durante p95 lector 65 ms y 99,06 % <=300 ms; 29 timeouts en ventana; A6 no disparó; 0 pérdidas/duplicados | [f4-rec-01.md](f4-rec-01.md) |
 

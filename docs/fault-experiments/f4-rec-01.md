@@ -67,7 +67,6 @@ A6 no disparó: la caída bajo 95 % duró ~1 min y la regla exige 2 min. A8 apar
 - [carga-resumen.json](../../chaos/evidence/rec-01-coordinator-cpu/carga-resumen.json)
 - [nexo-chaos-run.json](../../chaos/evidence/rec-01-coordinator-cpu/nexo-chaos-run.json)
 - [alertas-estado.json](../../chaos/evidence/rec-01-coordinator-cpu/alertas-estado.json)
-- [alertas.log](../../chaos/evidence/rec-01-coordinator-cpu/alertas.log)
 - [manifiesto.json](../../chaos/evidence/rec-01-coordinator-cpu/manifiesto.json)
 - Capturas: [n2-disponibilidad.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/t1-p95.png), [t1-pct-300ms.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/t1-pct-300ms.png), [t3-errores.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/t3-errores.png)
 

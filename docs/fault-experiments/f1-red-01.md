@@ -65,7 +65,6 @@ A11 no disparó porque el umbral es `>300 s` y la perturbación duró exactament
 - [carga-resumen.json](../../chaos/evidence/red-01-central-connection/carga-resumen.json)
 - [nexo-chaos-run.json](../../chaos/evidence/red-01-central-connection/nexo-chaos-run.json)
 - [alertas-estado.json](../../chaos/evidence/red-01-central-connection/alertas-estado.json)
-- [alertas.log](../../chaos/evidence/red-01-central-connection/alertas.log)
 - [manifiesto.json](../../chaos/evidence/red-01-central-connection/manifiesto.json)
 - Capturas: [t2-pendientes.png](../../chaos/evidence/red-01-central-connection/capturas/t2-pendientes.png), [t2-edad-outbox.png](../../chaos/evidence/red-01-central-connection/capturas/t2-edad-outbox.png), [n2-disponibilidad.png](../../chaos/evidence/red-01-central-connection/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/red-01-central-connection/capturas/t1-p95.png)
 - Hallazgo previo: [red-01-corrida1-gauges-congelados](../../chaos/evidence/red-01-corrida1-gauges-congelados/), [hallazgo-e1-lote-envenenado](../../chaos/evidence/hallazgo-e1-lote-envenenado/)

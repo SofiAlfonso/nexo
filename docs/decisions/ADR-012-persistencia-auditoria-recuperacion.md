@@ -39,3 +39,4 @@ Leer evidencia retenida en D2 por lote y reconstruir un cierre, con respaldo ind
 
 - Desplegar D1 PostgreSQL 16 separado de C2 en `nexo-venue` y D2 en `nexo-central`.
 - Ejecutar F3 BD-01: al quedar D1 indisponible, ninguna nueva aceptación; tras recuperarlo, los consumos anteriores siguen rechazando duplicados.
+- 26-09-2026: F3 BD-01 ejecutado, **aprobada con degradación prevista**: ninguna aceptación sin D1 y 0 boletas con más de un consumo tras recuperarlo ([f3-bd-01.md](../fault-experiments/f3-bd-01.md)). El estado no cambia, porque falta la restauración desde un respaldo independiente.

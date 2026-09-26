@@ -28,3 +28,4 @@ En pruebas por evento y modo conectado/local, medir al menos 95 % de solicitudes
 - `src/reader-client/` (C1) conserva el diario e intenta V1; `src/local-coordinator/` (C2+D1) decide sin esperar a C4.
 - D7 mide tanto el SLO de 300 ms como el p95 frente a 500 ms; las tardías y sin respuesta permanecen en el denominador.
 - RED-01 corta el enlace recinto-central y verifica que la validación local continúa; la PoC aporta evidencia, no cambia aún el estado del ADR.
+- 26-09-2026: PoC ejecutada en Minikube con F1 RED-01, **aprobada**: C4 cortado 300 s, N2 100 %, p95 de C2 ≈ 24 ms, 0 duplicados ([f1-red-01.md](../fault-experiments/f1-red-01.md)). El estado no cambia, porque el criterio exige un corte de 15 min y F1 cortó 5 min ([matriz §3](../coherencia/matriz.md), recorte k).

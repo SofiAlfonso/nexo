@@ -24,8 +24,8 @@ registros en vuelo). El análisis está en
 | `integridad.json` | Resultado de [`chaos/sql/integridad-d1.sql`](../sql/integridad-d1.sql) e [`integridad-d2.sql`](../sql/integridad-d2.sql): consumos duplicados, outbox pendiente, decisiones de D1 ausentes en D2 y viceversa, porcentaje drenado. |
 | `metricas.json` / `metricas-resumen.json` | Series de Prometheus (N1–N3, T1–T3, cola del Collector) y su mínimo, máximo y media por fase (antes, durante, después). |
 | `trazas.json` | Resumen de trazas de Tempo en la ventana. |
-| `logs/` | Avisos y errores de C2 y C4, y el log de Toxiproxy. |
-| `alertas.log` / `alertas-estado.json` | Notificaciones recibidas por el webhook y estado de las reglas de Grafana al recolectar. |
+| `logs/` | Avisos y errores de C2 y C4, y el log de Toxiproxy. No versionado: `.gitignore` excluye `logs/`. |
+| `alertas.log` / `alertas-estado.json` | Notificaciones recibidas por el webhook y estado de las reglas de Grafana al recolectar. Solo `alertas-estado.json` está versionado: `.gitignore` excluye `*.log`. |
 | `cluster-estado.txt` | Pods, réplicas y proxies tras la restauración. |
 | `carga-resumen.json` | Informe del generador de carga, sin los registros individuales. |
 | `capturas/` | Paneles de Grafana (`d-solo`, UTC) de la ventana del experimento. |
