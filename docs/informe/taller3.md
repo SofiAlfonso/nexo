@@ -7,7 +7,6 @@ Este informe sigue el orden de la rúbrica de [taller3.md §1](../context/taller
 Marcadores usados:
 
 - **PENDIENTE-T57**: depende de los experimentos F1–F4 en Minikube (T51–T54) y de su análisis (T57), que aún no están en [docs/fault-experiments/](../fault-experiments/README.md). Los completa la orquestadora.
-- **PENDIENTE-PR-E1**: depende de la corrección del lote E1 envenenado que prepara S3-experimentos (§5.3).
 - **PENDIENTE-DIGEST**: digests de imágenes que no se pueden calcular sin Docker ni Minikube ([matriz §2](../coherencia/matriz.md)).
 
 La plantilla de LaTeX del taller 2 que recomienda [taller3.md §8](../context/taller3.md) (pregunta 6) no está en el repositorio. Este Markdown es la fuente del informe y puede transcribirse a esa plantilla sin cambiar su contenido.
@@ -218,23 +217,43 @@ Fuente: [integridad-exp03-exp04.test.ts](../../tests/resilience/integridad-exp03
 - El mismo PR agregó la salida OTLP a las NetworkPolicies, el secreto de firma P2 de C2 y `enableServiceLinks: false` en el receptor de alertas.
 - Consecuencia: las pruebas unitarias no detectaron las métricas sin efecto porque no comprobaban la exportación real (§8.2).
 
-### 5.3 Lote E1 envenenado por latidos con `idOrigen` repetido (en corrección)
+### 5.3 Lote E1 envenenado por latidos con `idOrigen` repetido (PR #28, `3ffb913`)
 
-El mecanismo, según el código de `main` en `968c955`:
+El mecanismo, según el código de `main` en `968c955` (antes de la corrección):
 
 1. C2 forma el `idOrigen` de un latido como `${lectorId}:latido:${secuencia}` ([latidos.ts](../../src/local-coordinator/application/latidos.ts), `tomarPendientes`). Si la secuencia vuelve a empezar tras un reinicio, se reutiliza con otro contenido un `idOrigen` que D2 ya había recibido.
 2. M2 compara el *hash* de contenido de cada registro. Si difiere, lanza `ConflictoEvidencia` y rechaza el lote completo ([evidence-ingestion/infrastructure/index.ts](../../src/central-core/modules/evidence-ingestion/infrastructure/index.ts)).
 3. El despachador E1 conserva el lote pendiente y lo reenvía idéntico en cada ciclo; solo lo descarta ante un 413 ([despachador-outbox.ts](../../src/local-coordinator/application/despachador-outbox.ts), `procesarCiclo`). Las decisiones que viajan en ese lote nunca reciben acuse, y el outbox (T2) deja de drenar.
 
-Diagnóstico en Minikube y corrección: **PENDIENTE-PR-E1** (S3-experimentos).
+Diagnóstico en Minikube (26-09, 03:56Z, durante la preparación de F1):
+
+- C2 registraba `Fallo de envío E1 … HTTP 409` con `fallosConsecutivos` creciente, y C4 respondía 409 a cada reintento.
+- En D1 había 991 filas de outbox: 708 con acuse y 283 que nunca drenaban.
+- En D2 solo aparecían los latidos `…:latido:1..3` de la primera carga.
+- La causa fue cada nuevo Job de carga, que reinicia la secuencia del lector.
+
+Corrección (PR #28, `3ffb913`):
+
+- El `idOrigen` del latido incluye el instante del lector: `${lectorId}:latido:${secuencia}:${instanteLector}` (`idOrigenLatido` en [latidos.ts](../../src/local-coordinator/application/latidos.ts)). Es estable entre reintentos y distinto tras un reinicio.
+- Ante un 409 con latidos, el despachador los retira y deja constancia en D1: tabla `latido_descartado`, migración [041](../../src/local-coordinator/infrastructure/db/migrations/041_c2_latido_descartado.sql), solo de adición. También registra un log `warn` y la métrica `nexo_c2_e1_latidos_descartados`. El siguiente lote viaja solo con decisiones ([despachador-outbox.ts](../../src/local-coordinator/application/despachador-outbox.ts), `descartarLatidos`).
+- Un 409 con solo decisiones sigue bloqueando y alertando, porque es un conflicto de integridad real.
+- Si no se puede registrar la constancia en D1, el lote no se descarta.
+- Pruebas: [latidos-id-origen.test.ts](../../tests/unit/coordinator/latidos-id-origen.test.ts) y [despachador-outbox.test.ts](../../tests/unit/coordinator/despachador-outbox.test.ts).
+- Verificación tras redesplegar en Minikube:
+  - las 283 filas drenaron (991/991 con acuse);
+  - dos cargas seguidas con reinicio del lector dejaron 1651 filas de outbox, 0 pendientes, 0 respuestas 409 y 0 latidos descartados.
 
 ### 5.4 Falso positivo de A1
 
-- A1 se calcula como `sum(increase(nexo_c4_lotes_evidencia_total{resultado="conflicto"}[24h]))` ([alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml)).
+- Hasta el PR #28, A1 se calculaba como `sum(increase(nexo_c4_lotes_evidencia_total{resultado="conflicto"}[24h]))` ([alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml)).
 - En `ServicioIngestaEvidencia.procesarLote`, cualquier excepción durante la persistencia incrementa ese contador con `resultado: 'conflicto'` ([evidence-ingestion/application/index.ts](../../src/central-core/modules/evidence-ingestion/application/index.ts)), no solo `ConflictoEvidencia`.
 - Por eso el lote envenenado de §5.3 dispara A1 en cada reintento, aunque no haya ningún doble consumo. Un error de D2 también la dispararía.
 - El carácter indirecto de esta medida ya estaba documentado como limitación ([justificacion-metricas.md](../observability/justificacion-metricas.md); [matriz §3](../coherencia/matriz.md), recorte b). La integridad real se verifica por SQL (§4.3).
-- Captura del disparo y corrección: **PENDIENTE-PR-E1**.
+- Disparo observado: durante el diagnóstico de §5.3, el contador llegó a 12 conflictos en 5 minutos sin ningún doble consumo.
+- Corrección (PR #28, `3ffb913`):
+  - C4 etiqueta el contador con `tipo`: el de `ConflictoEvidencia`, o `desconocido` para cualquier otra excepción.
+  - A1 y el panel N3 cuentan solo `tipo="decision"`, tanto en [alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml) como en los tableros y los ConfigMaps de Kubernetes.
+- Un error de D2 ya no dispara A1, porque queda como `tipo="desconocido"`.
 
 ## 6. Patrones utilizados
 
@@ -307,7 +326,6 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 | Marcador | Sección | Quién lo cierra |
 |---|---|---|
 | PENDIENTE-T57 | §2.3 (capturas de alertas), §3, §3.1–§3.5 | Orquestadora, con los resultados de S3-experimentos |
-| PENDIENTE-PR-E1 | §5.3, §5.4 | S3-experimentos (PR de corrección) y orquestadora |
 | PENDIENTE-DIGEST | §7 | Sesión con acceso a Minikube ([matriz §2](../coherencia/matriz.md)) |
 
 ## Anexo A. Verificación de enlaces (T64)
