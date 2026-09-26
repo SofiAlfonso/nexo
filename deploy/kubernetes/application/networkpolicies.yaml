@@ -52,6 +52,14 @@ spec:
       ports:
         - { protocol: TCP, port: 18080 }
         - { protocol: TCP, port: 15432 }
+    # Telemetría OTLP/HTTP hacia el Collector (T40); sin esta regla C2 no
+    # exporta métricas, trazas ni logs y N1–N3/T1–T3 no aparecen en Grafana.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-observability
+      ports:
+        - { protocol: TCP, port: 4318 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -182,6 +190,14 @@ spec:
               app.kubernetes.io/name: nexo-coordinator
       ports:
         - { protocol: TCP, port: 8081 }
+    # Telemetría OTLP/HTTP hacia el Collector (T40); sin esta regla C1 no
+    # exporta métricas, trazas ni logs y las métricas del lector (T1 medido en C1) no aparecen en Grafana.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-observability
+      ports:
+        - { protocol: TCP, port: 4318 }
 
 # ---------------------------------------------------------------------------
 # nexo-central

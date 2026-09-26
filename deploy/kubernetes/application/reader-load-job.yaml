@@ -40,6 +40,10 @@ spec:
                 --datos /tmp/reader-client --duracion 30
               sleep 40
               node src/reader-client/cli/index.ts report --datos /tmp/reader-client
+          env:
+            # T1 se mide también en el lector (nexo_c1_*); sin endpoint no se exporta.
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://nexo-otel-collector.nexo-observability.svc.cluster.local:4318"
           volumeMounts:
             - name: boletas
               mountPath: /datos

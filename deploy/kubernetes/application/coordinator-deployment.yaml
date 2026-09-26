@@ -60,6 +60,10 @@ spec:
             # migración concurrente al arrancar C2 (igual que scripts/dev.mjs).
             - name: D1_MIGRAR
               value: "false"
+            # Mismo secreto con el que M1 firma P2 (nexo-central-app); sin él C2 rechaza
+            # cada versión con "Firma P2 inválida" y se queda con los permisos sembrados.
+            - name: PERMISOS_FIRMA_SECRETO
+              valueFrom: { secretKeyRef: { name: nexo-venue-app, key: PERMISOS_FIRMA_SECRETO } }
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://nexo-otel-collector.nexo-observability.svc.cluster.local:4318"
           readinessProbe:

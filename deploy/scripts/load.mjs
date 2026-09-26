@@ -14,8 +14,9 @@
 //    carga `nominal`, y la publica como ConfigMap `nexo-reader-boletas`.
 // 3. Aplica `deploy/kubernetes/application/reader-load-job.yaml` y sigue sus
 //    logs hasta que termina.
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseArgs } from "node:util";
 import { captureOutput, k8sDir, logStep, repoRoot, run, runAllowFail } from "./k8s-lib.mjs";
 
 const EXPORT_PATH = path.join(repoRoot, "tmp", "k8s-boletas.json");
@@ -25,6 +26,23 @@ const EXPORTER_POD = "nexo-boletas-export";
 // resultante queda muy por debajo del límite de 1 MiB de etcd, con margen
 // suficiente para el perfil de carga `nominal` (~165 presentaciones en 30 s).
 const MAX_BOLETAS_POR_GRUPO = 150;
+
+// Opciones para corridas largas (experimentos F1–F4 bajo carga): `--duracion`
+// en segundos, `--perfil` (nominal, pico, estres) y `--libres-por-zona`, tope
+// de boletas vigentes sin usar por zona (las que el perfil acepta como válidas;
+// nominal consume ~3,5 por segundo). Sin opciones se conserva la corrida corta.
+const { values: opciones } = parseArgs({
+  options: {
+    duracion: { type: "string", default: "30" },
+    perfil: { type: "string", default: "nominal" },
+    "libres-por-zona": { type: "string", default: String(MAX_BOLETAS_POR_GRUPO) },
+  },
+});
+const DURACION_S = Number(opciones.duracion);
+const LIBRES_POR_ZONA = Number(opciones["libres-por-zona"]);
+if (!Number.isInteger(DURACION_S) || DURACION_S <= 0) throw new Error("--duracion debe ser un entero positivo");
+if (!Number.isInteger(LIBRES_POR_ZONA) || LIBRES_POR_ZONA <= 0) throw new Error("--libres-por-zona debe ser un entero positivo");
+if (!["nominal", "pico", "estres"].includes(opciones.perfil)) throw new Error("--perfil debe ser nominal, pico o estres");
 
 const exporterPodManifest = `
 apiVersion: v1
@@ -91,7 +109,8 @@ function recortarBoletas(boletas) {
   return boletas.filter((boleta) => {
     const clave = `${boleta.zona}|${boleta.estado}|${boleta.usada}`;
     const cuenta = cuentas.get(clave) ?? 0;
-    if (cuenta >= MAX_BOLETAS_POR_GRUPO) return false;
+    const tope = boleta.estado === "vigente" && !boleta.usada ? LIBRES_POR_ZONA : MAX_BOLETAS_POR_GRUPO;
+    if (cuenta >= tope) return false;
     cuentas.set(clave, cuenta + 1);
     return true;
   });
@@ -107,8 +126,19 @@ async function runReaderJob() {
 
   logStep("load", "(re)ejecutando el Job nexo-reader-load...");
   await runAllowFail("kubectl", ["delete", "job", "nexo-reader-load", "-n", "nexo-venue", "--ignore-not-found"]);
-  await run("kubectl", ["apply", "-f", path.join(k8sDir, "application", "reader-load-job.yaml")]);
-  await run("kubectl", ["wait", "--for=condition=complete", "job/nexo-reader-load", "-n", "nexo-venue", "--timeout=120s"]);
+  const plantilla = await readFile(path.join(k8sDir, "application", "reader-load-job.yaml"), "utf8");
+  const manifiesto = plantilla
+    .replace("--perfil nominal \\", `--perfil ${opciones.perfil} \\`)
+    .replace("--datos /tmp/reader-client --duracion 30", `--datos /tmp/reader-client --duracion ${DURACION_S}`)
+    .replace("sleep 40", `sleep ${DURACION_S + 10}`);
+  if (!manifiesto.includes(`--duracion ${DURACION_S}\n`) || !manifiesto.includes(`--perfil ${opciones.perfil} `)) {
+    throw new Error("reader-load-job.yaml cambió: no se pudo fijar --perfil/--duracion");
+  }
+  logStep("load", `perfil ${opciones.perfil}, ${DURACION_S} s, hasta ${LIBRES_POR_ZONA} boletas libres por zona`);
+  await run("kubectl", ["apply", "-f", "-"], { input: manifiesto });
+  await run("kubectl", [
+    "wait", "--for=condition=complete", "job/nexo-reader-load", "-n", "nexo-venue", `--timeout=${DURACION_S + 120}s`,
+  ]);
   await run("kubectl", ["logs", "job/nexo-reader-load", "-n", "nexo-venue"], { stdio: ["ignore", "inherit", "inherit"] });
 }
 
