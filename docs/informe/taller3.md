@@ -460,4 +460,4 @@ Los enlaces relativos de este informe se comprueban con `node scripts/check-link
 - que exista el encabezado cuando el enlace apunta a un ancla `#…` de un archivo `.md`;
 - con `--code-paths`, que existan las rutas del repositorio citadas entre comillas invertidas.
 
-Resultado del pase final (26-09-2026): `node scripts/check-links.mjs --code-paths docs/informe docs/coherencia docs/fault-experiments` revisó 448 referencias con 0 rotas; sobre `README.md`, `docs/demo`, `docs/context/taller3.md`, `docs/decisions` y los README de `chaos/evidence` y `deploy/`, revisó 90 referencias con 0 rotas.
+Resultado del pase final (26-09-2026): `node scripts/check-links.mjs --code-paths docs/informe docs/coherencia docs/fault-experiments` revisó 453 referencias con 0 rotas; sobre `README.md`, `docs/demo`, `docs/context/taller3.md`, `docs/decisions` y los README de `chaos/evidence` y `deploy/`, revisó 90 referencias con 0 rotas.
