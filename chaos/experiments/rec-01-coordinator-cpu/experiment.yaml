@@ -12,5 +12,5 @@ actions:
   - type: cpuLimit
     namespace: nexo-venue
     deployment: nexo-coordinator
-    container: coordinator
+    container: nexo-coordinator
     limit: 100m
