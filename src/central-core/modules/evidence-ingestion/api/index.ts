@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
+import { conSpan, extraerContexto, SpanKind, trace } from '../../../../shared/telemetry/index.ts';
 import { AcuseLoteEvidencia, LoteEvidencia } from '../../../../shared/contracts/e1.ts';
 import { Incidente, ListaIncidentes } from '../../../../shared/contracts/o2.ts';
 import { RUTAS } from '../../../../shared/contracts/routes.ts';
@@ -7,6 +8,8 @@ import {
   ConflictoEvidencia, ServicioIngestaEvidencia, ServicioVigilanciaLatidos, type IncidenteRepositorio,
 } from '../application/index.ts';
 import { RepositorioIncidentesPg, RepositorioLotesPg, RepositorioPuntosPg } from '../infrastructure/index.ts';
+
+const tracer = trace.getTracer('nexo.central-core.evidence-ingestion');
 
 export function crearServicioIngestaEvidencia(pool: Pool): ServicioIngestaEvidencia {
   return new ServicioIngestaEvidencia(new RepositorioLotesPg(pool));
@@ -22,8 +25,13 @@ export function registrarRutasEvidencia(fastify: FastifyInstance, servicio: Serv
     if (!parsed.success) {
       return reply.code(400).send({ error: 'SOLICITUD_INVALIDA', mensaje: 'Lote de evidencia inválido' });
     }
+    const padre = extraerContexto(request.headers);
     try {
-      return AcuseLoteEvidencia.parse(await servicio.procesarLote(parsed.data));
+      return await conSpan(tracer, 'evidence.receive', async (span) => {
+        span.setAttribute('nexo.id_lote', parsed.data.idLote);
+        span.setAttribute('nexo.registros', parsed.data.registros.length);
+        return AcuseLoteEvidencia.parse(await servicio.procesarLote(parsed.data));
+      }, { kind: SpanKind.SERVER, padre });
     } catch (error) {
       if (error instanceof ConflictoEvidencia) {
         return reply.code(409).send({ error: error.codigo, mensaje: error.message });

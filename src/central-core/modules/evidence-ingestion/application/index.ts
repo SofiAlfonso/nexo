@@ -1,9 +1,23 @@
 import type { AcuseLoteEvidencia, LoteEvidencia, RegistroEvidencia } from '../../../../shared/contracts/e1.ts';
 import type { Incidente } from '../../../../shared/contracts/o2.ts';
+import { conSpan, metrics, trace } from '../../../../shared/telemetry/index.ts';
 import {
   incidenteSinComunicacion, intentoDiarioPendiente, sinComunicacion, UMBRAL_SIN_COMUNICACION_MS,
   type IntentoDiarioPendiente, type NuevoIncidente,
 } from '../domain/index.ts';
+
+const tracer = trace.getTracer('nexo.central-core.evidence-ingestion');
+const meter = metrics.getMeter('nexo.central-core');
+
+/** `nexo_c4_lotes_evidencia_total{resultado}`: N1 (volumen ingresado) y N3 (integridad: conflictos). */
+const lotesEvidenciaTotal = meter.createCounter('nexo_c4_lotes_evidencia_total', {
+  description: 'Lotes E1 recibidos por C4, por resultado (aceptado, repetido o conflicto de idempotencia)',
+});
+
+/** `nexo_c4_registros_evidencia_total`: N1, volumen de registros de decisión ingeridos por C4. */
+const registrosEvidenciaTotal = meter.createCounter('nexo_c4_registros_evidencia_total', {
+  description: 'Registros de evidencia (decisiones) ingeridos por C4 dentro de lotes E1 aceptados',
+});
 
 export type Resultado = AcuseLoteEvidencia['resultados'][number];
 
@@ -49,28 +63,38 @@ export class ServicioIngestaEvidencia {
   }
 
   async procesarLote(lote: LoteEvidencia): Promise<AcuseLoteEvidencia> {
-    const anterior = await this.lotes.yaProcesado(lote.idLote, lote);
-    if (anterior) return { ...anterior, repetido: true };
+    const anterior = await conSpan(tracer, 'idempotency.check', () => this.lotes.yaProcesado(lote.idLote, lote));
+    if (anterior) {
+      lotesEvidenciaTotal.add(1, { resultado: 'repetido' });
+      return { ...anterior, repetido: true };
+    }
 
     const resultados: Resultado[] = lote.registros.map(({ tipo, idOrigen }) => ({
       tipo, idOrigen, estado: 'aceptado',
     }));
-    await this.lotes.guardarLoteYRegistros(lote, resultados, async (registros, puntos, incidentes, intentos) => {
-      for (const registro of registros) {
-        if (registro.tipo === 'latido-punto') {
-          await puntos.actualizarLatidoPunto(
-            lote.eventoId, registro.puntoId, registro.instanteLector,
-            registro.pendientesDiario, registro.diarioTotal, registro.lectorId,
-          );
-          await incidentes.resolverActivoPorPunto(lote.eventoId, registro.puntoId, new Date());
+    try {
+      await conSpan(tracer, 'evidence.persist', () => this.lotes.guardarLoteYRegistros(lote, resultados, async (registros, puntos, incidentes, intentos) => {
+        for (const registro of registros) {
+          if (registro.tipo === 'latido-punto') {
+            await puntos.actualizarLatidoPunto(
+              lote.eventoId, registro.puntoId, registro.instanteLector,
+              registro.pendientesDiario, registro.diarioTotal, registro.lectorId,
+            );
+            await incidentes.resolverActivoPorPunto(lote.eventoId, registro.puntoId, new Date());
+          }
+          if (registro.tipo === 'intento-diario') {
+            await intentos.registrarPendiente(intentoDiarioPendiente(lote.eventoId, registro));
+          }
         }
-        if (registro.tipo === 'intento-diario') {
-          await intentos.registrarPendiente(intentoDiarioPendiente(lote.eventoId, registro));
-        }
-      }
-    });
+      }));
+    } catch (error) {
+      lotesEvidenciaTotal.add(1, { resultado: 'conflicto' });
+      throw error;
+    }
     const acuse = await this.lotes.yaProcesado(lote.idLote, lote);
     if (!acuse) throw new Error(`Lote ${lote.idLote} no persistido`);
+    lotesEvidenciaTotal.add(1, { resultado: 'aceptado' });
+    registrosEvidenciaTotal.add(lote.registros.length);
     return acuse;
   }
 }
