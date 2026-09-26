@@ -7,6 +7,13 @@ import {
   RUTAS,
   SolicitudValidacion,
 } from '@nexo/shared/contracts';
+import { Agent, fetch as undiciFetch } from 'undici';
+
+export interface CredencialesCoordinador {
+  ca: string;
+  cert: string;
+  key: string;
+}
 
 export interface CoordinadorLector {
   validar(solicitud: SolicitudValidacion, timeoutMs: number): Promise<RespuestaValidacion>;
@@ -22,13 +29,35 @@ export class ErrorHttpCoordinador extends Error {
   }
 }
 
-/** Transporte JSON V1/H1; la función fetch inyectable permite configurar mTLS fuera del lector. */
+/** Transporte JSON V1/H1 con CA y certificado propios por lector cuando usa HTTPS. */
 export class ClienteHttpCoordinador implements CoordinadorLector {
   private readonly baseUrl: string | URL;
-  private readonly enviar: typeof fetch;
-  constructor(baseUrl: string | URL, enviar: typeof fetch = fetch) {
+  private readonly enviar: (url: URL, init: RequestInit) => Promise<Response>;
+  private readonly agente?: Agent;
+  constructor(baseUrl: string | URL, credenciales?: CredencialesCoordinador) {
     this.baseUrl = baseUrl;
-    this.enviar = enviar;
+    const url = new URL(baseUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('El coordinador debe usar http o https');
+    if (url.username || url.password) throw new Error('No se admiten credenciales en la URL');
+    if (url.protocol === 'https:' && !credenciales) throw new Error('HTTPS requiere CA y credenciales de lector');
+    if (url.protocol === 'http:' && credenciales) throw new Error('Las credenciales TLS requieren HTTPS');
+    if (credenciales && (!credenciales.ca || !credenciales.cert || !credenciales.key)) {
+      throw new Error('HTTPS requiere CA, certificado y clave del lector');
+    }
+    if (credenciales) {
+      this.agente = new Agent({ connect: { ...credenciales, rejectUnauthorized: true } });
+      this.enviar = (input, init) => undiciFetch(input, {
+        method: init.method, headers: { 'content-type': 'application/json' },
+        body: init.body as string, signal: init.signal,
+        dispatcher: this.agente, redirect: 'manual',
+      }) as Promise<Response>;
+    } else {
+      this.enviar = fetch;
+    }
+  }
+
+  async cerrar(): Promise<void> {
+    await this.agente?.close();
   }
 
   private async post<T>(

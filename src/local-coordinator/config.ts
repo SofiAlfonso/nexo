@@ -12,6 +12,13 @@ export interface ConfigCoordinador {
   intervaloLatidoS: number;
   /** Aplica las migraciones de D1 al arrancar; `D1_MIGRAR=false` si las aplica otro paso (Job, `npm run dev`). */
   migrarD1: boolean;
+  /** TLS C1-C2 queda desactivado en el entorno local M1 salvo activación explícita. */
+  tls: {
+    certPath: string;
+    keyPath: string;
+    caPath: string;
+    revokedPath: string;
+  } | null;
   postgres: {
     host: string;
     port: number;
@@ -24,6 +31,23 @@ export interface ConfigCoordinador {
 function entero(v: string | undefined, porDefecto: number): number {
   const n = v === undefined || v === '' ? NaN : Number(v);
   return Number.isInteger(n) && n > 0 ? n : porDefecto;
+}
+
+function tls(env: NodeJS.ProcessEnv): ConfigCoordinador['tls'] {
+  if (env.COORDINATOR_TLS !== 'true') {
+    if (env.COORDINATOR_TLS && env.COORDINATOR_TLS !== 'false') {
+      throw new Error('COORDINATOR_TLS debe ser true o false');
+    }
+    return null;
+  }
+  const certPath = env.COORDINATOR_TLS_CERT_FILE;
+  const keyPath = env.COORDINATOR_TLS_KEY_FILE;
+  const caPath = env.COORDINATOR_TLS_CA_FILE;
+  const revokedPath = env.COORDINATOR_TLS_REVOKED_FILE;
+  if (!certPath || !keyPath || !caPath || !revokedPath) {
+    throw new Error('COORDINATOR_TLS=true requiere COORDINATOR_TLS_CERT_FILE, COORDINATOR_TLS_KEY_FILE, COORDINATOR_TLS_CA_FILE y COORDINATOR_TLS_REVOKED_FILE');
+  }
+  return { certPath, keyPath, caPath, revokedPath };
 }
 
 /**
@@ -74,6 +98,7 @@ export function cargarConfig(env: NodeJS.ProcessEnv = process.env): ConfigCoordi
     loteEvidenciaMax: Math.min(100, entero(env.LOTE_EVIDENCIA_MAX, 100)),
     intervaloLatidoS: entero(env.INTERVALO_LATIDO_S, 10),
     migrarD1: env.D1_MIGRAR !== 'false',
+    tls: tls(env),
     postgres: postgres(env),
   };
 }

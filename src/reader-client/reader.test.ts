@@ -22,7 +22,9 @@ afterEach(async () => {
   for (const directorio of directorios.splice(0)) await rm(directorio, { recursive: true, force: true });
 });
 
-async function servidorFalso(boletas?: Map<string, { zona: string; estado: string; usada: boolean }>) {
+async function servidorFalso(
+  boletas?: Map<string, { zona: string; estado: string; usada: boolean }>, demoraLentoMs = 300,
+) {
   const servidor = Fastify();
   servidores.push(servidor);
   const solicitudes: SolicitudValidacion[] = [];
@@ -31,6 +33,8 @@ async function servidorFalso(boletas?: Map<string, { zona: string; estado: strin
   const decisiones = new Map<string, RespuestaValidacion>();
   const consumidas = new Set<string>();
   let diarioDisponible = false;
+  let resolverLento: () => void = () => undefined;
+  const lentoRespondido = new Promise<void>((resolve) => { resolverLento = resolve; });
   servidor.post('/v1/validaciones', async (request) => {
     const intento = SolicitudValidacion.parse(request.body);
     solicitudes.push(intento);
@@ -56,7 +60,10 @@ async function servidorFalso(boletas?: Map<string, { zona: string; estado: strin
       });
       decisiones.set(intento.idOrigen, respuesta);
     }
-    if (intento.codigo === 'LENTO' && !repetida) await new Promise((r) => setTimeout(r, 300));
+    if (intento.codigo === 'LENTO' && !repetida) {
+      await new Promise((r) => setTimeout(r, demoraLentoMs));
+      resolverLento();
+    }
     return { ...respuesta, repetida };
   });
   servidor.post('/v1/heartbeats', async (request) => {
@@ -76,14 +83,14 @@ async function servidorFalso(boletas?: Map<string, { zona: string; estado: strin
   await servidor.listen({ host: '127.0.0.1', port: 0 });
   return {
     url: `http://127.0.0.1:${(servidor.server.address() as { port: number }).port}`,
-    solicitudes, latidos, lotes, habilitarDiario: () => { diarioDisponible = true; },
+    solicitudes, latidos, lotes, lentoRespondido, habilitarDiario: () => { diarioDisponible = true; },
   };
 }
 
-async function lector(url: string, directorio: string, heartbeatMs = 10_000) {
+async function lector(url: string, directorio: string, heartbeatMs = 10_000, timeoutMs = 100) {
   const lector = new LectorEmulado({
     lectorId: 'LX-2210-0149', puntoId: 'P-07', eventoId: 'EVT-2026-02',
-    directorio, coordinador: url, timeoutMs: 100, heartbeatMs,
+    directorio, coordinador: url, timeoutMs, heartbeatMs,
     logger: { warn: vi.fn(), error: vi.fn() },
   });
   lectores.push(lector);
@@ -92,19 +99,20 @@ async function lector(url: string, directorio: string, heartbeatMs = 10_000) {
 }
 
 it('persiste idOrigen antes del envío y lo conserva al reintentar', async () => {
-  const falso = await servidorFalso();
+  const falso = await servidorFalso(undefined, 1000);
   const directorio = await mkdtemp(join(tmpdir(), 'nexo-lector-'));
   directorios.push(directorio);
-  const cliente = await lector(falso.url, directorio);
+  const cliente = await lector(falso.url, directorio, 10_000, 400);
   const primer = await cliente.presentar({ codigo: 'LENTO', zonaSolicitada: 'Sur' });
   expect(primer.decision).toBe('sin-respuesta');
   expect(cliente.estado().pendientesDiario).toBe(1);
+  await falso.lentoRespondido;
   const segundo = await cliente.reintentar(primer.solicitud.idOrigen);
   expect(segundo.decision).toBe('aceptado');
   expect(segundo.respuesta?.repetida).toBe(true);
   expect(falso.solicitudes.map((s) => s.idOrigen)).toEqual([primer.solicitud.idOrigen, primer.solicitud.idOrigen]);
   expect(falso.solicitudes[1]).toEqual(falso.solicitudes[0]);
-});
+}, 15_000);
 
 it('envía latidos periódicos H1 con secuencia creciente', async () => {
   const falso = await servidorFalso();
