@@ -269,3 +269,5 @@ justificación de cada métrica.
 - Matriz ADR ↔ código ↔ prueba ↔ experimento y registro de recortes:
   [`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
 - Guion del video demo: [`docs/demo/guion-video.md`](docs/demo/guion-video.md).
+- Informe y autoevaluación del taller 3: [`docs/informe/taller3.md`](docs/informe/taller3.md)
+  (enlaces verificados con `node scripts/check-links.mjs --code-paths docs/informe`).
