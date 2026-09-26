@@ -1,0 +1,55 @@
+{
+  "id": "f56b65df-08cb-46d6-ad76-fc3a6e4dc55a",
+  "experiment": "rec-01-coordinator-cpu",
+  "operator": "lab-operator",
+  "environment": "minikube",
+  "scope": {
+    "event": "lab-event-01",
+    "gate": "gate-01",
+    "instance": "venue-01",
+    "synthetic": true
+  },
+  "startedAt": "2026-09-26T05:51:28.064Z",
+  "expiresAt": "2026-09-26T05:56:28.064Z",
+  "status": "restored",
+  "dryRun": false,
+  "steps": [
+    {
+      "action": {
+        "type": "cpuLimit",
+        "namespace": "nexo-venue",
+        "deployment": "nexo-coordinator",
+        "container": "nexo-coordinator",
+        "limit": "100m"
+      },
+      "before": {
+        "type": "cpuLimit",
+        "uid": "129ad102-e006-473b-95f2-07f0aa2f9fa8",
+        "containerIndex": 0,
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "memory": "128Mi"
+          }
+        },
+        "applied": {
+          "limits": {
+            "cpu": "100m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "100m",
+            "memory": "128Mi"
+          }
+        },
+        "hadResources": true
+      },
+      "restored": true
+    }
+  ],
+  "finishedAt": "2026-09-26T05:56:28.303Z"
+}

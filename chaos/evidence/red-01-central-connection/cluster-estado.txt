@@ -1,0 +1,35 @@
+NAME                                   READY   STATUS      RESTARTS   AGE    IP            NODE       NOMINATED NODE   READINESS GATES
+pod/nexo-coordinator-9fccc8d4b-9srkw   1/1     Running     0          21m    10.244.0.79   minikube   <none>           <none>
+pod/nexo-d1-0                          1/1     Running     0          129m   10.244.0.45   minikube   <none>           <none>
+pod/nexo-db-init-stfqg                 0/1     Completed   0          48m    10.244.0.69   minikube   <none>           <none>
+pod/toxiproxy-6f868865b4-9szq7         1/1     Running     0          129m   10.244.0.42   minikube   <none>           <none>
+
+NAME                               READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS         IMAGES                            SELECTOR
+deployment.apps/nexo-coordinator   1/1     1            1           129m   nexo-coordinator   nexo/local-coordinator:dev        app.kubernetes.io/name=nexo-coordinator
+deployment.apps/toxiproxy          1/1     1            1           129m   toxiproxy          ghcr.io/shopify/toxiproxy:2.9.0   app.kubernetes.io/name=toxiproxy
+
+NAME                       READY   AGE    CONTAINERS   IMAGES
+statefulset.apps/nexo-d1   1/1     129m   nexo-d1      postgres:16-alpine
+
+NAME                               READY   STATUS    RESTARTS   AGE    IP            NODE       NOMINATED NODE   READINESS GATES
+pod/nexo-central-864bc7666-b7css   1/1     Running   0          47m    10.244.0.71   minikube   <none>           <none>
+pod/nexo-d2-0                      1/1     Running   0          129m   10.244.0.44   minikube   <none>           <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS     IMAGES                  SELECTOR
+deployment.apps/nexo-central   1/1     1            1           129m   nexo-central   nexo/central-core:dev   app.kubernetes.io/name=nexo-central
+
+NAME                       READY   AGE    CONTAINERS   IMAGES
+statefulset.apps/nexo-d2   1/1     129m   nexo-d2      postgres:16-alpine
+
+NAME                                       READY   STATUS      RESTARTS   AGE     IP            NODE       NOMINATED NODE   READINESS GATES
+pod/nexo-alert-webhook-5667796c69-nvjst    1/1     Running     0          88m     10.244.0.50   minikube   <none>           <none>
+pod/nexo-logs-smoke-test-d8db6             0/1     Completed   0          7h43m   <none>        minikube   <none>           <none>
+pod/nexo-metrics-smoke-test-l2zg7          0/1     Completed   0          7h43m   <none>        minikube   <none>           <none>
+pod/nexo-otel-collector-6c497b65f6-qvtt8   1/1     Running     0          89m     10.244.0.48   minikube   <none>           <none>
+pod/nexo-otel-lgtm-75ddf5fd9f-pbshx        1/1     Running     0          42m     10.244.0.76   minikube   <none>           <none>
+pod/nexo-traces-smoke-test-4xvx2           0/1     Completed   0          7h43m   <none>        minikube   <none>           <none>
+
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS                IMAGES                                                                                        SELECTOR
+deployment.apps/nexo-alert-webhook    1/1     1            1           89m     webhook-receptor          node:24-alpine                                                                                app.kubernetes.io/name=nexo-alert-webhook
+deployment.apps/nexo-otel-collector   1/1     1            1           7h45m   opentelemetry-collector   ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s:0.160.0   app.kubernetes.io/instance=nexo-otel-collector,app.kubernetes.io/name=opentelemetry-collector,component=standalone-collector
+deployment.apps/nexo-otel-lgtm        1/1     1            1           7h45m   otel-lgtm                 grafana/otel-lgtm:0.34.0                                                                      app.kubernetes.io/name=nexo-otel-lgtm

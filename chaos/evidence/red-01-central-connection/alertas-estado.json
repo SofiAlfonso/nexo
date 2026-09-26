@@ -1,0 +1,696 @@
+{
+  "status": "success",
+  "data": {
+    "groups": [
+      {
+        "name": "nexo-t42-alertas",
+        "file": "NEXO",
+        "folderUid": "afzdvsl28fw1sb",
+        "rules": [
+          {
+            "state": "inactive",
+            "name": "A1 — Consumo duplicado confirmado",
+            "query": "sum(increase(nexo_c4_lotes_evidencia_total{resultado=\"conflicto\",tipo=\"decision\"}[24h]))",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "annotations": {
+              "description": "Objetivo cero (invariante #4, UNIQUE en D1). Detiene la prueba (T2 §8.6 A1). Proxy aplicativo disponible: conflictos de idempotencia en E1 (nexo_c4_lotes_evidencia_total{resultado=conflicto}). La verificación SQL definitiva de boletas con más de un consumo es responsabilidad de T55.",
+              "summary": "Consumo duplicado o conflicto de integridad confirmado (idOrigen repetido con contenido distinto)."
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A1 — Consumo duplicado confirmado",
+                  "datasource_uid": "prometheus",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "N3",
+                  "ref_id": "A",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "datasource_uid": "prometheus",
+                  "description": "Objetivo cero (invariante #4, UNIQUE en D1). Detiene la prueba (T2 §8.6 A1). Proxy aplicativo disponible: conflictos de idempotencia en E1 (nexo_c4_lotes_evidencia_total{resultado=conflicto}). La verificación SQL definitiva de boletas con más de un consumo es responsabilidad de T55.",
+                  "ref_id": "A",
+                  "summary": "Consumo duplicado o conflicto de integridad confirmado (idOrigen repetido con contenido distinto)."
+                },
+                "state": "Normal (NoData)",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 1
+            },
+            "totalsFiltered": {
+              "normal": 1
+            },
+            "uid": "nexo-a1-consumo-duplicado",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "N3",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.002316092,
+            "isPaused": false,
+            "provenance": "file"
+          },
+          {
+            "state": "inactive",
+            "name": "A6 — Validaciones en ≤300 ms por debajo del 95 %",
+            "query": "sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_bucket{le=\"300\"}[1m])) / sum(rate(nexo_c2_validacion_duracion_ms_milliseconds_count[1m]))",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "duration": 120,
+            "annotations": {
+              "description": "SLO T1 (T2 §8.2/§8.6 A6): dos ventanas de 1 min por debajo de 95 %.",
+              "summary": "Menos del 95 % de las validaciones responden en 300 ms o menos."
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A6 — Validaciones en ≤300 ms por debajo del 95 %",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "T1",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "SLO T1 (T2 §8.2/§8.6 A6): dos ventanas de 1 min por debajo de 95 %.",
+                  "summary": "Menos del 95 % de las validaciones responden en 300 ms o menos."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 1
+            },
+            "totalsFiltered": {
+              "normal": 1
+            },
+            "uid": "nexo-a6-latencia-p95",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "T1",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.003850482,
+            "isPaused": false,
+            "provenance": "file"
+          },
+          {
+            "state": "firing",
+            "name": "A8 — Punto sin comunicación más de 60 s",
+            "query": "max(nexo_c2_latido_edad_s) by (puntoId)",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "annotations": {
+              "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto {{ $labels.puntoId }}.",
+              "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+            },
+            "activeAt": "2026-09-26T04:56:50Z",
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-01",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-01.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-02",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-02.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-03",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-03.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-04",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-04.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-05",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-05.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-06",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-06.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-07",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-07.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-08",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-08.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-09",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-09.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-10",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-10.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-11",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-11.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-12",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-12.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-13",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-13.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-14",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-14.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-15",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-15.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-16",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-16.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-17",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-17.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-18",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-18.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-19",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-19.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              },
+              {
+                "labels": {
+                  "alertname": "A8 — Punto sin comunicación más de 60 s",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-KR1.2",
+                  "puntoId": "P-20",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "Apoyo de KR1.2 (T2 §8.6 A8); revisar conectividad del lector/punto P-20.",
+                  "summary": "Un punto de control no envía latido H1 hace más de 60 s."
+                },
+                "state": "Alerting",
+                "activeAt": "2026-09-26T04:56:50Z",
+                "value": "1e+00"
+              }
+            ],
+            "totals": {
+              "alerting": 20
+            },
+            "totalsFiltered": {
+              "alerting": 20
+            },
+            "uid": "nexo-a8-punto-sin-comunicacion",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "apoyo-KR1.2",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.003928219,
+            "isPaused": false,
+            "provenance": "file"
+          },
+          {
+            "state": "inactive",
+            "name": "A11 — Pendiente de outbox más antiguo crítico",
+            "query": "max(nexo_c2_outbox_edad_maxima_s)",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "annotations": {
+              "description": "T2 §8.6 A11 (o recuperación < 99,5 % en 5 min, cubierta por el KR2.1 asociado a nexo_c2_outbox_pendientes).",
+              "summary": "El registro pendiente más antiguo del outbox supera 300 s sin sincronizar con C4."
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A11 — Pendiente de outbox más antiguo crítico",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "T2",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "T2 §8.6 A11 (o recuperación < 99,5 % en 5 min, cubierta por el KR2.1 asociado a nexo_c2_outbox_pendientes).",
+                  "summary": "El registro pendiente más antiguo del outbox supera 300 s sin sincronizar con C4."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 1
+            },
+            "totalsFiltered": {
+              "normal": 1
+            },
+            "uid": "nexo-a11-outbox-critico",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "T2",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.002797278,
+            "isPaused": false,
+            "provenance": "file"
+          },
+          {
+            "state": "inactive",
+            "name": "A13 — Cola del Collector por encima del 80 %",
+            "query": "otelcol_exporter_queue_size / otelcol_exporter_queue_capacity",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "duration": 60,
+            "annotations": {
+              "description": "T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea validaciones).",
+              "summary": "La cola persistente del Collector supera el 80 % de su capacidad."
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A13 — Cola del Collector por encima del 80 %",
+                  "data_type": "logs",
+                  "exporter": "otlp_http/logs",
+                  "grafana_folder": "NEXO",
+                  "instance": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "job": "otelcol-contrib",
+                  "nexo_metrica": "apoyo-8.4",
+                  "service_instance_id": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "service_name": "otelcol-contrib",
+                  "service_version": "0.161.0",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea validaciones).",
+                  "summary": "La cola persistente del Collector supera el 80 % de su capacidad."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              },
+              {
+                "labels": {
+                  "alertname": "A13 — Cola del Collector por encima del 80 %",
+                  "data_type": "metrics",
+                  "exporter": "otlp_http/metrics",
+                  "grafana_folder": "NEXO",
+                  "instance": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "job": "otelcol-contrib",
+                  "nexo_metrica": "apoyo-8.4",
+                  "service_instance_id": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "service_name": "otelcol-contrib",
+                  "service_version": "0.161.0",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea validaciones).",
+                  "summary": "La cola persistente del Collector supera el 80 % de su capacidad."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              },
+              {
+                "labels": {
+                  "alertname": "A13 — Cola del Collector por encima del 80 %",
+                  "data_type": "profiles",
+                  "exporter": "otlp_grpc/profiles",
+                  "grafana_folder": "NEXO",
+                  "instance": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "job": "otelcol-contrib",
+                  "nexo_metrica": "apoyo-8.4",
+                  "service_instance_id": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "service_name": "otelcol-contrib",
+                  "service_version": "0.161.0",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea validaciones).",
+                  "summary": "La cola persistente del Collector supera el 80 % de su capacidad."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              },
+              {
+                "labels": {
+                  "alertname": "A13 — Cola del Collector por encima del 80 %",
+                  "data_type": "traces",
+                  "exporter": "otlp_http/traces",
+                  "grafana_folder": "NEXO",
+                  "instance": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "job": "otelcol-contrib",
+                  "nexo_metrica": "apoyo-8.4",
+                  "service_instance_id": "597c33dc-9d67-4886-9ea6-9347e47ece8f",
+                  "service_name": "otelcol-contrib",
+                  "service_version": "0.161.0",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "description": "T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea validaciones).",
+                  "summary": "La cola persistente del Collector supera el 80 % de su capacidad."
+                },
+                "state": "Normal",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 4
+            },
+            "totalsFiltered": {
+              "normal": 4
+            },
+            "uid": "nexo-a13-cola-collector-critica",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "apoyo-8.4",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.003368921,
+            "isPaused": false,
+            "provenance": "file"
+          },
+          {
+            "state": "inactive",
+            "name": "A14 — Telemetría descartada o exportación fallida",
+            "query": "sum(increase(otelcol_exporter_send_failed_spans[5m])) + sum(increase(otelcol_exporter_send_failed_metric_points[5m])) + sum(increase(otelcol_exporter_send_failed_log_records[5m]))",
+            "queriedDatasourceUIDs": [
+              "prometheus"
+            ],
+            "annotations": {
+              "description": "T2 §8.4/§8.6 A14, crítica operativa (no de negocio): revisar backlog y reintentos del Collector.",
+              "summary": "El Collector descartó telemetría o falló al exportarla a otel-lgtm/Grafana Cloud."
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "A14 — Telemetría descartada o exportación fallida",
+                  "datasource_uid": "prometheus",
+                  "grafana_folder": "NEXO",
+                  "nexo_metrica": "apoyo-8.4",
+                  "ref_id": "A",
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "datasource_uid": "prometheus",
+                  "description": "T2 §8.4/§8.6 A14, crítica operativa (no de negocio): revisar backlog y reintentos del Collector.",
+                  "ref_id": "A",
+                  "summary": "El Collector descartó telemetría o falló al exportarla a otel-lgtm/Grafana Cloud."
+                },
+                "state": "Normal (NoData)",
+                "activeAt": "2026-09-26T04:20:50Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 1
+            },
+            "totalsFiltered": {
+              "normal": 1
+            },
+            "uid": "nexo-a14-exportacion-fallida",
+            "folderUid": "afzdvsl28fw1sb",
+            "labels": {
+              "nexo_metrica": "apoyo-8.4",
+              "severity": "critical"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-09-26T05:01:50Z",
+            "evaluationTime": 0.00357698,
+            "isPaused": false,
+            "provenance": "file"
+          }
+        ],
+        "totals": {
+          "firing": 1,
+          "inactive": 5
+        },
+        "interval": 60,
+        "lastEvaluation": "2026-09-26T05:01:50Z",
+        "evaluationTime": 0.00357698
+      }
+    ],
+    "totals": {
+      "firing": 1,
+      "inactive": 5
+    }
+  }
+}

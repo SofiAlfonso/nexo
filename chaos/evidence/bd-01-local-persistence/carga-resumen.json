@@ -1,0 +1,33 @@
+{
+  "perfil": "nominal",
+  "inicio": "2026-09-26T05:35:37.321Z",
+  "fin": "2026-09-26T05:45:37.289Z",
+  "duracionProgramadaMs": 600000,
+  "duracionRealMs": 600000.492834,
+  "tpsProgramado": 5.5,
+  "tpsDespachado": 5.4999954823587105,
+  "intentos": 3300,
+  "falsosRechazos": 0,
+  "timeouts": 666,
+  "discrepancias": 666,
+  "paresEvaluados": 0,
+  "paresIncorrectos": 0,
+  "latenciaMs": {
+    "min": 14.605553999950644,
+    "promedio": 102.76204688303,
+    "p50": 23.286461999989115,
+    "p95": 415.1019090000191,
+    "p99": 419.14565299998503,
+    "max": 501.120219000004
+  },
+  "eventos": [
+    {
+      "eventoId": "EVT-2026-02",
+      "intentos": 3300,
+      "aceptacionesEsperadas": 2515,
+      "aceptacionesObtenidas": 1993,
+      "falsosRechazos": 0,
+      "timeouts": 666
+    }
+  ]
+}

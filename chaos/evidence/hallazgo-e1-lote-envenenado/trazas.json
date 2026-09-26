@@ -1,0 +1,23 @@
+{
+  "nexo-local-coordinator": {
+    "traces": [],
+    "metrics": {
+      "completedJobs": 3,
+      "totalJobs": 3
+    }
+  },
+  "nexo-central-core": {
+    "traces": [],
+    "metrics": {
+      "completedJobs": 3,
+      "totalJobs": 3
+    }
+  },
+  "nexo-reader-client": {
+    "traces": [],
+    "metrics": {
+      "completedJobs": 3,
+      "totalJobs": 3
+    }
+  }
+}

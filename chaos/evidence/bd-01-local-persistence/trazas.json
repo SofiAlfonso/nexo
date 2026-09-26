@@ -1,0 +1,311 @@
+{
+  "nexo-local-coordinator": {
+    "traces": [
+      {
+        "traceID": "25c1f4796ee4ba449d3e69acd0a6cc46",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401120587000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "1e19941087e235b604a7173a476c4988",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401120012000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "d4c2538cdf34d1c314ec7e39c27e0c1",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401117677000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "22bca14fe6a7ffd74deb531308cbd947",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401117620000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "dd7cd9291a3d8903cd41541454809d0",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401116982000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "18078fa58837484f0699af2d32b12178",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401116616000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "39cd710db6bc0ee09cfc1a2d79fea0a",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401116557000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "26dd15d7ef13c2616e03c54f1410432a",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401115497000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "25fcfd44743eb35b3463eecb27df46cf",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401110830000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "ee70c4258d777031bb38a9bf7fd2f69",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401110195000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "22fc2817c0aad6e061226506c68a58ce",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401110040000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "1b73a2bb514f73d0fd79296efbc330af",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401109618000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "b541afc81b0e08a518207b641f87b23",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401109190000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "19e97addba3e5fde11ac11642e749b0b",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401107707000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "1f46b948015a59ce47552cb247a6280",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401107011000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "16e26e64b7fb095b61b389817ce6ed55",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401106588000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "19e89ffbbdfdddaed72690e63a6d10a1",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401106163000000",
+        "durationMs": 402
+      },
+      {
+        "traceID": "25dddf877bd5f4809230b398b300b4b5",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401104679000000",
+        "durationMs": 400
+      },
+      {
+        "traceID": "72bed93183c3b2e1417201615b4ba33",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401104525000000",
+        "durationMs": 401
+      },
+      {
+        "traceID": "e5d59133683b7b4524d46d538eeaab8",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "validation.process",
+        "startTimeUnixNano": "1790401104044000000",
+        "durationMs": 401
+      }
+    ],
+    "metrics": {
+      "inspectedTraces": 288,
+      "inspectedBytes": "31355",
+      "completedJobs": 1,
+      "totalJobs": 3
+    }
+  },
+  "nexo-central-core": {
+    "traces": [
+      {
+        "traceID": "38740b5f8298a90b37f6b91a9be9465d",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401081393000000",
+        "durationMs": 16
+      },
+      {
+        "traceID": "a789bf576c5e18c36efff14ad46ad7ad",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401080359000000",
+        "durationMs": 12
+      },
+      {
+        "traceID": "a39c89658d8bf951969fb7719681871b",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401079342000000",
+        "durationMs": 5
+      },
+      {
+        "traceID": "9a9c01ccca7b2a3f748a0c48bff7be02",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401078313000000",
+        "durationMs": 5
+      },
+      {
+        "traceID": "8ddc7796ee241e64138fc0e06f5c6b25",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401077270000000",
+        "durationMs": 12
+      },
+      {
+        "traceID": "6bbd5e6e225ea8a33b6096e54439b8ba",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401076244000000",
+        "durationMs": 11
+      },
+      {
+        "traceID": "50911ebe3d59fb52d8a0e56aefedc814",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401074196000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "bafa60ed1a0731ef81c4c443c14ac2b",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401073168000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "ad5a6911c3fbacc1833737db7cd03078",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401073157000000",
+        "durationMs": 11
+      },
+      {
+        "traceID": "53f1d594b4f6f5bf322ee5aabde09076",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401072142000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "315169d62af13ffb9f857708d2c26ccf",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401072129000000",
+        "durationMs": 12
+      },
+      {
+        "traceID": "27d7df0824aeb73bdc6b35beaca482a8",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401071101000000",
+        "durationMs": 14
+      },
+      {
+        "traceID": "5aed3a760bb9588df2f7ef47b5b0a499",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401070066000000",
+        "durationMs": 18
+      },
+      {
+        "traceID": "461bfe893dc0faf9da2647436af5d31a",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401069038000000",
+        "durationMs": 11
+      },
+      {
+        "traceID": "7c64d40350cea556574240f722135a4b",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401068021000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "a513984dd5dd807bc22851650ae16c3a",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401068006000000",
+        "durationMs": 16
+      },
+      {
+        "traceID": "6e119acdf56a8c1822aa7973804dc6af",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401066983000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "8fcbe6e67153f05acf43d9389fbb8c43",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401065955000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "470b761d61fef36843005ccb87a28b4a",
+        "rootServiceName": "nexo-central-core",
+        "rootTraceName": "panel.update",
+        "startTimeUnixNano": "1790401063899000000",
+        "durationMs": 4
+      },
+      {
+        "traceID": "ac4801125bdf00b4f312240959ab33e2",
+        "rootServiceName": "nexo-local-coordinator",
+        "rootTraceName": "evidence.dispatch",
+        "startTimeUnixNano": "1790401063884000000",
+        "durationMs": 15
+      }
+    ],
+    "metrics": {
+      "inspectedTraces": 295,
+      "inspectedBytes": "32984",
+      "completedJobs": 1,
+      "totalJobs": 3
+    }
+  },
+  "nexo-reader-client": {
+    "traces": [],
+    "metrics": {
+      "inspectedTraces": 3319,
+      "inspectedBytes": "243844",
+      "completedJobs": 3,
+      "totalJobs": 3
+    }
+  }
+}
