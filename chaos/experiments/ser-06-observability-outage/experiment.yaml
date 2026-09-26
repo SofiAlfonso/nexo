@@ -9,11 +9,8 @@ scope:
   instance: venue-01
   synthetic: true
 actions:
-  - type: networkPolicy
+  - type: scale
     namespace: nexo-observability
-    name: nexo-chaos-collector-egress
-    podSelector:
-      app.kubernetes.io/instance: nexo-otel-collector
-      app.kubernetes.io/name: opentelemetry-collector
-      component: standalone-collector
-    mode: denyAll
+    kind: deployment
+    name: nexo-otel-lgtm
+    replicas: 0
