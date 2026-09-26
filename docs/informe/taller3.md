@@ -1,13 +1,14 @@
 # Informe del taller 3 de NEXO: implementación, observabilidad y análisis de fallos
 
-Curso ST1625. Entregable 3 (tareas T61 y T62, con primer pase de T64). Borrador del 25 de septiembre de 2026, sobre `main` en `968c955` (PR #27).
+Curso ST1625. Entregable 3 (tareas T61, T62 y T64). Versión final del 26 de septiembre de 2026, sobre `main` en `01aeb86` (PR #35). El borrador anterior se escribió sobre `968c955` (PR #27, publicado en el PR #29, `3d8685f`).
 
 Este informe sigue el orden de la rúbrica de [taller3.md §1](../context/taller3.md): aplicación, observabilidad, fallos y patrones, seguidos de la autoevaluación. Cada afirmación remite a un archivo del repositorio, a un PR o a una evidencia versionada. Los PR se citan con su número y el SHA corto de su *squash* en `main`, obtenidos con `gh pr view`.
 
-Marcadores usados:
+Marcador usado:
 
-- **PENDIENTE-T57**: depende de los experimentos F1–F4 en Minikube (T51–T54) y de su análisis (T57), que aún no están en [docs/fault-experiments/](../fault-experiments/README.md). Los completa la orquestadora.
 - **PENDIENTE-DIGEST**: digests de imágenes que no se pueden calcular sin Docker ni Minikube ([matriz §2](../coherencia/matriz.md)).
+
+Los resultados de F1–F4 (T51–T54), su evidencia (T56) y su análisis (T57) están en [docs/fault-experiments/](../fault-experiments/README.md) y [chaos/evidence/](../../chaos/evidence/README.md) desde el PR #35 (`01aeb86`).
 
 La plantilla de LaTeX del taller 2 que recomienda [taller3.md §8](../context/taller3.md) (pregunta 6) no está en el repositorio. Este Markdown es la fuente del informe y puede transcribirse a esa plantilla sin cambiar su contenido.
 
@@ -79,19 +80,23 @@ La [matriz de coherencia](../coherencia/matriz.md) (T60, PR #26) cruza cada ADR 
 | Estado en [docs/decisions/](../decisions/README.md) | ADR | Evidencia principal |
 |---|---|---|
 | Aceptado | 001, 003, 004, 006, 014, 015, 016 | Fronteras de ESLint; `UNIQUE` de D1 y EXP 03/04; disparadores de solo adición; Node 24 en CI; manifiestos de Minikube; login con argon2 |
-| Pendiente de PoC, con evidencia parcial | 002, 011 | [f1-c2-degradacion-2026-09-25.md](../evidence/load/f1-c2-degradacion-2026-09-25.md): C2 valida con C4 caído y drena el diario (§4.2) |
-| Pendiente de PoC | 005, 007, 008, 010, 012, 013 | Pruebas de integración de C3, mTLS, revocación y esquema; falta la PoC en Minikube (PENDIENTE-T57 para 005, 012 y 013) |
+| Pendiente de PoC, con PoC ejecutada en Minikube | 002, 011 | F1 ([f1-red-01.md](../fault-experiments/f1-red-01.md)): C2 valida con C4 cortado y drena 1410/1410 pendientes en 15 s. El criterio del ADR pide un corte de 15 min y F1 duró 5 min (§3.1), así que el estado no cambia |
+| Pendiente de PoC, con PoC ejecutada en Minikube | 005, 012, 013 | F3 ([f3-bd-01.md](../fault-experiments/f3-bd-01.md)) para 005 y 012: cero aceptaciones sin D1 y cero duplicados al volver; faltan las otras topologías y el respaldo independiente. F2 ([f2-ser-06.md](../fault-experiments/f2-ser-06.md)) para 013: 15 min sin backend con validación intacta y cola drenada; falta el Span Link C2→C4 (recorte a) |
+| Pendiente de PoC | 007, 008, 010 | Pruebas de integración de C3, mTLS y revocación; ningún experimento F1–F4 las cubre |
 | Recortado en el taller 3 | 009 | Sin RLS en D2 (§7) |
 
 ### 1.6 Pruebas automatizadas
 
-- `npm test` en esta rama: 29 archivos y 224 pruebas aprobadas (Vitest, ejecución del 25-09-2026). CI ejecuta `npm ci`, `npm run lint` y `npm test` en Node 24 ([ci.yml](../../.github/workflows/ci.yml)).
+- `npm test` en la rama del pase final: 31 archivos y 235 pruebas aprobadas (Vitest, ejecución del 26-09-2026). CI ejecuta `npm ci`, `npm run lint` y `npm test` en Node 24 ([ci.yml](../../.github/workflows/ci.yml)).
 - T11: la trazabilidad PU/PB → prueba y la cobertura del motor (100 % de sentencias en `motor.ts` y 96,47 % en `validar-primer-ingreso.ts`) están en [T11.md](../evidence/unit-tests/T11.md).
 - Las pruebas de integración con Testcontainers están en `tests/integration/` (coordinador, D1/D2, C3 y mTLS). No se ejecutaron en esta sesión porque S3-experimentos tiene reservado el Docker compartido.
 
 ### 1.7 Interfaz C5
 
-La comparación pantalla por pantalla con el prototipo (T32) está en [docs/evidence/ui/README.md](../evidence/ui/README.md), con capturas pareadas. El panel no tiene simulador ni dock de demostración. En esa revisión se corrigieron textos residuales que mencionaban "la simulación" y un estado "Cargando…" permanente en puertas sin lector (PR #14, `d880455`). T31 (vista `#/lector` contra C2) sigue en curso según [taller3.md §5](../context/taller3.md).
+La comparación pantalla por pantalla con el prototipo (T32) está en [docs/evidence/ui/README.md](../evidence/ui/README.md), con capturas pareadas. El panel no tiene simulador ni dock de demostración. En esa revisión se corrigieron textos residuales que mencionaban "la simulación" y un estado "Cargando…" permanente en puertas sin lector (PR #14, `d880455`). T31 se cerró con dos PR:
+
+- PR #32 (`3f8e0c9`): `#/preparacion` escribe los controles y la confirmación de apertura en D2 (antes respondía 501), y `#/cierre` resuelve también eventos `cerrado`. CA1–CA4 muestran "No disponible todavía" porque no hay fuente real ([matriz §3](../coherencia/matriz.md), recortes e y f).
+- PR #33 (`ea7725f`): `#/lector` ya no simula una validación V1. Su botón llamaba a `POST /api/lector/escaneos`, un endpoint que nunca existió; la vista ahora solo muestra intentos registrados. Validar desde el navegador exigiría una credencial de lector web en C2 que ADR-008 no contempla ([matriz §3](../coherencia/matriz.md), recorte i).
 
 ## 2. Observabilidad
 
@@ -119,46 +124,106 @@ Como apoyo se exporta `nexo_c2_latido_edad_s`, que alimenta A8 ([latidos.ts](../
 ### 2.3 Tableros y alertas (T41, T42)
 
 - Tableros como código ([README](../../observability/dashboards/README.md)): [operacion-del-evento.json](../../observability/dashboards/operacion-del-evento.json) muestra N1, N2 y T1; [sincronizacion-y-resiliencia.json](../../observability/dashboards/sincronizacion-y-resiliencia.json) muestra T2, N3 y T3.
-- Alertas en [alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml): A1 (consumo duplicado o conflicto), A6 (latencia), A8 (punto sin comunicación más de 60 s), A11 (outbox crítico), A13 (cola del Collector sobre el 80 %) y A14 (telemetría descartada). Notifican a un webhook local ([webhook-receptor.mjs](../../observability/alerts/webhook-receptor.mjs)).
-- Capturas de las alertas disparadas durante F1–F4: **PENDIENTE-T57**.
+- Alertas en [alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml): A1 (consumo duplicado o conflicto), A6 (latencia), A8 (punto sin comunicación más de 60 s), A11 (outbox crítico), A13 (cola del Collector sobre el 80 %) y A14 (telemetría descartada). Notifican a un webhook local ([webhook-receptor.mjs](../../observability/alerts/webhook-receptor.mjs)). Desde el PR #34 (`4821be9`), A13 y A14 vigilan `nexo-otel-collector` y no el Collector interno de `otel-lgtm` (§5.6).
+- Alertas durante F1–F4: el estado de las seis reglas al recolectar cada corrida está en `alertas-estado.json` de cada carpeta de [chaos/evidence/](../../chaos/evidence/README.md). Solo A8 aparece `firing` (en F1 y F3), y es ruido de arranque y parada de la carga ([fault-experiments/README.md](../fault-experiments/README.md), amenazas a la validez). Ninguna alerta asociada a un fallo se disparó:
+  - A11 no disparó en F1: el umbral es `> 300 s` y la edad máxima fue de 298,98 s ([integridad.json](../../chaos/evidence/red-01-central-connection/integridad.json)).
+  - A13 y A14 no pueden alertar en F2, porque Grafana muere con `otel-lgtm` (recorte j).
+  - A6 no disparó en F4: la caída bajo 95 % duró ~1 min y la regla exige 2 min.
+- Por eso no hay captura de una alerta de fallo disparada. El criterio de T42 ("cada alerta se dispara al menos una vez durante F1 a F4") no se cumplió para A1, A6, A11, A13 y A14. Se registra en §3.5 y en la [matriz §3](../coherencia/matriz.md). Las capturas de los paneles de cada fallo sí están versionadas (§3.1–§3.4).
+- Los archivos `alertas.log` y `logs/` que describe [chaos/evidence/README.md](../../chaos/evidence/README.md) no están versionados, porque `.gitignore` excluye `*.log` y `logs/`. La fuente de las alertas es `alertas-estado.json`.
 
 ## 3. Simulación y análisis de fallos (F1–F4)
 
-El diseño de los escenarios está en [taller3.md §3.1](../context/taller3.md). Los experimentos se declaran en `chaos/experiments/` y se ejecutan con `nexo-chaos` ([nexo-chaos.ts](../../chaos/scripts/nexo-chaos.ts), PR #9, `cc67630`; ajustes de F2 y F4 en el PR #19, `5fbda2e`). La única ejecución versionada hasta ahora es un ensayo en seco de RED-01 ([cdd6c0e8….json](../../chaos/evidence/cdd6c0e8-1637-46de-bb30-93999944b0f3.json), `"dryRun": true`), que no es evidencia de resultado.
+El diseño de los escenarios está en [taller3.md §3.1](../context/taller3.md). Los experimentos se declaran en `chaos/experiments/` y se ejecutan con `nexo-chaos` ([nexo-chaos.ts](../../chaos/scripts/nexo-chaos.ts), PR #9, `cc67630`; ajustes de F2 y F4 en el PR #19, `5fbda2e`). Se ejecutaron el 26-09-2026 en Minikube, de uno en uno, con carga nominal de 20 lectores a ~5,5 intentos/s. La evidencia (T56) y el análisis (T57) están en el PR #35 (`01aeb86`):
 
-Cada experimento se documenta con la escala de T2 §11.3: hipótesis, perturbación, métricas, recuperación, resultado y aprendizaje.
+- el método común está en [fault-experiments/README.md](../fault-experiments/README.md);
+- la estructura de cada carpeta de evidencia está en [chaos/evidence/README.md](../../chaos/evidence/README.md);
+- el ensayo en seco previo ([cdd6c0e8….json](../../chaos/evidence/cdd6c0e8-1637-46de-bb30-93999944b0f3.json), `"dryRun": true`) no es evidencia de resultado.
 
-| Fallo | Tipo | Experimento | Resultado y análisis |
-|---|---|---|---|
-| F1 RED-01, corte recinto-central | Red | [red-01-central-connection](../../chaos/experiments/red-01-central-connection/README.md) | **PENDIENTE-T57** → [docs/fault-experiments/](../fault-experiments/README.md) |
-| F2 SER-06, caída de observabilidad | Servicio | [ser-06-observability-outage](../../chaos/experiments/ser-06-observability-outage/README.md) | **PENDIENTE-T57** → [docs/fault-experiments/](../fault-experiments/README.md) |
-| F3 BD-01, D1 indisponible | Base de datos | [bd-01-local-persistence](../../chaos/experiments/bd-01-local-persistence/README.md) | **PENDIENTE-T57** → [docs/fault-experiments/](../fault-experiments/README.md) |
-| F4 REC-01, CPU del coordinador | Recursos | [rec-01-coordinator-cpu](../../chaos/experiments/rec-01-coordinator-cpu/README.md) | **PENDIENTE-T57** → [docs/fault-experiments/](../fault-experiments/README.md) |
+Cada experimento se documenta con la escala de T2 §11.3: hipótesis, perturbación, métricas, recuperación, resultado y aprendizaje. Las cifras de integridad salen de `integridad.json` ([integridad-d1.sql](../../chaos/sql/integridad-d1.sql) e [integridad-d2.sql](../../chaos/sql/integridad-d2.sql)). Son acumuladas desde el último `reset.mjs`: F2, F3 y F4 comparten evento, así que lo que se evalúa es que duplicados, pérdidas y pendientes sigan en cero.
+
+| Fallo | Tipo | Experimento | Resultado (T2 §11.3) | Análisis y evidencia |
+|---|---|---|---|---|
+| F1 RED-01, corte recinto-central | Red | [red-01-central-connection](../../chaos/experiments/red-01-central-connection/README.md) | **Aprobada** | [f1-red-01.md](../fault-experiments/f1-red-01.md), [evidencia](../../chaos/evidence/red-01-central-connection/) |
+| F2 SER-06, caída de observabilidad | Servicio | [ser-06-observability-outage](../../chaos/experiments/ser-06-observability-outage/README.md) | **Aprobada con degradación prevista** | [f2-ser-06.md](../fault-experiments/f2-ser-06.md), [evidencia](../../chaos/evidence/ser-06-observability-outage/) |
+| F3 BD-01, D1 indisponible | Base de datos | [bd-01-local-persistence](../../chaos/experiments/bd-01-local-persistence/README.md) | **Aprobada con degradación prevista** | [f3-bd-01.md](../fault-experiments/f3-bd-01.md), [evidencia](../../chaos/evidence/bd-01-local-persistence/) |
+| F4 REC-01, CPU del coordinador | Recursos | [rec-01-coordinator-cpu](../../chaos/experiments/rec-01-coordinator-cpu/README.md) | **No concluyente** | [f4-rec-01.md](../fault-experiments/f4-rec-01.md), [evidencia](../../chaos/evidence/rec-01-coordinator-cpu/) |
 
 ### 3.1 F1 — RED-01
 
-- Hipótesis: [taller3.md §3.1](../context/taller3.md).
-- Perturbación, métricas (N1, T2 y N3), recuperación y resultado: **PENDIENTE-T57**.
-- Antecedente fuera del arnés: C2 con C4 inaccesible (§4.2).
+- **Hipótesis**: sin enlace con C4, C2 sigue validando en D1, acumula outbox E1 y drena al restaurar, sin pérdidas ni duplicados ([taller3.md §3.1](../context/taller3.md)). El taller 3 recorta T2 EXP 01 a un corte C2→C4 de 5 min.
+- **Perturbación**: Toxiproxy deshabilita `c2-to-c4` durante 300 s, de 04:44:30 a 04:49:30 UTC. El registro es `64c7b936-…` ([nexo-chaos-run.json](../../chaos/evidence/red-01-central-connection/nexo-chaos-run.json)).
+- **Métricas** ([metricas-resumen.json](../../chaos/evidence/red-01-central-connection/metricas-resumen.json)):
+  - N2 se mantuvo al 100 % en las tres fases.
+  - El p95 de T1 en C2 fue de 30,3 ms antes, 24,0 ms durante y 23,9 ms después (medias por fase). El 100 % de las validaciones quedó en ≤ 300 ms.
+  - Los pendientes de T2 llegaron a 1246 durante el corte, con una edad máxima de 264,28 s.
+  - Los registros por minuto de C4 bajaron de 322,67 a 49,74 durante el corte y subieron a 633,94 después (medias).
+  - Capturas: [t2-pendientes.png](../../chaos/evidence/red-01-central-connection/capturas/t2-pendientes.png), [t2-edad-outbox.png](../../chaos/evidence/red-01-central-connection/capturas/t2-edad-outbox.png), [n2-disponibilidad.png](../../chaos/evidence/red-01-central-connection/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/red-01-central-connection/capturas/t1-p95.png) y [c4-registros-min.png](../../chaos/evidence/red-01-central-connection/capturas/c4-registros-min.png).
+- **Recuperación**: al restaurar había 1410 pendientes. Los 1410 tuvieron acuse en 5 min; el último llegó a las 04:49:45.203, unos 15 s después ([integridad.json](../../chaos/evidence/red-01-central-connection/integridad.json), `drenado`). Cumple el ≥ 99,5 % en 5 min de T2.
+- **Integridad**: D1 registró 11332 intentos (7525 aceptados y 3807 rechazados) y 7525 consumos. Hubo 0 boletas con más de un consumo y 0 decisiones sin outbox. D2 tiene las mismas 11332 decisiones: 0 pérdidas y 0 registros sin origen en D1.
+- **Alertas**: A11 no disparó, porque exige más de 300 s y la edad máxima fue de 298,98 s (§2.3).
+- **Validez**: la carga agotó las boletas válidas de Palcos y el Job terminó sin `reporte.json`. Por eso [carga-resumen.json](../../chaos/evidence/red-01-central-connection/carga-resumen.json) no tiene un informe parseable (hallazgo H8 en [hallazgos.md](../fault-experiments/hallazgos.md)). La primera corrida quedó invalidada por los gauges T2 congelados; se corrigió en el PR #31 y se repitió (§5.5).
+- **Resultado: aprobada.**
 
 ### 3.2 F2 — SER-06
 
-- Hipótesis: [taller3.md §3.1](../context/taller3.md).
-- Perturbación (escalar `otel-lgtm` a 0; [matriz §3](../coherencia/matriz.md), recorte d), cola del Collector, alertas A13 y A14, recuperación y resultado: **PENDIENTE-T57**.
+- **Hipótesis**: la caída del backend de observabilidad no bloquea validaciones ni auditoría; el Collector encola en `file_storage` y drena al restaurar (T2 EXP 06).
+- **Perturbación**: `deployment/nexo-otel-lgtm` escalado a 0 durante 900 s, de 05:12:11 a 05:27:11 UTC, con el registro `dd9f9d11-…` ([nexo-chaos-run.json](../../chaos/evidence/ser-06-observability-outage/nexo-chaos-run.json)). Es el mecanismo del recorte d.
+- **Métricas**:
+  - Según el lector ([lector-por-fase.txt](../../chaos/evidence/ser-06-observability-outage/lector-por-fase.txt)), el p95 fue de 35,2 ms antes, 35,2 ms durante y 39,0 ms después. El porcentaje en ≤ 300 ms fue de 99,90 %, 99,81 % y 99,45 %. Hubo 15 *timeouts* en total, 11 de ellos durante la caída.
+  - Según C2 ([metricas-resumen.json](../../chaos/evidence/ser-06-observability-outage/metricas-resumen.json)), N2 se mantuvo al 100 %. Esa serie existe gracias al *replay* de la cola.
+  - Capturas: [n2-disponibilidad.png](../../chaos/evidence/ser-06-observability-outage/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/ser-06-observability-outage/capturas/t1-p95.png), [t1-pct-300ms.png](../../chaos/evidence/ser-06-observability-outage/capturas/t1-pct-300ms.png) y [t3-errores.png](../../chaos/evidence/ser-06-observability-outage/capturas/t3-errores.png).
+- **Cola del Collector**: se sondeó `:8888` cada 15 s ([collector-cola.jsonl](../../chaos/evidence/ser-06-observability-outage/collector-cola.jsonl)).
+  - La cola llegó a 185 lotes de métricas y 184 de trazas a las 05:27:33, sobre una capacidad de 10000 (< 2 %).
+  - Llegó a 0 a las 05:28:19, unos 46 s después del máximo y unos 68 s después de la restauración.
+  - Se perdió alrededor de 1 min de telemetría (05:12–05:13), probablemente enviado mientras LGTM terminaba.
+- **Integridad**: [integridad.json](../../chaos/evidence/ser-06-observability-outage/integridad.json) registra 7591 decisiones en D1 y D2, 0 duplicados, 0 pérdidas y un drenado del 100 %.
+- **Alertas**: no hubo notificación. Grafana, Prometheus y el motor de alertas viven dentro de `otel-lgtm`, así que mueren con él (recorte j). Además, A13 y A14 leían el Collector interno de LGTM y A14 usaba nombres sin `_total`; lo corrigió el PR #34 (§5.6).
+- **Validez**: los 15 *timeouts* pueden deberse en parte a la contaminación del Docker compartido. El proyecto `nexo-dev` estuvo activo de ~04:34 a ~05:34Z (H9).
+- **Resultado: aprobada con degradación prevista.** Se cumplen la validación, la integridad y el drenaje de la cola. El criterio de alerta de T52 no se cumple por un límite de diseño del laboratorio: no hay un vigilante externo.
 
 ### 3.3 F3 — BD-01
 
-- Hipótesis: [taller3.md §3.1](../context/taller3.md).
-- Perturbación, N2, T3, integridad tras la recuperación y resultado: **PENDIENTE-T57**.
+- **Hipótesis**: sin D1 durable no hay aceptaciones nuevas; C2 no reemplaza a D1 con memoria ni con C4. Es la variante de indisponibilidad de D1 de T2 EXP 05, sin los subcasos de disco lleno.
+- **Perturbación**: `statefulset/nexo-d1` escalado a 0 durante 120 s, de 05:38:01 a 05:40:01 UTC, con el registro `df36a9be-…` ([nexo-chaos-run.json](../../chaos/evidence/bd-01-local-persistence/nexo-chaos-run.json)).
+- **Métricas**:
+  - Según el lector ([lector-por-fase.txt](../../chaos/evidence/bd-01-local-persistence/lector-por-fase.txt)), hubo 2 aceptaciones y 563 *timeouts* durante el corte, y 103 *timeouts* después: 666 en total.
+  - Según C2 ([metricas-resumen.json](../../chaos/evidence/bd-01-local-persistence/metricas-resumen.json)), N2 se mantuvo al 100 % y T3 en 0 (solo aparece una serie de `plazo de validación vencido`, en 0).
+  - La media del p95 de T1 en C1 fue de 24,29 ms antes, 435,05 ms durante y 114,59 ms después.
+  - Capturas: [n2-disponibilidad.png](../../chaos/evidence/bd-01-local-persistence/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/bd-01-local-persistence/capturas/t1-p95.png), [t3-errores.png](../../chaos/evidence/bd-01-local-persistence/capturas/t3-errores.png) y [c1-resultados.png](../../chaos/evidence/bd-01-local-persistence/capturas/c1-resultados.png).
+- **Recuperación**: las 2 aceptaciones de la ventana se confirmaron en D1 en los primeros milisegundos del SIGTERM, así que son aceptaciones durables. D1 volvió hacia las 05:40:02 y C2 tardó unos 21 s más en reconectarse; la primera decisión nueva llegó a las 05:40:23 ([f3-bd-01.md](../fault-experiments/f3-bd-01.md)).
+- **Integridad**: [integridad.json](../../chaos/evidence/bd-01-local-persistence/integridad.json) registra 10229 decisiones en D1 y D2 y 7738 consumos, con 0 duplicados y 0 pérdidas. Hay 662 evidencias `intento-diario` en D2, coherentes con los intentos que el lector no pudo completar.
+- **Alertas**: no hubo ninguna útil. El readiness de C2 usa `/salud`, que no depende de D1, así que el pod siguió Ready. Además, N2 y T3 no cuentan las solicitudes que nunca llegan a decisión (§5.7).
+- **Resultado: aprobada con degradación prevista.** Se sostuvo el invariante de cero aceptaciones sin D1 durable. La caída no se ve en N2, en T3 ni en el readiness; la única señal fiable es el lector.
 
 ### 3.4 F4 — REC-01
 
-- Hipótesis: [taller3.md §3.1](../context/taller3.md).
-- Perturbación (límite de CPU de C2), T1, A6, integridad y resultado: **PENDIENTE-T57**.
+- **Hipótesis**: limitar la CPU de C2 degrada T1 de forma observable y dispara A6 (< 95 % en ≤ 300 ms durante 2 min), sin afectar la integridad. No tiene fila directa en T2 §11.3.
+- **Perturbación**: el límite `cpuLimit` de `nexo-coordinator` bajó de 500m a 100m durante 300 s, de 05:51:28 a 05:56:28 UTC, con el registro `f56b65df-…` ([nexo-chaos-run.json](../../chaos/evidence/rec-01-coordinator-cpu/nexo-chaos-run.json)). No se puede bajar de 100m porque ese valor es también el *request*.
+- **Métricas**:
+  - Según el lector ([lector-por-fase.txt](../../chaos/evidence/rec-01-coordinator-cpu/lector-por-fase.txt)), el p95 fue de 29,4 ms antes, 65,1 ms durante y 31,5 ms después. El porcentaje en ≤ 300 ms fue de 100 %, 99,06 % y 99,90 %. Hubo 29 *timeouts* durante el límite y 6 después.
+  - Según C2 ([metricas-resumen.json](../../chaos/evidence/rec-01-coordinator-cpu/metricas-resumen.json)), el p95 de T1 alcanzó un máximo de 404,5 ms. El porcentaje en ≤ 300 ms bajó hasta un mínimo del 92 % y N2 hasta un mínimo del 91 %.
+  - La degradación se concentró en el *cold start* del *rollout* que provoca el cambio de límite, durante unos 1 min.
+  - Capturas: [t1-p95.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/t1-p95.png), [t1-pct-300ms.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/t1-pct-300ms.png) y [n2-disponibilidad.png](../../chaos/evidence/rec-01-coordinator-cpu/capturas/n2-disponibilidad.png).
+- **Integridad**: [integridad.json](../../chaos/evidence/rec-01-coordinator-cpu/integridad.json) registra 14177 decisiones en D1 y D2 y 10740 consumos, con 0 duplicados, 0 pérdidas y un drenado del 100 % (2 pendientes al restaurar, con acuse en < 1 s).
+- **Alertas**: A6 no disparó, porque la caída bajo el 95 % duró ~1 min y la regla exige 2 min.
+- **Resultado: no concluyente.** Se mantuvo la integridad, pero la perturbación aprobada fue demasiado leve para validar A6. El consumo nominal de C2 es de ~31m, así que 100m deja poco margen.
 
 ### 3.5 Conclusiones de los fallos
 
-**PENDIENTE-T57**.
+1. **Los invariantes de seguridad se sostuvieron en los cuatro fallos.** En ninguno hubo boletas con más de un consumo, decisiones perdidas entre D1 y D2 ni decisiones sin outbox (`integridad.json` de cada carpeta). C2 siguió siendo la única autoridad: validó sin C4 (F1) y dejó de aceptar sin D1 (F3).
+2. **El outbox transaccional drenó dentro del SLO de T2.** En F1 drenaron 1410/1410 en 15 s. Queda la reserva de que F1 cortó 5 min y no los 15 min que piden ADR-002 y ADR-011 ([matriz §1](../coherencia/matriz.md)).
+3. **La observabilidad es la parte más débil.** En ningún fallo se disparó una alerta asociada (§2.3):
+   - F2 muestra que el vigilante no puede vivir dentro del sistema vigilado (recorte j).
+   - F3 muestra que N2, T3 y el readiness tienen sesgo de supervivencia: no cuentan lo que nunca llega a decisión.
+   - F4 no validó A6.
+   - Hacen falta un *dead-man's switch* externo, un readiness de C2 que dependa de D1 o una alerta sobre la tasa de sin respuesta de C1, y una variante fuerte de F4 (§8.3).
+4. **Los fallos encontraron defectos antes de dar resultados.** La primera corrida de F1 reveló los gauges T2 congelados (PR #31), y F2 reveló que A13 y A14 vigilaban otro Collector (PR #34). Ambos se corrigieron y la evidencia se recogió con el código corregido (§5.5, §5.6).
+5. **Amenazas a la validez** ([fault-experiments/README.md](../fault-experiments/README.md)):
+   - el laboratorio tiene un solo nodo;
+   - el Docker compartido estuvo contaminado durante F1 y F2;
+   - la carga consume una bolsa finita de boletas;
+   - A8 genera ruido al iniciar y detener la carga.
 
 ## 4. Resultados de carga e integridad ya medidos
 
@@ -255,6 +320,43 @@ Corrección (PR #28, `3ffb913`):
   - A1 y el panel N3 cuentan solo `tipo="decision"`, tanto en [alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml) como en los tableros y los ConfigMaps de Kubernetes.
 - Un error de D2 ya no dispara A1, porque queda como `tipo="desconocido"`.
 
+Los hallazgos siguientes aparecieron después del borrador (PR #29, `3d8685f`), al ejecutar F1–F4 y cerrar T31. [hallazgos.md](../fault-experiments/hallazgos.md) los numera de H1 a H9; H1 es el lote envenenado de §5.3.
+
+### 5.5 Gauges T2 congelados con C4 caído (H2, PR #31, `4aa3894`)
+
+- **Síntoma**: en la primera corrida de F1 (registro `96aab326-…`), D1 tenía 385 pendientes con 81 s de antigüedad, pero `nexo_c2_outbox_pendientes` seguía en 5, su valor antes del corte. Con los gauges congelados, A11 no podía dispararse (descripción del PR #31).
+- **Causa**: el despachador solo recalculaba `resumen()` al armar un lote nuevo o tras un acuse. Con un lote E1 retenido, T2 no se actualizaba.
+- **Corrección**: con un lote retenido, el despachador recalcula y publica T2 al inicio de cada ciclo y en el `catch`, como mucho una vez cada 5 s, usando el pool de fondo de D1 ([despachador-outbox.ts](../../src/local-coordinator/application/despachador-outbox.ts), prueba en [despachador-outbox.test.ts](../../tests/unit/coordinator/despachador-outbox.test.ts)).
+- **Consecuencia para F1**: esa corrida quedó invalidada como resultado y se conserva como evidencia del hallazgo ([red-01-corrida1-gauges-congelados](../../chaos/evidence/red-01-corrida1-gauges-congelados/), con [t2-edad-outbox.png](../../chaos/evidence/red-01-corrida1-gauges-congelados/capturas/t2-edad-outbox.png)). La corrida válida de §3.1 se ejecutó con el PR #31 desplegado.
+
+### 5.6 A13 y A14 vigilaban el Collector equivocado (H3, PR #34, `4821be9`)
+
+- **Síntoma**: al analizar F2, se vio que las series `otelcol_exporter_*` de Prometheus venían solo del Collector interno de `otel-lgtm` (`job="otelcol-contrib"`). Nadie recogía la telemetría de `nexo-otel-collector` en `:8888`, así que A13 no vigilaba la cola persistente de NEXO.
+- **Segundo defecto**: A14 buscaba `send_failed_spans`, pero los contadores exportados llevan el sufijo `_total`, así que la regla nunca coincidía.
+- **Corrección**:
+  - un receptor `prometheus/self` en [values-local.yaml](../../observability/collector/values-local.yaml) y [values-grafana-cloud.yaml](../../observability/collector/values-grafana-cloud.yaml);
+  - A13 filtrada por `k8s_pod_name=~"nexo-otel-collector-.*"`;
+  - A14 reescrita como `{send,enqueue}_failed_.+_total`, en [alertas-t42.yaml](../../observability/alerts/alertas-t42.yaml) y en el ConfigMap.
+- **Límite que queda**: aun corregidas, A13 y A14 no pueden avisar de la caída de `otel-lgtm`, porque Grafana corre dentro de ese contenedor. Hace falta un *dead-man's switch* externo (H4; [matriz §3](../coherencia/matriz.md), recorte j).
+
+### 5.7 El readiness de C2 no depende de D1 (H5, F3)
+
+- **Síntoma**: con D1 en 0 réplicas, el lector acumuló 666 *timeouts*, pero C2 siguió Ready y N2 y T3 se mantuvieron en su valor normal (§3.3).
+- **Causa**: la *readiness probe* usa `/salud` ([coordinator-deployment.yaml](../../deploy/kubernetes/application/coordinator-deployment.yaml)), que no consulta D1. Además, C2 solo registra métricas de decisión cuando puede persistir, así que las solicitudes sin decisión no cuentan ni en N2 ni en T3.
+- **Efecto relacionado (H6)**: tras volver D1, el pool de conexiones de C2 tardó ~21 s en reconectarse, lo que alarga la ventana sin respuesta.
+- **Estado**: sin corregir. La propuesta está en §8.3.
+
+### 5.8 Preparación real y recorte de `#/lector` (T31, PR #32 y #33)
+
+- PR #32 (`3f8e0c9`): `#/preparacion` respondía 501. Ahora escribe los controles y la apertura en D2 (`POST /api/preparacion/controles/:id` y `POST /api/preparacion/confirmar`, en [o2.ts](../../src/central-core/api/rutas/o2.ts)). Además, `GET /api/eventos/actual/estado` devolvía 404 justo cuando el evento pasaba a `cerrado`; ahora resuelve ese estado ([cierre.test.ts](../../tests/integration/settlement/cierre.test.ts)).
+- PR #33 (`ea7725f`): se retiró de `#/lector` el flujo "Prueba un caso", que llamaba a un endpoint inexistente y era, en la práctica, una simulación. La vista muestra solo intentos ya registrados ([lector.js](../../src/central-core/web/js/vistas/lector.js)). Es un recorte explícito: la validación manual desde C5 no forma parte de la entrega (recorte i).
+
+### 5.9 Hallazgos de herramientas y entorno (H7–H9)
+
+- **H7**: con el piso de 100m, REC-01 fue demasiado leve para A6. `stress-ng` no está en la imagen de C2 (§3.4).
+- **H8**: la carga agota la bolsa de boletas válidas por zona. El Job falla sin `reporte.json` y Kubernetes lanza un reintento que inicia una segunda carga si no se elimina (§3.1). Desde F2 se usó `--libres-por-zona 1500` ([f2-ser-06.md](../fault-experiments/f2-ser-06.md)).
+- **H9**: el proyecto Compose compartido `nexo-dev` corrió durante F1 y F2. No invalidó los resultados, porque las latencias globales no fueron anómalas, pero se registra como amenaza a la validez (§8.2).
+
 ## 6. Patrones utilizados
 
 La base es [taller3.md §6](../context/taller3.md); cada fila se confirmó en el código.
@@ -286,9 +388,15 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 | b | N3 y A1 se miden con un indicador indirecto (`resultado="conflicto"`) | Aceptado y documentado; §5.4 muestra su falso positivo |
 | c | ConfigMaps de tableros y alertas copiados a mano desde `observability/` | Sin resolver; deuda técnica |
 | d | F2 corta la exportación escalando `otel-lgtm` a 0, porque `kindnet` no aplica NetworkPolicies de egreso | Adoptado (G06, ADR-013) |
-| e | Vistas de `#/preparacion` y CA1–CA4 sin fuente de datos real completa | En curso (T31) |
-| f | Repositorio de conciliación de M3 en ajuste | En curso; el código no muestra marcas de stub |
-| g, h | README de subcarpetas desactualizados | README raíz resuelto en el PR #26; el resto queda para T64 |
+| e | `#/preparacion` sin escritura real; CA1–CA4 sin fuente de datos | Resuelto en el PR #32 (`3f8e0c9`): la preparación escribe en D2. CA1–CA4 quedan como recorte explícito ("No disponible todavía") |
+| f | Repositorio de conciliación de M3 en ajuste | Resuelto en el PR #32: no era un stub; `#/cierre` ahora resuelve eventos `cerrado` |
+| g, h | README de subcarpetas desactualizados | README raíz resuelto en el PR #26; `deploy/minikube/README.md` y `deploy/scripts/README.md`, en este pase final (T64) |
+| i | `#/lector` simulaba una validación V1 contra un endpoint inexistente | Resuelto como recorte en el PR #33 (`ea7725f`): la vista solo muestra intentos registrados |
+| j | La caída de `otel-lgtm` no se puede alertar desde dentro, y A13 y A14 vigilaban otro Collector | Parcial: el PR #34 (`4821be9`) corrige A13 y A14; el *dead-man's switch* externo queda como propuesta (§8.3) |
+| — | F1 corta 5 min, no los 15 min de T2 EXP 01, y F3 no ejecuta los subcasos de disco lleno de EXP 05 | Recorte del taller 3 ([taller3.md §3.1](../context/taller3.md)); ADR-002, ADR-011 y ADR-012 siguen pendientes de PoC completa |
+| — | F4 no concluyente: A6 no se disparó con el piso de 100m | Registrado en §3.4; variante fuerte propuesta en §8.3 |
+| — | Ninguna alerta de fallo se disparó durante F1–F4 (criterio de T42) | Registrado en §2.3 y §3.5 |
+| — | `alertas.log` y `logs/` de la evidencia no están versionados (`.gitignore`) | La fuente de las alertas es `alertas-estado.json` (§2.3) |
 | — | RLS en D2 no implementado | [ADR-009](../decisions/ADR-009-aislamiento-cliente-evento.md), recortada |
 | — | Sin D3 (MinIO): D2 retiene los 90 días | [ADR-012](../decisions/ADR-012-persistencia-auditoria-recuperacion.md) |
 | — | Digests de imágenes sin calcular | **PENDIENTE-DIGEST** ([matriz §2](../coherencia/matriz.md)) |
@@ -301,14 +409,21 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 - La integridad se demostró bajo concurrencia y reintentos (EXP 03 y EXP 04, §4.3) y reenviando decisiones reales que se habían quedado sin respuesta (§4.1).
 - Antes del experimento formal se encontró y corrigió, con evidencia A/B, un P0 de disponibilidad: la validación local se mantiene dentro de plazo sin C4 (§5.1).
 - Las seis métricas, los dos tableros y las seis alertas están versionados como código y justificados (§2).
-- La [matriz](../coherencia/matriz.md) traza cada ADR hasta su código y su prueba, y las desviaciones quedaron registradas.
+- La [matriz](../coherencia/matriz.md) traza cada ADR hasta su código, su prueba y su experimento, y las desviaciones quedaron registradas.
+- Los cuatro fallos F1–F4 se ejecutaron en Minikube con `nexo-chaos`, con la misma estructura de evidencia, y en ninguno hubo duplicados ni pérdidas (§3). F1, el más demostrativo de la arquitectura, quedó aprobado: 1410/1410 pendientes drenados en 15 s con N2 al 100 %.
+- Los experimentos sirvieron también como pruebas de producto: revelaron dos defectos que se corrigieron antes de recoger la evidencia final (PR #31 y #34, §5.5 y §5.6), y el resultado no se forzó. F4 se declara no concluyente y F2 y F3 dejan escritas sus brechas de observabilidad.
 
 ### 8.2 Dificultades
 
-- **Entorno compartido y contención de Docker.** Varias sesiones comparten Docker Desktop y Minikube ([AGENTS.md](../../AGENTS.md), "Entorno compartido"). Las corridas de pico con otras suites de Testcontainers en paralelo bajaron T1 al 73–90 % ([t24-2026-09-25.md](../evidence/load/t24-2026-09-25.md)), y el muestreo con `docker stats` alteró las mismas mediciones que pretendía observar. La reserva exclusiva del clúster para F1–F4 impidió cerrar en esta sesión los digests, las pruebas de NetworkPolicy en el clúster y las pruebas de integración.
-- **Mensajes contradictorios y estado desactualizado entre agentes.** La matriz registra README que describían como pendientes tareas ya hechas (recortes g y h), y tareas que dos sesiones daban por "en curso" sin rastro en el código (recorte f). Los botones "Prueba un caso" de `#/lector` quedaron bloqueados en una pregunta a la orquestadora sobre la ruta del panel hacia C2 ([docs/evidence/ui/README.md](../evidence/ui/README.md), §04). Se dedicó tiempo a reconciliar versiones distintas del estado.
-- **Métricas sin efecto que nadie detectó.** Las pruebas unitarias pasaban mientras ninguna métrica llegaba a Prometheus y los histogramas no permitían medir 300 ms (§5.2). El problema solo apareció al preparar F1–F4 en Minikube, justo antes de los experimentos.
-- **Hallazgos que solo aparecen en ciertas condiciones.** La fila caliente (§5.1) solo aparece con un D1 recién sembrado, y el lote envenenado y el falso positivo de A1 (§5.3, §5.4), solo tras un reinicio. Ninguno se ve en corridas cortas sobre datos acumulados.
+- **Entorno compartido y contención de Docker.** Varias sesiones comparten Docker Desktop y Minikube ([AGENTS.md](../../AGENTS.md), "Entorno compartido"). Las corridas de pico con otras suites de Testcontainers en paralelo bajaron T1 al 73–90 % ([t24-2026-09-25.md](../evidence/load/t24-2026-09-25.md)), y el muestreo con `docker stats` alteró las mismas mediciones que pretendía observar. La reserva exclusiva del clúster para F1–F4 impidió cerrar los digests, las pruebas de NetworkPolicy en el clúster y las pruebas de integración. Aun con esa reserva, el proyecto Compose `nexo-dev` de otra sesión corrió de ~04:34 a ~05:34Z, durante F1 y F2, y quedó registrado como amenaza a la validez (H9 en [hallazgos.md](../fault-experiments/hallazgos.md)). La reserva cubría Minikube, pero no el Docker que Minikube comparte.
+- **Mensajes contradictorios, atrasados y estado desactualizado entre agentes.**
+  - La matriz registró README que describían como pendientes tareas ya hechas (recortes g y h) y tareas que dos sesiones daban por "en curso" sin rastro en el código (recorte f).
+  - Los botones "Prueba un caso" de `#/lector` quedaron bloqueados en una pregunta a la orquestadora sobre la ruta del panel hacia C2 ([docs/evidence/ui/README.md](../evidence/ui/README.md), §04). La respuesta, un recorte, llegó en el PR #33.
+  - Los mensajes entre sesiones se entregan en el siguiente turno de la sesión destinataria. Una sesión podía actuar con un estado que otra ya había cambiado, por ejemplo al redactar la [matriz](../coherencia/matriz.md) (§4) mientras F1–F4 corrían.
+  - Las horas de inicio de carga de la bitácora operacional difieren en ~3 s de las de `carga-resumen.json` ([f2-ser-06.md](../fault-experiments/f2-ser-06.md), [f3-bd-01.md](../fault-experiments/f3-bd-01.md)). Por eso el análisis usa siempre el archivo de evidencia.
+- **Métricas sin efecto que nadie detectó.** Las pruebas unitarias pasaban mientras ninguna métrica llegaba a Prometheus y los histogramas no permitían medir 300 ms (§5.2). El problema solo apareció al preparar F1–F4 en Minikube, justo antes de los experimentos. Lo mismo ocurrió con los gauges T2 y con A13 y A14 (§5.5, §5.6): una alerta que carga con `health=ok` no demuestra que observe lo correcto.
+- **Hallazgos que solo aparecen en ciertas condiciones.** La fila caliente (§5.1) solo aparece con un D1 recién sembrado; el lote envenenado y el falso positivo de A1 (§5.3, §5.4), solo tras un reinicio; los gauges congelados (§5.5), solo con un lote retenido. Ninguno se ve en corridas cortas sobre datos acumulados.
+- **Perturbaciones difíciles de calibrar.** El piso de CPU de 100m no permitió saturar C2 (§3.4), y un corte de exactamente 300 s queda en el borde del umbral de A11 (§3.1).
 
 ### 8.3 Propuestas de evolución
 
@@ -319,14 +434,23 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 5. Generar los ConfigMaps de observabilidad desde `observability/` con un script de `deploy/scripts/` (recorte c).
 6. Ejecutar los perfiles completos de una hora y tres eventos en un entorno de carga dedicado, sin otras sesiones (§4.1).
 7. Fijar las imágenes por digest y retomar RLS (ADR-009) cuando haya más de un cliente.
-8. Para el trabajo con agentes: un único tablero de estado que solo escriba la orquestadora, reservas de Docker y Minikube con hora de fin explícita, y comprobar en el código lo que afirma otra sesión antes de propagarlo.
+8. **Variante fuerte de F4**: repetir REC-01 con el perfil pico (49,5 TPS, §4.1) bajo el límite de 100m, o con `stress-ng` dentro de la imagen de C2, para sostener la caída bajo el 95 % más de 2 min. Además, separar el *cold start* del *rollout* del *throttling* sostenido (§3.4, H7).
+9. **Visibilidad de D1 caído**: hacer que el readiness de C2 dependa de D1 (un `/listo` que consulte el pool), o añadir una alerta sobre la tasa de sin respuesta de C1 (`nexo_c1_resultados_total`). Reducir también los ~21 s de reconexión del pool (§3.3, §5.7, H5 y H6).
+10. **Dead-man's switch externo**: una regla siempre activa cuyo silencio notifique a un servicio fuera del clúster, o un sondeo externo de la salud de Grafana, para detectar la caída de `otel-lgtm` (§3.2, H4, recorte j).
+11. **Carga más robusta**: que `load.mjs` escriba un informe parcial al agotar las boletas, compruebe antes las boletas libres por zona y desactive el reintento del Job (H8). Versionar los logs de la evidencia, que hoy excluye `.gitignore`.
+12. **Trabajo con agentes**:
+    - un único tablero de estado que solo escriba la orquestadora;
+    - reservas de Docker y Minikube con hora de fin explícita, que incluyan también los proyectos Compose compartidos;
+    - comprobar en el código, o en la evidencia, lo que afirma otra sesión antes de propagarlo;
+    - fechar cada mensaje entre sesiones con el SHA de `main` sobre el que se escribió, para detectar los mensajes atrasados.
 
 ## 9. Pendientes del informe
 
 | Marcador | Sección | Quién lo cierra |
 |---|---|---|
-| PENDIENTE-T57 | §2.3 (capturas de alertas), §3, §3.1–§3.5 | Orquestadora, con los resultados de S3-experimentos |
-| PENDIENTE-DIGEST | §7 | Sesión con acceso a Minikube ([matriz §2](../coherencia/matriz.md)) |
+| PENDIENTE-DIGEST | §7 | Sesión con acceso a Docker o Minikube ([matriz §2](../coherencia/matriz.md)): `minikube image ls --format table` o `docker image inspect` |
+
+Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR-PASE-FINAL), escrito sobre `main` en `01aeb86` (PR #35).
 
 ## Anexo A. Verificación de enlaces (T64)
 
@@ -335,3 +459,5 @@ Los enlaces relativos de este informe se comprueban con `node scripts/check-link
 - que exista el archivo de cada enlace relativo de Markdown;
 - que exista el encabezado cuando el enlace apunta a un ancla `#…` de un archivo `.md`;
 - con `--code-paths`, que existan las rutas del repositorio citadas entre comillas invertidas.
+
+Resultado del pase final (26-09-2026): `node scripts/check-links.mjs --code-paths docs/informe docs/coherencia docs/fault-experiments` revisó 448 referencias con 0 rotas; sobre `README.md`, `docs/demo`, `docs/context/taller3.md`, `docs/decisions` y los README de `chaos/evidence` y `deploy/`, revisó 90 referencias con 0 rotas.
