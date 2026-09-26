@@ -46,9 +46,36 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: dashboards
+              mountPath: /otel-lgtm/dashboards
+              readOnly: true
+            - name: provisioning-dashboards
+              mountPath: /otel-lgtm/grafana/conf/provisioning/dashboards
+              readOnly: true
+            - name: provisioning-alerting
+              mountPath: /otel-lgtm/grafana/conf/provisioning/alerting
+              readOnly: true
+          env:
+            - name: NEXO_ALERT_WEBHOOK_URL
+              value: "http://nexo-alert-webhook:9099/alertas"
       volumes:
         - name: data
           emptyDir: {}
+        - name: dashboards
+          configMap:
+            name: nexo-grafana-dashboards
+        - name: provisioning-dashboards
+          configMap:
+            name: nexo-grafana-provisioning
+            items:
+              - key: nexo-dashboards.yaml
+                path: nexo-dashboards.yaml
+        - name: provisioning-alerting
+          configMap:
+            name: nexo-grafana-provisioning
+            items:
+              - key: nexo-alertas.yaml
+                path: nexo-alertas.yaml
 ---
 apiVersion: v1
 kind: Service
