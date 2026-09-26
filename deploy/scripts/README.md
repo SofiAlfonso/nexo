@@ -108,3 +108,44 @@ Para que los casos de validación sigan siendo ejecutables, `EVT-2026-02` se
 siembra abierto con una ventana operativa de `now() - 1 hour` a `now() + 12
 hours`; el reingreso queda deshabilitado. D2 conserva el horario descriptivo
 original del prototipo (16 sep. 2026, 17:00–20:15) en `contratos.condiciones`.
+
+## Orquestación en Minikube (T26/T27)
+
+`up.mjs`, `down.mjs`, `reset.mjs` y `load.mjs` (con envoltorios `.ps1`)
+automatizan el ciclo de vida del laboratorio Kubernetes descrito en
+[deploy/minikube/README.md](../minikube/README.md) y los manifiestos de
+`deploy/kubernetes/` (namespaces, `data/` con los StatefulSets de D1/D2 y
+`application/` con Deployments/Jobs/NetworkPolicies de C2/C4/Toxiproxy/
+boletería). Comparten `k8s-lib.mjs` (ejecución de `kubectl`/`minikube`,
+espera de rollouts, Secrets de laboratorio desde `config/examples/`).
+
+- **`up`** — construye las 5 imágenes con `minikube image build`
+  (`imagePullPolicy: Never`, sin publicar a ningún registro), crea los
+  Secrets de D1/D2/central si faltan, aplica
+  `deploy/kubernetes/namespaces/` y `kubectl apply -k deploy/kubernetes/`
+  (StatefulSets de D1/D2, Deployments de C2/C4/Toxiproxy/boletería,
+  NetworkPolicies), corre el Job `nexo-db-init` (migraciones + semilla) y
+  espera los rollouts. Reutiliza los PVC/Secrets existentes si ya corrió
+  antes: repetir `up` tras `down` no reinicia los datos.
+- **`down`** — elimina Jobs puntuales, Deployments/Services de aplicación y
+  los StatefulSets/Services de datos, pero conserva los PVC y Secrets (un
+  `up` posterior reutiliza D1/D2 tal como quedaron).
+- **`reset --confirm`** — `down` además de borrar los PVC y los Secrets de
+  laboratorio; deja el clúster como recién creado. Requiere `--confirm`
+  porque destruye datos.
+- **`load`** — exporta las boletas activas de D1 con un Pod puntual
+  (imagen `nexo/db-init:dev`, mismo patrón que `nexo-db-init`: mantenimiento,
+  no tráfico de negocio), recorta la exportación a una muestra representativa
+  por zona/estado (un ConfigMap de Kubernetes no admite más de 1 MiB) y corre
+  `nexo-reader-load` (el lector emulado, C1, como Job) contra
+  `http://nexo-coordinator:8081` con el perfil `nominal` durante 30 s.
+
+`observability/` no lo toca ninguno de estos scripts (otra sesión ya lo
+despliega); `up` solo aplica `namespaces/` y `deploy/kubernetes/{data,application}`.
+`nexo-ticketing` (boletería simulada) queda en `CrashLoopBackOff` hasta que
+otra sesión implemente T23; no bloquea el resto del despliegue.
+
+**Prueba de frontera**: `npx vitest run --config vitest.integration.config.ts
+tests/integration/k8s/network-policies.test.ts` verifica contra el clúster
+vivo que C2 no alcanza D2 directamente, que C2 alcanza D1 y C4 vía Toxiproxy,
+y que D2 es alcanzable desde `nexo-central` (para C4).
