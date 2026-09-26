@@ -1,7 +1,7 @@
 # Justificación de las seis métricas (T41/T43, T2 §3.2)
 
 Tabla lista para el informe: por cada una de las seis métricas obligatorias
-(3 de negocio, 3 técnicas — `docs/context/taller3.md` §3.2), qué decisión
+(3 de negocio, 3 técnicas), qué decisión
 sostiene, qué KR/CA respalda, cuál es su SLO y en qué ADR se ancla. Su
 implementación (spans, métricas OTel y logs) es T40; los dashboards que las
 muestran en vivo son T41 (`observability/dashboards/`); las alertas

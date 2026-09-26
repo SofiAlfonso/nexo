@@ -2,7 +2,7 @@
 
 - **Estado**: Aceptado
 - **Fecha**: 25 de septiembre de 2026
-- **Origen**: taller 3, decisión Q1 de la orquestación (docs/context/taller3.md, docs/context/gaps.md G09)
+- **Origen**: taller 3, decisión Q1 de la orquestación (plan del taller 3, gap G09)
 
 ## Contexto
 

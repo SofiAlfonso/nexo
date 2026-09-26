@@ -75,16 +75,14 @@ gh pr create --base main --fill
 - Los puertos `8080` (C4), `8081` (C2) y `8082` (boletería) del `npm run dev` compartido los usa una sola sesión a la vez; para pruebas propias levanta los servicios en otros puertos (`CENTRAL_PORT`, `COORDINATOR_PORT`, `TICKETING_PORT`).
 - En el clúster, cada sesión despliega solo en los namespaces de su tarea; los experimentos de caos (F1–F4) se ejecutan de uno en uno.
 
-Solo la sesión orquestadora actualiza las tablas de seguimiento de [docs/context/taller3.md](docs/context/taller3.md).
-
 ## Qué leer según la tarea
 
 | Tarea | Documento |
 |---|---|
 | Visión, alcance, tarifa, KR, controles CA1–CA4 | [docs/context/taller1.md](docs/context/taller1.md) |
 | Dominio, ADR originales, arquitectura, secuencias, observabilidad, pruebas, fallos | [docs/context/taller2.md](docs/context/taller2.md) |
-| Plan del taller 3, tareas T00–T64, métricas, escenarios F1–F4, contratos | [docs/context/taller3.md](docs/context/taller3.md) |
-| Diferencias repo/plan y decisiones G01–G23 | [docs/context/gaps.md](docs/context/gaps.md) |
+| Escenarios F1–F4: hipótesis, umbrales y resultados | [docs/fault-experiments/](docs/fault-experiments/README.md) |
+| Métricas obligatorias y su justificación | [docs/observability/](docs/observability/README.md) |
 | Interfaz C5, API O2, métricas de la interfaz | [docs/context/prototipo.md](docs/context/prototipo.md) y [DESIGN.md](DESIGN.md) |
 | Decisiones vigentes | [docs/decisions/](docs/decisions/README.md) |
 | Contratos entre componentes | `docs/architecture/contracts.md` y `src/shared/contracts/` |

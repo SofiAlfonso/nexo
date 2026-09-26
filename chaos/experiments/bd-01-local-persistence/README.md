@@ -2,6 +2,5 @@
 
 `experiment.yaml` escala `nexo-d1` a cero durante dos minutos. C2 no debe
 aceptar nuevas admisiones sin D1; los reintentos posteriores conservan el
-consumo único. Hipótesis y umbrales en `docs/context/taller3.md` §3.1.
-Ejecutado en T53; análisis en
+consumo único. Ejecutado en T53; hipótesis, umbrales y análisis en
 [`docs/fault-experiments/f3-bd-01.md`](../../../docs/fault-experiments/f3-bd-01.md).

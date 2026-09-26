@@ -38,4 +38,4 @@ Al repetir un `idOrigen` o lote, C4 debe conservar una sola evidencia y C2 la de
 
 - Implementar outbox transaccional en D1 y E1 `POST /v1/lotes-evidencia` con máximo 100 registros, idempotente por `idOrigen` y lote.
 - Medir T2 (cantidad, edad y drenaje de pendientes) y ejecutar F1 RED-01 desde `chaos/experiments/`.
-- 26-09-2026: PoC ejecutada con F1 RED-01, **aprobada**: 1410/1410 pendientes drenados en 15 s, sin pérdidas ni duplicados ([f1-red-01.md](../fault-experiments/f1-red-01.md)). El estado no cambia, porque el criterio exige un corte de 15 min y F1 cortó 5 min ([matriz §3](../coherencia/matriz.md), recorte k).
+- 26-09-2026: PoC ejecutada con F1 RED-01, **aprobada**: 1410/1410 pendientes drenados en 15 s, sin pérdidas ni duplicados ([f1-red-01.md](../fault-experiments/f1-red-01.md)). El estado no cambia, porque el criterio exige un corte de 15 min y F1 cortó 5 min.

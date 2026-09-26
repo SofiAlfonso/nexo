@@ -28,7 +28,7 @@ Registro de las decisiones de arquitectura de NEXO. ADR-001 a ADR-013 resumen el
 - Archivo: `ADR-0NN-<tema-kebab>.md`, numeración correlativa, sin reutilizar números.
 - Estados: `Propuesto`, `Pendiente de PoC`, `Aceptado`, `Reemplazado por ADR-0NN`, `Descartado`. Un calificativo entre paréntesis explica matices (por ejemplo, "recortada en el taller 3").
 - Un ADR aceptado no se reescribe: si la decisión cambia, se crea uno nuevo que lo reemplaza. Los ajustes de alcance o evidencia de la PoC se anotan con fecha en "Aplicación en el taller 3".
-- Toda desviación entre lo desplegado y un ADR se registra también en [taller3.md §7](../context/taller3.md).
+- Toda desviación entre lo desplegado y un ADR se anota con fecha en "Aplicación en el taller 3" del ADR afectado.
 
 ## Plantilla
 

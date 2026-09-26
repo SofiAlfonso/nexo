@@ -2,6 +2,6 @@
 
 `experiment.yaml` deshabilita el proxy `c2-to-c4` de Toxiproxy en
 `nexo-venue`. C2 conserva la autoridad, el outbox acumula pendientes y
-debe drenarse al recuperar el enlace. Hipótesis y umbrales en
-`docs/context/taller3.md` §3.1. Ejecutado en T51; análisis en
+debe drenarse al recuperar el enlace. Ejecutado en T51; hipótesis, umbrales
+y análisis en
 [`docs/fault-experiments/f1-red-01.md`](../../../docs/fault-experiments/f1-red-01.md).

@@ -43,7 +43,7 @@ archivo junto con un punto de contacto de webhook local (T2 §8.6).
 - Ninguna de estas alertas detecta la caída del propio `otel-lgtm`: Grafana
   evalúa las reglas dentro de ese contenedor, así que F2 (SER-06) no puede
   notificarse desde aquí. Hace falta un watchdog externo (*dead-man's switch*);
-  queda como recorte en `docs/coherencia/matriz.md`.
+  queda como recorte (hallazgo H4 en `docs/fault-experiments/hallazgos.md`).
 
 ## Cómo probarlas en desarrollo
 

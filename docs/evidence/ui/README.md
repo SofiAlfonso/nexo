@@ -146,5 +146,4 @@ Captura nueva (`t31-02-lector.png`) tomada con Playwright contra `npm run dev` p
   mecanismo de sesión nuevo en C2, fuera del alcance de esta sesión. Se retira el botón/flujo simulado
   de `lector.js` (también se corrige un bug real: `cargarPuntoDetalle` no manejaba el caso sin
   `recientes`). La vista ahora solo muestra evidencia real de intentos V1 ya registrados (histórico
-  desde D2/D1), sin fabricar una validación nueva. Documentado como recorte explícito en
-  `docs/coherencia/matriz.md` §3, fila (i).
+  desde D2/D1), sin fabricar una validación nueva. Documentado como recorte explícito.

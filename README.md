@@ -73,12 +73,7 @@ Su análisis está en
 [`docs/fault-experiments/`](docs/fault-experiments/README.md) y la evidencia,
 en [`chaos/evidence/`](chaos/evidence/README.md). La vista `#/lector` del
 panel solo muestra intentos registrados: la validación manual desde C5 es un
-recorte (PR #33). El informe final está en
-[`docs/informe/taller3.md`](docs/informe/taller3.md). El
-estado detallado por tarea (T00–T64) está en
-[`docs/context/taller3.md`](docs/context/taller3.md) y la trazabilidad
-ADR ↔ código ↔ prueba ↔ experimento en
-[`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
+recorte (PR #33).
 
 ## Advertencia de seguridad
 
@@ -278,10 +273,7 @@ justificación de cada métrica.
 
 ## Estado y trazabilidad
 
-- Plan de tareas y estado por fase: [`docs/context/taller3.md`](docs/context/taller3.md).
-- Matriz ADR ↔ código ↔ prueba ↔ experimento y registro de recortes:
-  [`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
-- Guion del video demo: [`docs/demo/guion-video.md`](docs/demo/guion-video.md).
-- Informe y autoevaluación del taller 3: [`docs/informe/taller3.md`](docs/informe/taller3.md)
-  (enlaces verificados con `node scripts/check-links.mjs --code-paths docs/informe docs/coherencia docs/fault-experiments`).
+- Decisiones de arquitectura y su estado: [`docs/decisions/`](docs/decisions/README.md).
 - Resultados de F1–F4: [`docs/fault-experiments/`](docs/fault-experiments/README.md).
+- Los enlaces de la documentación se verifican con
+  `node scripts/check-links.mjs --code-paths docs README.md`.
