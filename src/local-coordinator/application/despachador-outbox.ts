@@ -10,6 +10,7 @@ import { metrics } from '@nexo/shared/telemetry';
 import type { ConfigCoordinador } from '../config.ts';
 import type { RegistroLatidos } from './latidos.ts';
 import type { ContadorV1 } from './prioridad.ts';
+import type { RegistroDescartesE1 } from './puertos.ts';
 
 const meter = metrics.getMeter('nexo.local-coordinator');
 /** T2: cantidad de registros pendientes de sincronizar por E1, observada en cada ciclo del despachador. */
@@ -19,6 +20,10 @@ const outboxPendientesGauge = meter.createGauge('nexo_c2_outbox_pendientes', {
 /** T2: edad en segundos del pendiente más antiguo del outbox. */
 const outboxEdadMaxGauge = meter.createGauge('nexo_c2_outbox_edad_maxima_s', {
   description: 'Edad en segundos del registro pendiente más antiguo del outbox (T2)',
+});
+/** Latidos retirados de un lote E1 rechazado con 409 (conflicto de idempotencia en C4). */
+const latidosDescartadosContador = meter.createCounter('nexo_c2_e1_latidos_descartados', {
+  description: 'Latidos retirados de un lote E1 rechazado por conflicto (409) y registrados en D1',
 });
 
 export interface EstadoParaE1 {
@@ -33,6 +38,8 @@ export interface ClienteE1 {
 
 export interface OpcionesDespachador {
   outbox: OutboxPendiente;
+  /** Constancia en D1 de los latidos retirados tras un 409; sin él, un 409 no retira latidos. */
+  descartes?: RegistroDescartesE1;
   latidos: RegistroLatidos;
   v1: ContadorV1;
   cliente: ClienteE1;
@@ -220,10 +227,39 @@ export class DespachadorOutbox {
         this.capacidad = Math.max(2, Math.floor(this.capacidad / 2));
         this.o.latidos.devolver(this.pendiente.latidos);
         this.pendiente = null;
+      } else if (typeof error === 'object' && error !== null && 'status' in error && error.status === 409 &&
+        this.pendiente && this.pendiente.latidos.length > 0 && this.o.descartes) {
+        await this.descartarLatidos(this.pendiente);
       }
       const mensaje = error instanceof Error ? error.message : String(error);
       this.o.log?.warn({ error: mensaje, fallosConsecutivos: this.fallosConsecutivos }, 'Fallo de envío E1');
       return { enviados: 0, pendientes: this.pendientes, error: mensaje };
     }
+  }
+
+  /**
+   * Un 409 indica que C4 ya guardó otro contenido con el mismo idOrigen. Si el lote trae latidos,
+   * se retiran (con constancia en D1, log y métrica) y el siguiente ciclo arma un lote nuevo solo con
+   * decisiones: un latido no bloquea la evidencia. Un 409 con solo decisiones sigue reintentándose
+   * y alertando (A1), porque es un fallo de integridad real.
+   */
+  private async descartarLatidos(actual: LotePendiente): Promise<void> {
+    const ahora = this.o.reloj?.ahora() ?? new Date();
+    try {
+      await this.o.descartes!.registrarLatidos(actual.latidos.map((l) => ({
+        eventoId: this.o.config.eventoId, idOrigen: l.idOrigen, lectorId: l.lectorId, puntoId: l.puntoId,
+        idLote: actual.lote.idLote, motivo: 'conflicto-e1' as const, registro: l,
+      })), ahora);
+    } catch (error) {
+      // Sin constancia en D1 no se descarta: el lote se reintenta tal cual en el siguiente ciclo.
+      this.o.log?.error({ error: error instanceof Error ? error.message : String(error), idLote: actual.lote.idLote },
+        'No se pudo registrar el descarte de latidos E1');
+      return;
+    }
+    latidosDescartadosContador.add(actual.latidos.length, { motivo: 'conflicto-e1' });
+    this.o.log?.warn({
+      idLote: actual.lote.idLote, latidos: actual.latidos.map((l) => l.idOrigen), decisiones: actual.filas.length,
+    }, 'Lote E1 rechazado con 409: latidos retirados y registrados en D1; se reenvían solo las decisiones');
+    this.pendiente = null;
   }
 }

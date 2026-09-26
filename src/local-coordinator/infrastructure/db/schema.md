@@ -34,6 +34,7 @@ Todas las columnas `*_en` y `instante_*` son `timestamptz`; identificadores, mot
 | `reemplazo_lector` | `id bigserial PK`, `evento_id`, `punto_id`, `lector_anterior`, `lector_nuevo` (FK a lector, distintos), `motivo` (`lost`/`compromised`/`retired`), `reemplazado_en`; `UNIQUE (evento_id, lector_anterior)`. Migración `040` (PU-05-02). La asignación vigente sigue siendo `lector.punto_id`; al reemplazar, el lector anterior queda `revocado` y deshabilitado en la misma transacción. Solo adición. |
 | `solicitud_revocacion` | `id bigserial PK`, `reemplazo_id` (único, FK), `evento_id`, `lector_id`, `motivo`, `solicitada_en`. Pendiente mientras no tenga `revocacion_credencial`. Solo adición. |
 | `revocacion_credencial` | `solicitud_id PK` (FK), `numero_serie`, `huella_sha256`, `revocada_en`, `registrada_en`: la entrada de `revoked.json` (ADR-008) que confirma la revocación. Solo adición. |
+| `latido_descartado` | `id bigserial PK`, `evento_id`, `id_origen`, `lector_id`, `punto_id`, `id_lote`, `motivo` (`conflicto-e1`), `registro jsonb`, `descartado_en`; `UNIQUE (evento_id, id_origen, id_lote)`. Migración `041`. Latidos que el despachador E1 retiró de un lote rechazado por C4 con 409 para reenviar solo las decisiones. Solo adición. |
 
 Ninguna tabla almacena comprador ni secretos. `permiso_version` guarda paquetes firmados y las filas `boleta`/`punto` representan el estado aplicado por C2 tras verificar firma, versión y continuidad.
 

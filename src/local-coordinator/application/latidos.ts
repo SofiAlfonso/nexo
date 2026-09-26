@@ -11,6 +11,15 @@ const latidoEdadGauge = meter.createObservableGauge('nexo_c2_latido_edad_s', {
 });
 
 /**
+ * idOrigen E1 del latido. Incluye el instante del lector porque la secuencia se reinicia cuando el
+ * lector reinicia: sin él, un latido nuevo reutilizaría el idOrigen de otro con contenido distinto y
+ * C4 lo rechazaría por conflicto de idempotencia (409). El mismo latido reintentado conserva el id.
+ */
+export function idOrigenLatido(l: Pick<Latido, 'lectorId' | 'secuencia' | 'instanteLector'>): string {
+  return `${l.lectorId}:latido:${l.secuencia}:${l.instanteLector}`;
+}
+
+/**
  * Último latido por punto (H1). Los latidos no pasan por D1: el despachador E1
  * toma el último de cada punto y lo agrega como registro `latido-punto` en el siguiente lote.
  */
@@ -48,7 +57,7 @@ export class RegistroLatidos {
       if (!l) continue;
       registros.push({
         tipo: 'latido-punto',
-        idOrigen: `${l.lectorId}:latido:${l.secuencia}`,
+        idOrigen: idOrigenLatido(l),
         lectorId: l.lectorId,
         puntoId: l.puntoId,
         estadoLector: l.estadoLector,
@@ -65,7 +74,7 @@ export class RegistroLatidos {
   devolver(registros: readonly RegistroLatidoPunto[]): void {
     for (const r of registros) {
       const l = this.ultimos.get(r.puntoId);
-      if (l && `${l.lectorId}:latido:${l.secuencia}` === r.idOrigen) this.pendientes.add(r.puntoId);
+      if (l && idOrigenLatido(l) === r.idOrigen) this.pendientes.add(r.puntoId);
     }
   }
 }

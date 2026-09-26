@@ -5,6 +5,7 @@ import type { OutboxPendiente, PendienteOutbox, RegistroOutbox } from '@nexo/sha
 import { DespachadorOutbox } from '../../../src/local-coordinator/application/despachador-outbox.ts';
 import type { ClienteE1 } from '../../../src/local-coordinator/application/despachador-outbox.ts';
 import { RegistroLatidos } from '../../../src/local-coordinator/application/latidos.ts';
+import type { LatidoDescartado, RegistroDescartesE1 } from '../../../src/local-coordinator/application/puertos.ts';
 import { ContadorV1 } from '../../../src/local-coordinator/application/prioridad.ts';
 
 class OutboxMemoria implements OutboxPendiente {
@@ -43,7 +44,7 @@ function acuse(lote: LoteEvidencia): AcuseLoteEvidencia {
   });
 }
 
-function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidenciaMax?: number; esperaMaxV1Ms?: number } = {}) {
+function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidenciaMax?: number; esperaMaxV1Ms?: number; descartes?: RegistroDescartesE1 } = {}) {
   const outbox = new OutboxMemoria();
   const latidos = new RegistroLatidos();
   const v1 = new ContadorV1();
@@ -52,7 +53,7 @@ function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidencia
     async enviar(lote) { lotes.push(lote); return acuse(lote); },
   };
   const despachador = new DespachadorOutbox({
-    outbox, latidos, v1, cliente: emisor,
+    outbox, latidos, v1, cliente: emisor, descartes: parametros.descartes,
     config: { eventoId: 'EVT-2026-02', recintoId: 'REC-01', coordinadorId: 'COORD-A', loteEvidenciaMax: parametros.loteEvidenciaMax ?? 100 },
     estado: () => ({ estado: 'operando', versionPermisos: 2, versionPoliticas: 3 }),
     intervaloMs: 10, esperaMaxV1Ms: parametros.esperaMaxV1Ms ?? 20,
@@ -239,5 +240,71 @@ describe('DespachadorOutbox', () => {
       aleatorio.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  describe('lote envenenado por un latido en conflicto (409)', () => {
+    const latido = (secuencia: number, instanteLector: string) => ({
+      eventoId: 'EVT-2026-02', lectorId: 'LECTOR', puntoId: 'P-01', secuencia,
+      estadoLector: 'operativo' as const, pendientesDiario: 0, diarioTotal: 1, versionPermisos: 1, instanteLector,
+    });
+    const conflicto = () => Object.assign(new Error('E1 HTTP 409'), { status: 409 });
+
+    function descartesMemoria() {
+      const guardados: LatidoDescartado[] = [];
+      const descartes: RegistroDescartesE1 = { async registrarLatidos(d) { guardados.push(...d); } };
+      return { guardados, descartes };
+    }
+
+    it('retira los latidos, deja constancia en D1 y drena las decisiones bloqueadas', async () => {
+      const lotes: LoteEvidencia[] = [];
+      const cliente: ClienteE1 = {
+        async enviar(lote) {
+          lotes.push(lote);
+          if (lote.registros.some((r) => r.tipo === 'latido-punto')) throw conflicto();
+          return acuse(lote);
+        },
+      };
+      const { guardados, descartes } = descartesMemoria();
+      const { despachador, outbox, latidos, llenar } = preparar(50, cliente, { descartes });
+      await llenar();
+      latidos.registrar(latido(1, '2026-09-25T12:00:00.000Z'));
+      expect((await despachador.ejecutarCiclo()).error).toContain('409');
+      expect(guardados).toEqual([expect.objectContaining({
+        idOrigen: 'LECTOR:latido:1:2026-09-25T12:00:00.000Z', motivo: 'conflicto-e1', idLote: lotes[0]!.idLote,
+      })]);
+      for (let i = 0; i < 3; i++) await despachador.ejecutarCiclo();
+      expect(new Set(outbox.acuses).size).toBe(50);
+      expect(lotes.slice(1).every((l) => l.registros.every((r) => r.tipo !== 'latido-punto'))).toBe(true);
+      expect(lotes[1]!.idLote).not.toBe(lotes[0]!.idLote);
+      expect(despachador.metricas()).toMatchObject({ pendientes: 0, enLinea: true });
+    });
+
+    it('un 409 con solo decisiones sigue bloqueando el mismo lote', async () => {
+      const lotes: LoteEvidencia[] = [];
+      const { guardados, descartes } = descartesMemoria();
+      const { despachador, outbox, llenar } = preparar(3, {
+        async enviar(lote) { lotes.push(lote); throw conflicto(); },
+      }, { descartes });
+      await llenar();
+      for (let i = 0; i < 3; i++) expect((await despachador.ejecutarCiclo()).error).toContain('409');
+      expect(new Set(lotes.map((l) => l.idLote)).size).toBe(1);
+      expect(outbox.acuses).toHaveLength(0);
+      expect(guardados).toHaveLength(0);
+      expect(despachador.metricas()).toMatchObject({ fallosConsecutivos: 3, enLinea: false });
+    });
+
+    it('si D1 no registra el descarte, conserva el lote con sus latidos', async () => {
+      const lotes: LoteEvidencia[] = [];
+      const descartes: RegistroDescartesE1 = { registrarLatidos: vi.fn().mockRejectedValue(new Error('D1 caído')) };
+      const { despachador, latidos, llenar } = preparar(1, {
+        async enviar(lote) { lotes.push(lote); throw conflicto(); },
+      }, { descartes });
+      await llenar();
+      latidos.registrar(latido(1, '2026-09-25T12:00:00.000Z'));
+      await despachador.ejecutarCiclo();
+      await despachador.ejecutarCiclo();
+      expect(lotes.map((l) => l.idLote)).toEqual([lotes[0]!.idLote, lotes[0]!.idLote]);
+      expect(lotes[1]!.registros.some((r) => r.tipo === 'latido-punto')).toBe(true);
+    });
   });
 });
