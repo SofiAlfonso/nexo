@@ -71,3 +71,14 @@ curl -H 'Content-Type: application/json' -d '{"idOrigen":"LX-2210-107:ejemplo1",
 
 En producción, V1/H1 requieren mTLS; el enlace entre `lectorId` y el
 certificado es trabajo de T25, no está habilitado todavía.
+
+## Reemplazo de lector en un punto (PU-05-02)
+
+Con D1 en PostgreSQL y la misma configuración de C2:
+
+```powershell
+$env:COORDINATOR_TLS_REVOKED_FILE = 'deploy/certs/private/revoked.json'
+node src/local-coordinator/infrastructure/cli/reemplazar-lector.ts --punto P-01 --anterior LX-2210-107 --nuevo LX-2210-200 --motivo lost --certs-script scripts/certs.mjs
+```
+
+En una transacción de D1 se cierra la asignación anterior: el lector queda `revocado` y C2 lo rechaza aunque la CA no esté disponible. El lector nuevo queda asignado al punto y se registra la solicitud de revocación de la credencial anterior. Con `--certs-script`, C2 ejecuta `scripts/certs.mjs revoke` y registra el número de serie y la huella que quedaron en `revoked.json`. El servidor TLS relee esa lista en cada solicitud. Sin `--certs-script`, la revocación queda pendiente (código de salida 2) hasta que el custodio de la CA la ejecute; `--pendientes` confirma o reintenta las solicitudes abiertas. Repetir el mismo reemplazo es idempotente. Una identidad revocada nunca se reasigna.
