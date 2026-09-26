@@ -63,6 +63,12 @@ export interface LoteEvidenciaRepositorio {
 
 export class ConflictoEvidencia extends Error {
   readonly codigo = 'CONFLICTO_IDEMPOTENCIA';
+  /** Qué chocó: el lote entero (mismo idLote) o un registro de ese tipo (mismo idOrigen). */
+  readonly tipo: 'lote' | RegistroEvidencia['tipo'];
+  constructor(mensaje: string, tipo: 'lote' | RegistroEvidencia['tipo'] = 'lote') {
+    super(mensaje);
+    this.tipo = tipo;
+  }
 }
 
 export class ServicioIngestaEvidencia {
@@ -98,7 +104,8 @@ export class ServicioIngestaEvidencia {
         }
       }));
     } catch (error) {
-      lotesEvidenciaTotal.add(1, { resultado: 'conflicto' });
+      // `tipo` separa los conflictos de decisiones (N3, A1) de los de latidos o estado, que no son de integridad.
+      lotesEvidenciaTotal.add(1, { resultado: 'conflicto', tipo: error instanceof ConflictoEvidencia ? error.tipo : 'desconocido' });
       throw error;
     }
     const acuse = await this.lotes.yaProcesado(lote.idLote, lote);

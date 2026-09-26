@@ -428,7 +428,7 @@ export class RepositorioLotesPg implements LoteEvidenciaRepositorio {
             [lote.eventoId, registro.tipo, registro.idOrigen],
           );
           if (existente.rows[0]?.contenido_hash !== contenidoHash) {
-            throw new ConflictoEvidencia(`La evidencia ${registro.tipo}/${registro.idOrigen} ya existe con contenido diferente`);
+            throw new ConflictoEvidencia(`La evidencia ${registro.tipo}/${registro.idOrigen} ya existe con contenido diferente`, registro.tipo);
           }
           resultados[indice]!.estado = 'duplicado';
         }

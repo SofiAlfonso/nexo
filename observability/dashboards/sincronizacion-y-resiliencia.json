@@ -82,7 +82,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(nexo_c4_lotes_evidencia_total{resultado=\"conflicto\"}[24h]))",
+          "expr": "sum(increase(nexo_c4_lotes_evidencia_total{resultado=\"conflicto\",tipo=\"decision\"}[24h]))",
           "legendFormat": "conflictos",
           "refId": "A"
         }

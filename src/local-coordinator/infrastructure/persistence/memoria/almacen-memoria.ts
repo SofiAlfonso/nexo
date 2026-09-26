@@ -5,7 +5,7 @@ import type {
   PendienteOutbox, PuntoDeValidacion, RegistroOutbox, ResultadoValidacion, UnidadValidacion,
   VersionesInstaladas,
 } from '@nexo/shared/domain';
-import type { Almacen } from '../../../application/puertos.ts';
+import type { Almacen, LatidoDescartado } from '../../../application/puertos.ts';
 
 export interface SemillaMemoria {
   evento: Evento;
@@ -26,6 +26,7 @@ export function crearAlmacenMemoria(opciones: { fallar?: (operacion: string) => 
   const filas: PendienteOutbox[] = [];
   const clavesOutbox = new Set<string>();
   const acuses = new Map<number, { idLote: string; acusadoEn: Date }>();
+  const latidosDescartados = new Map<string, LatidoDescartado & { descartadoEn: Date }>();
   const lotes = new Map<string, { contenido: string; acuse: AcuseLoteDiario }>();
   const diario = new Set<string>();
   const bloqueos = new Map<string, Promise<void>>();
@@ -45,7 +46,7 @@ export function crearAlmacenMemoria(opciones: { fallar?: (operacion: string) => 
   const almacen: Almacen & {
     sembrar(datos: SemillaMemoria): void;
     simularCaida(caido: boolean): void;
-    volcado(): { intentos: IntentoRegistrado[]; consumos: ConsumoIngreso[]; bitacora: EntradaBitacora[]; outbox: PendienteOutbox[]; diario: string[] };
+    volcado(): { intentos: IntentoRegistrado[]; consumos: ConsumoIngreso[]; bitacora: EntradaBitacora[]; outbox: PendienteOutbox[]; diario: string[]; latidosDescartados: (LatidoDescartado & { descartadoEn: Date })[] };
   } = {
     sembrar(datos) {
       disponible('sembrar');
@@ -56,6 +57,7 @@ export function crearAlmacenMemoria(opciones: { fallar?: (operacion: string) => 
       filas.length = 0;
       clavesOutbox.clear();
       acuses.clear();
+      latidosDescartados.clear();
       lotes.clear();
       diario.clear();
     },
@@ -64,7 +66,7 @@ export function crearAlmacenMemoria(opciones: { fallar?: (operacion: string) => 
       disponible('volcado');
       return structuredClone({
         intentos: [...intentos.values()], consumos: [...consumos.values()],
-        bitacora, outbox: filas, diario: [...diario],
+        bitacora, outbox: filas, diario: [...diario], latidosDescartados: [...latidosDescartados.values()],
       });
     },
     unidades: {
@@ -181,6 +183,15 @@ export function crearAlmacenMemoria(opciones: { fallar?: (operacion: string) => 
       async agregar(registros) {
         disponible('agregar');
         for (const registro of registros) agregar(structuredClone(registro));
+      },
+    },
+    descartesE1: {
+      async registrarLatidos(descartes, descartadoEn) {
+        disponible('registrarLatidos');
+        for (const d of descartes) {
+          const k = clave(d.eventoId, d.idOrigen, d.idLote);
+          if (!latidosDescartados.has(k)) latidosDescartados.set(k, { ...structuredClone(d), descartadoEn });
+        }
       },
     },
     diario: {

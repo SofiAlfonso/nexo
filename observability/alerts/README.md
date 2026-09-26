@@ -21,8 +21,11 @@ archivo junto con un punto de contacto de webhook local (T2 §8.6).
   (invariante #4): un duplicado real sería un fallo del propio mecanismo, no
   algo que el código de aplicación pueda observar de forma fiable en
   caliente. Como proxy más cercano disponible en instrumentación aplicativa
-  se usa `nexo_c4_lotes_evidencia_total{resultado="conflicto"}` (conflictos
-  de idempotencia por `idOrigen` en E1). La verificación SQL definitiva de
+  se usa `nexo_c4_lotes_evidencia_total{resultado="conflicto",tipo="decision"}` (conflictos
+  de idempotencia por `idOrigen` en E1). Solo cuentan los conflictos de
+  registros `decision`: un latido o un estado en conflicto no es un fallo de
+  integridad (C2 lo retira del lote y lo registra en `latido_descartado` de D1).
+  La verificación SQL definitiva de
   boletas con más de un consumo válido es responsabilidad de T55
   (experimentos de integridad).
 - A8 usa `nexo_c2_latido_edad_s`, una métrica de apoyo (no una de las seis

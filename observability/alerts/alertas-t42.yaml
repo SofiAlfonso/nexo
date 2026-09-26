@@ -15,7 +15,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: sum(increase(nexo_c4_lotes_evidencia_total{resultado="conflicto"}[24h]))
+              expr: sum(increase(nexo_c4_lotes_evidencia_total{resultado="conflicto",tipo="decision"}[24h]))
               instant: true
           - refId: C
             datasourceUid: "__expr__"

@@ -70,7 +70,7 @@ class LotesMemoria implements LoteEvidenciaRepositorio {
     const aceptados = lote.registros.filter((registro, indice) => {
       const clave = `${lote.eventoId}/${registro.tipo}/${registro.idOrigen}`;
       const anterior = this.registros.get(clave);
-      if (anterior && anterior !== JSON.stringify(registro)) throw new ConflictoEvidencia('Registro diferente');
+      if (anterior && anterior !== JSON.stringify(registro)) throw new ConflictoEvidencia('Registro diferente', registro.tipo);
       if (anterior) {
         resultados[indice]!.estado = 'duplicado';
         return false;

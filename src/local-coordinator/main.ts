@@ -48,7 +48,7 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
     eventoId: config.eventoId, recintoId: config.recintoId, log: app.log,
   }) : null;
   const despachador = config.centralUrl ? new DespachadorOutbox({
-    outbox: almacen.outbox, latidos, v1: contador, cliente: crearClienteE1Http(config.centralUrl),
+    outbox: almacen.outbox, descartes: almacen.descartesE1, latidos, v1: contador, cliente: crearClienteE1Http(config.centralUrl),
     config, estado: () => ({
       estado: autoridad.actual().estado,
       versionPermisos: versiones?.versionPermisos ?? 0,

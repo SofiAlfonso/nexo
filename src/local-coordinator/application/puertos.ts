@@ -1,4 +1,4 @@
-import type { AcuseLoteDiario, LoteDiario } from '@nexo/shared/contracts';
+import type { AcuseLoteDiario, LoteDiario, RegistroLatidoPunto } from '@nexo/shared/contracts';
 import type { FabricaUnidadValidacion, OutboxPendiente, RepositorioPermisos, ResolutorAlcance } from '@nexo/shared/domain';
 
 /**
@@ -11,11 +11,31 @@ export interface RepositorioDiario {
   registrarLote(lote: LoteDiario, recibidoEn: Date): Promise<AcuseLoteDiario>;
 }
 
+/** Latido E1 que C4 rechazó por conflicto de idempotencia (HTTP 409) y que C2 dejó de reintentar. */
+export interface LatidoDescartado {
+  eventoId: string;
+  idOrigen: string;
+  lectorId: string;
+  puntoId: string;
+  idLote: string;
+  motivo: 'conflicto-e1';
+  registro: RegistroLatidoPunto;
+}
+
+/**
+ * Registro en D1, solo adición, de los latidos que el despachador E1 retira de un lote rechazado
+ * con 409: no se borran en silencio. Idempotente por (evento, idOrigen, idLote).
+ */
+export interface RegistroDescartesE1 {
+  registrarLatidos(descartes: readonly LatidoDescartado[], descartadoEn: Date): Promise<void>;
+}
+
 /** Todo lo que C2 necesita de D1 (adaptador PostgreSQL o en memoria con la misma semántica). */
 export interface Almacen {
   unidades: FabricaUnidadValidacion;
   alcance: ResolutorAlcance;
   outbox: OutboxPendiente;
+  descartesE1: RegistroDescartesE1;
   diario: RepositorioDiario;
   permisos: RepositorioPermisos;
   /** `true` si D1 responde. */

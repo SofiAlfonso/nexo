@@ -10,7 +10,7 @@ import type {
   ResolutorAlcance,
   VersionesInstaladas,
 } from '@nexo/shared/domain';
-import type { Almacen, RepositorioDiario } from '../../../application/puertos.ts';
+import type { Almacen, RegistroDescartesE1, RepositorioDiario } from '../../../application/puertos.ts';
 import type { ConfigCoordinador } from '../../../config.ts';
 import { migrate } from '../../db/index.ts';
 import { UnidadValidacionPostgres } from './unidad-postgres.ts';
@@ -128,6 +128,18 @@ export async function crearAlmacenPostgres(
           `INSERT INTO outbox (evento_id, tipo, id_origen, registro) VALUES ($1,$2,$3,$4)
            ON CONFLICT (evento_id, tipo, id_origen) DO NOTHING`,
           [r.eventoId, r.registro.tipo, r.registro.idOrigen, JSON.stringify(r.registro)],
+        );
+      }
+    },
+  };
+
+  const descartesE1: RegistroDescartesE1 = {
+    async registrarLatidos(descartes, descartadoEn) {
+      for (const d of descartes) {
+        await poolFondo.query(
+          `INSERT INTO latido_descartado (evento_id, id_origen, lector_id, punto_id, id_lote, motivo, registro, descartado_en)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (evento_id, id_origen, id_lote) DO NOTHING`,
+          [d.eventoId, d.idOrigen, d.lectorId, d.puntoId, d.idLote, d.motivo, JSON.stringify(d.registro), descartadoEn],
         );
       }
     },
@@ -252,6 +264,7 @@ export async function crearAlmacenPostgres(
     unidades,
     alcance,
     outbox,
+    descartesE1,
     diario,
     permisos,
     async salud() {
