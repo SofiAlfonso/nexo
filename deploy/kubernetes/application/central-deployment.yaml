@@ -1,0 +1,88 @@
+# C4 — núcleo central (nexo-central); sirve C5 como estáticos.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexo-central
+  namespace: nexo-central
+  labels:
+    app.kubernetes.io/name: nexo-central
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: central
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-central
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-central
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: central
+        nexo.io/d2-client: "true"
+    spec:
+      containers:
+        - name: nexo-central
+          image: nexo/central-core:dev
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: CENTRAL_POSTGRES_HOST
+              value: "nexo-d2"
+            - name: CENTRAL_POSTGRES_PORT
+              value: "5432"
+            - name: CENTRAL_POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_DB } }
+            - name: CENTRAL_POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_USER } }
+            - name: CENTRAL_POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_PASSWORD } }
+            - name: SESSION_COOKIE_SECRET
+              valueFrom: { secretKeyRef: { name: nexo-central-app, key: SESSION_COOKIE_SECRET } }
+            - name: PERMISOS_FIRMA_SECRETO
+              valueFrom: { secretKeyRef: { name: nexo-central-app, key: PERMISOS_FIRMA_SECRETO } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://nexo-otel-collector.nexo-observability.svc.cluster.local:4318"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexo-central
+  namespace: nexo-central
+  labels:
+    app.kubernetes.io/name: nexo-central
+    app.kubernetes.io/part-of: nexo
+spec:
+  selector:
+    app.kubernetes.io/name: nexo-central
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

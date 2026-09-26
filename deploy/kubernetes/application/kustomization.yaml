@@ -1,0 +1,11 @@
+# Kustomize: cargas de aplicación de nexo-venue, nexo-central y nexo-external
+# (coordinador, central, boletería, Toxiproxy, Jobs) más las NetworkPolicies
+# que imponen las cinco fronteras de confianza del taller 2 (T26).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - networkpolicies.yaml
+  - coordinator-deployment.yaml
+  - toxiproxy-deployment.yaml
+  - central-deployment.yaml
+  - ticketing-deployment.yaml

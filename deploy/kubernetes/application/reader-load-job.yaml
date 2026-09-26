@@ -1,0 +1,57 @@
+# nexo-reader-load — corre el lector emulado (C1, `src/reader-client`) como
+# Job de carga contra nexo-coordinator (`deploy/scripts/load`). Requiere el
+# ConfigMap nexo-reader-boletas con las boletas activas de D1 (exportadas por
+# un Pod puntual y publicadas con `kubectl create configmap --from-file` en
+# `deploy/scripts/load.mjs`, no versionado aquí).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nexo-reader-load
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-reader-load
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: reader
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-reader-load
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: reader
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: nexo-reader-load
+          image: nexo/reader-client:dev
+          imagePullPolicy: Never
+          # El CLI `start` demoniza el proceso (spawn detached + unref) y
+          # regresa de inmediato; un Job necesita que el contenedor principal
+          # permanezca vivo mientras dura la carga, así que se reemplaza el
+          # ENTRYPOINT por un guion que arranca, espera la duración acordada
+          # (--duracion 30) más un margen, y publica el reporte al terminar.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              node src/reader-client/cli/index.ts start --perfil nominal --lectores 20 \
+                --coordinador http://nexo-coordinator:8081 --boletas /datos/boletas.json \
+                --datos /tmp/reader-client --duracion 30
+              sleep 40
+              node src/reader-client/cli/index.ts report --datos /tmp/reader-client
+          volumeMounts:
+            - name: boletas
+              mountPath: /datos
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: boletas
+          configMap:
+            name: nexo-reader-boletas

@@ -1,0 +1,16 @@
+# Kustomize raíz: agrupa solo lo que administra S2-k8s (capa de datos D1/D2
+# y capa de aplicación C2/C4/boletería/Toxiproxy/NetworkPolicies). Namespaces
+# (`namespaces/`) y observabilidad (`observability/`, de S2-otel) NO se
+# incluyen aquí para no forzar un `kustomization.yaml` sobre una carpeta que
+# no es mía: `deploy/scripts/up` los aplica con `kubectl apply -f` antes de
+# este Kustomization. Los Secrets (nexo-*-credentials, nexo-central-app,
+# nexo-seed-credentials) y los Jobs puntuales (nexo-db-init,
+# nexo-reader-load) los crea `deploy/scripts/up`/`load`, no este
+# Kustomization, porque dependen de datos que no se versionan en Git
+# (AGENTS.md, invariante 8) o deben ejecutarse una vez que la capa de datos
+# ya está lista.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - data
+  - application

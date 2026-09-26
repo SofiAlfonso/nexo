@@ -1,0 +1,65 @@
+# nexo-db-init — migra D1 y D2 y siembra datos de laboratorio (T00 T02/T13/T14
+# ya publicaron las migraciones; este Job solo las aplica y siembra). Corre en
+# nexo-venue con acceso directo y puntual a D1 y D2 (bypassa Toxiproxy: es
+# mantenimiento único, no el tráfico de negocio que F1/F3 perturban).
+# Requiere el Secret nexo-seed-credentials (SEED_OPERATOR_PASSWORD) y una
+# copia de nexo-d2-credentials en este namespace (ver deploy/scripts/up).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nexo-db-init
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-db-init
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: db-init
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-db-init
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: db-init
+        nexo.io/d1-client: "true"
+        nexo.io/d2-client: "true"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: nexo-db-init
+          image: nexo/db-init:dev
+          imagePullPolicy: Never
+          env:
+            - name: LOCAL_POSTGRES_HOST
+              value: "nexo-d1"
+            - name: LOCAL_POSTGRES_PORT
+              value: "5432"
+            - name: LOCAL_POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_DB } }
+            - name: LOCAL_POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_USER } }
+            - name: LOCAL_POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_PASSWORD } }
+            # nexo-d2-credentials existe también en nexo-venue SOLO para este
+            # Job (los Secrets son por namespace); no otorga alcance de red a
+            # D2, que sigue bloqueado por NetworkPolicy para el resto de
+            # nexo-venue (nexo-coordinator incluido).
+            - name: CENTRAL_POSTGRES_HOST
+              value: "nexo-d2.nexo-central.svc.cluster.local"
+            - name: CENTRAL_POSTGRES_PORT
+              value: "5432"
+            - name: CENTRAL_POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_DB } }
+            - name: CENTRAL_POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_USER } }
+            - name: CENTRAL_POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-d2-credentials, key: POSTGRES_PASSWORD } }
+            - name: SEED_OPERATOR_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-seed-credentials, key: SEED_OPERATOR_PASSWORD } }
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

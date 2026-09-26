@@ -1,0 +1,101 @@
+# C2 — coordinador local (nexo-venue). Habla con D1 y C4 exclusivamente a
+# través de Toxiproxy (`toxiproxy:15432` y `toxiproxy:18080`) para que
+# S2-chaos pueda inyectar fallas en esos dos enlaces sin tocar este manifiesto.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexo-coordinator
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-coordinator
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-coordinator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-coordinator
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: coordinator
+    spec:
+      containers:
+        - name: nexo-coordinator
+          image: nexo/local-coordinator:dev
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: PORT
+              value: "8081"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: EVENTO_ID
+              value: "EVT-2026-02"
+            - name: RECINTO_ID
+              value: "REC-01"
+            - name: COORDINADOR_ID
+              value: "COORD-A"
+            # El envío E1 y el refresco de permisos van por el proxy Toxiproxy
+            # `c2-to-c4` (F1 RED-01 lo interrumpe sin editar este Deployment).
+            - name: CENTRAL_URL
+              value: "http://toxiproxy:18080"
+            # D1 se resuelve a través del proxy Toxiproxy `c2-to-d1`
+            # (F3 BD-01 lo interrumpe); nexo-d1 nunca se referencia aquí.
+            - name: LOCAL_POSTGRES_HOST
+              value: "toxiproxy"
+            - name: LOCAL_POSTGRES_PORT
+              value: "15432"
+            - name: LOCAL_POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_DB } }
+            - name: LOCAL_POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_USER } }
+            - name: LOCAL_POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_PASSWORD } }
+            # El Job nexo-db-init ya migró D1 directamente; evita una segunda
+            # migración concurrente al arrancar C2 (igual que scripts/dev.mjs).
+            - name: D1_MIGRAR
+              value: "false"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://nexo-otel-collector.nexo-observability.svc.cluster.local:4318"
+          readinessProbe:
+            httpGet:
+              path: /salud
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /salud
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexo-coordinator
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-coordinator
+    app.kubernetes.io/part-of: nexo
+spec:
+  selector:
+    app.kubernetes.io/name: nexo-coordinator
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
