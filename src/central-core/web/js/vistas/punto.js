@@ -140,7 +140,11 @@ NEXO.vistas.punto = (function () {
 
   function lector(e, p) {
     var lectores = p.lectores || (p.lectorActual ? [p.lectorActual] : []);
-    if (!lectores.length) return '<p class="dim">Cargando…</p>';
+    if (!lectores.length) {
+      return Array.isArray(p.recientes)
+        ? '<p class="dim">Ningún lector se ha autenticado todavía en esta puerta.</p>'
+        : '<p class="dim">Cargando…</p>';
+    }
     var l = lectores[0];
     return '<div class="reader"><span class="reader__art">' + ico('smartphone', 26) + '</span><div><b class="mono">' + esc(l.id) + '</b>' +
       '<small>' + esc(l.familia) + ' · ' + esc(l.procedencia) + '</small></div>' + c.badge('Autenticado', 'ok') + '</div>' +
