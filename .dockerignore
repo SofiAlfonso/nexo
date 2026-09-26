@@ -22,7 +22,6 @@ chaos
 observability
 deploy/kubernetes
 deploy/minikube
-deploy/scripts
 config
 
 *.log
@@ -34,6 +33,18 @@ data/local
 .env.*
 !.env.example
 !deploy/compose/.env.example
+
+# deploy/scripts se necesita en la imagen nexo/db-init (deploy/scripts/Dockerfile)
+# para deploy/scripts/seed.ts y export-boletas.ts; se excluye lo demás
+# (envoltorios .ps1, README, docs) que ningún Dockerfile copia.
+deploy/scripts/*.ps1
+deploy/scripts/*.mjs
+deploy/scripts/README.md
+
+# tests/load se necesita en la imagen nexo/reader-client (perfiles de carga
+# nominal/pico/estres que el CLI carga en tiempo de ejecución).
+!tests/load
+!tests/load/**
 
 *.md
 !src/**/README.md

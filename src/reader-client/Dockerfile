@@ -29,6 +29,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json
 COPY src/shared ./src/shared
 COPY src/reader-client ./src/reader-client
+COPY tests/load ./tests/load
 
 USER nexo
 
