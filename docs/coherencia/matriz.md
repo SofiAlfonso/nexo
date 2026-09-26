@@ -1,0 +1,86 @@
+# Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento (T60)
+
+Estado al cierre de la ola 4 (S4-coherencia, 25-09-2026). Cubre solo la parte
+de T60 realizable sin Minikube ni Docker compartido (S3-experimentos tiene
+uso exclusivo mientras corre F1–F4): matriz de trazabilidad, actualización
+del estado de los ADR con evidencia ya existente en el repositorio y
+registro de recortes con resolución. La columna **experimento** queda en
+`PENDIENTE-T57` para todo ADR cuya evidencia dependa de F1–F4 ejecutados en
+Minikube (T51–T54), porque esas ejecuciones y su análisis (T57) todavía no
+están en `docs/fault-experiments/` al momento de este corte.
+
+Cada fila cita solo archivos verificados en este repositorio; ningún estado
+de ADR se cambió sin una evidencia enlazada.
+
+## 1. Matriz ADR ↔ código ↔ prueba ↔ experimento
+
+| ADR | Decisión (resumen) | Código que la implementa | Prueba que la verifica | Experimento (F1–F4) | Estado del ADR |
+|---|---|---|---|---|---|
+| [ADR-001](../decisions/ADR-001-estilo-capas-monolito-modular.md) | Capas + monolito modular en C4 (M1–M4); C2 unidad separada; C3 dentro de M1 | `src/central-core/{api,application,domain,infrastructure,modules/<modulo>/{domain,application,infrastructure,api}}`, `src/local-coordinator/`, `src/shared/domain/`; regla ESLint de fronteras en `eslint.config.js` | `npm run lint` (fronteras entre módulos); `tests/unit/domain/`, `tests/unit/coordinator/`, `tests/unit/central/` | PENDIENTE-T57 | Aceptado (sin cambio) |
+| [ADR-002](../decisions/ADR-002-validacion-sincrona-coordinador-local.md) | Validación síncrona en C2, sin depender de la nube por escaneo | `src/local-coordinator/domain/`, `src/local-coordinator/api/`, `src/local-coordinator/infrastructure/persistence/postgres/unidad-postgres.ts` | `tests/integration/coordinator/validacion.test.ts`; `tests/integration/coordinator/f1-degradacion.test.ts` (C4 inaccesible, ≥99 % en ≤300 ms, ver tabla A/B de `docs/evidence/load/f1-c2-degradacion-2026-09-25.md`) | PENDIENTE-T57 (RED-01 formal de `chaos/experiments/red-01-central-connection/` aún no ejecutado; la evidencia de carga existente reproduce el mismo escenario fuera del arnés de `nexo-chaos`) | Pendiente de PoC (sin cambio; la PoC de carga existente es evidencia parcial, no sustituye el criterio de aceptación completo de CA1/CA2 en Minikube) |
+| [ADR-003](../decisions/ADR-003-consumo-atomico-unico-ingreso.md) | Consumo atómico y único por boleta, `UNIQUE` en D1 | Migración `001_initial.sql` de D1 (`consumo` con `UNIQUE`), `src/local-coordinator/infrastructure/persistence/postgres/` | `tests/integration/db/schema.test.ts`; `tests/resilience/integridad-exp03-exp04.test.ts` (EXP 03 reintento, EXP 04 500 pares concurrentes) | PENDIENTE-T57 | Aceptado (PoC bloqueante en NEXO_04) — sin cambio, ya tenía PoC ejecutada en T11/T55 |
+| [ADR-004](../decisions/ADR-004-bitacora-solo-adicion.md) | Bitácora de solo adición, sin `UPDATE`/`DELETE` | Trigger en migración de D1/D2; `src/central-core/modules/evidence-ingestion/` (M2, deduplicación por lote) | `tests/integration/db/schema.test.ts` (bloqueo de `UPDATE`/`DELETE`); `tests/integration/central/m2-intentos-diario.test.ts` | PENDIENTE-T57 | Aceptado (sin cambio) |
+| [ADR-005](../decisions/ADR-005-recuperacion-coordinador-topologia.md) | Topología de recuperación de C2/D1 sin decidir aún (nodo único en la PoC) | `src/local-coordinator/` sobre PostgreSQL 16 nodo único (sin réplica) | `tests/integration/coordinator/f1-degradacion.test.ts` (D1 real, sin réplica); ninguna prueba cubre reapertura tras destrucción total del disco | PENDIENTE-T57 (BD-01 de `chaos/experiments/bd-01-local-persistence/` aún no ejecutado en Minikube) | Pendiente de PoC (sin cambio) |
+| [ADR-006](../decisions/ADR-006-datos-sin-identidad-portador.md) | Sin identidad del portador en ningún dato | `src/shared/contracts/` (V1/H1/E1/P1/P2/O2, sin campos de identidad); `deploy/scripts/seed.ts` (datos sintéticos) | Inspección de esquema y contratos (revisión manual, sin prueba automatizada dedicada); `tests/unit/contracts/` valida forma de los contratos | No aplica (invariante transversal, no un fallo de F1–F4) | Aceptado (sin cambio) |
+| [ADR-007](../decisions/ADR-007-modelo-canonico-ingesta.md) | Modelo canónico de ingesta con adaptador delgado C3 | `src/ticketing-sim/`, `src/central-core/modules/configuration-permissions/` (C3 dentro de M1) | `tests/integration/ticketing/c3-importacion.test.ts`, `firma-compat.test.ts`, `anulacion-extremo.test.ts` (anulación en vivo hasta C2, con ventana documentada) | No aplica (P1/P2 no son un experimento de F1–F4; se prueba con la boletería simulada) | Pendiente de PoC (sin cambio; sigue condicionado a un contrato P1 autorizado con proveedor real, como dice el propio ADR) |
+| [ADR-008](../decisions/ADR-008-identidad-dispositivos.md) | mTLS C1–C2, credencial revocable por lector | `src/local-coordinator/api/` (verificación TLS), `scripts/certs.mjs`/`certs.ps1` | `tests/integration/mtls/config.test.ts`, `lector-revocado.test.ts` (lector revocado rechazado) | No aplica directamente (no es uno de los cuatro fallos F1–F4, pero comparte infraestructura con RED-01); PENDIENTE-T57 si se decide combinarlo con RED-01 | Pendiente de PoC (bloqueante) — sin cambio; hay PoC de revocación en pruebas de integración, pero el ADR exige además demostrarlo durante un corte de internet real en Minikube, que sigue pendiente |
+| [ADR-009](../decisions/ADR-009-aislamiento-cliente-evento.md) | Aislamiento por cliente/evento; RLS recortado en el taller 3 | Autorización en aplicación en `src/central-core/api/` y `src/central-core/web/`; sin RLS en D2 | Ninguna prueba automatizada de aislamiento multicliente (solo hay un cliente/evento en la semilla) | No aplica | Pendiente de PoC (recortada en el taller 3) — sin cambio; recorte (e) de la §2 |
+| [ADR-010](../decisions/ADR-010-resolucion-credenciales-permisos.md) | Resolución de credenciales y actualización de permisos versionados (P1/P2) | `src/ticketing-sim/` (`GET /versiones`), `src/central-core/modules/configuration-permissions/` (P2, `GET /v1/permisos?desdeVersion=n`) | `tests/integration/ticketing/*.test.ts`; recuperación de versiones perdidas tras un corte no tiene prueba dedicada de 15 min | No aplica | Pendiente de PoC (sin cambio; sigue bloqueante para un piloto real, tal como indica el propio ADR) |
+| [ADR-011](../decisions/ADR-011-validacion-sincrona-sincronizacion-recuperable.md) | Outbox transaccional D1→C4 (E1), reintentos con backoff | `src/local-coordinator/infrastructure/persistence/postgres/` (outbox), `src/central-core/modules/evidence-ingestion/` (M2, idempotencia por `idLote`) | `tests/integration/coordinator/outbox.test.ts`, `diario.test.ts`; drenaje observado en `docs/evidence/load/f1-c2-degradacion-2026-09-25.md` (tabla B, 10 000/10 000 en 20 s) | PENDIENTE-T57 (RED-01 formal con `nexo-chaos` en Minikube; la evidencia de carga citada reproduce el drenaje del outbox fuera de ese arnés) | Pendiente de PoC (sin cambio) |
+| [ADR-012](../decisions/ADR-012-persistencia-auditoria-recuperacion.md) | D1 autoritativo + D2 retiene 90 días (sin MinIO/D3) | Migraciones D1/D2, `src/central-core/modules/evidence-ingestion/`; sin componente D3 | `tests/integration/db/schema.test.ts` (persistencia); ninguna prueba de restauración de respaldo | PENDIENTE-T57 (BD-01) | Pendiente de PoC (actualizado) — sin cambio |
+| [ADR-013](../decisions/ADR-013-observabilidad-extremo-a-extremo.md) | OTel en C1/C2/C4/C5, Collector con `file_storage`, backend `otel-lgtm` | `observability/collector/`, `src/shared/telemetry/` (pendiente de instrumentación completa según T40) | `observability/dashboards/`, `observability/alerts/alertas-t42.yaml`; sin prueba automatizada del corte de exportación (SER-06) | PENDIENTE-T57 (SER-06 de `chaos/experiments/ser-06-observability-outage/`) | Pendiente de PoC (actualizado) — sin cambio; ver recorte (a) sobre `LoteEvidencia` sin `traceparent` |
+| [ADR-014](../decisions/ADR-014-runtime-typescript-node-24.md) | TypeScript sobre Node.js 24 LTS | `package.json` (`engines: >=24`), todos los Dockerfiles (`node:24-alpine`), `.github/workflows/ci.yml` | `npm ci && npm run build && npm run lint && npm test` en CI (Node 24) | No aplica | Aceptado (sin cambio) |
+| [ADR-015](../decisions/ADR-015-laboratorio-local-minikube.md) | Laboratorio en Minikube con 5 namespaces y NetworkPolicies | `deploy/kubernetes/namespaces/`, `deploy/kubernetes/application/networkpolicies.yaml`, `deploy/scripts/up.mjs` | `tests/integration/k8s/network-policies.test.ts` (requiere clúster vivo, no ejecutable en esta sesión) | PENDIENTE-T57 (F1–F4 en la topología) | Aceptado (sin cambio) |
+| [ADR-016](../decisions/ADR-016-identidad-operadores-laboratorio.md) | Login de operadores de laboratorio, 5 roles, argon2 | `deploy/scripts/seed.ts` (usuarios sembrados), `src/central-core/web/` (login), `src/central-core/api/` | Sin prueba automatizada dedicada al login en `tests/` (verificado manualmente en T30–T32, ver `docs/evidence/ui/`) | No aplica | Aceptado (sin cambio) |
+
+## 2. Configuración de NEXO_04 (runtime e imágenes)
+
+Versiones exactas leídas de `package.json`, los cuatro `Dockerfile` y
+`deploy/kubernetes/application/*.yaml`:
+
+| Elemento | Versión / valor | Fuente |
+|---|---|---|
+| Runtime | Node.js `>=24` (imagen `node:24-alpine`) | `package.json` (`engines.node`); `src/central-core/Dockerfile`, `src/local-coordinator/Dockerfile`, `src/reader-client/Dockerfile`, `src/ticketing-sim/Dockerfile` |
+| TypeScript | `^6.0.3` (ejecutado nativamente por Node 24, sin paso `tsc` en runtime) | `package.json` |
+| Vitest | `^5.0.2` | `package.json` |
+| Fastify / `pg` / `zod` / `decimal.js` / `argon2` | Ver `package.json` de cada workspace (`src/*/package.json`) | ADR-014 |
+| Imagen `nexo/central-core` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** (sin Docker disponible en esta sesión no se puede calcular el digest; se construye con `minikube image build`, sin publicar a registro) | `deploy/kubernetes/application/central-deployment.yaml` |
+| Imagen `nexo/local-coordinator` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** | `deploy/kubernetes/application/coordinator-deployment.yaml` |
+| Imagen `nexo/ticketing-sim`, `nexo/reader-client`, `nexo/db-init` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** | `deploy/kubernetes/application/ticketing-deployment.yaml`, `reader-load-job.yaml`, `db-init-job.yaml` |
+| PostgreSQL (D1, D2) | `postgres:16` (versión mayor fijada; imagen exacta y digest — **PENDIENTE-DIGEST**) | ADR-012, ADR-002 (G02); manifiestos de datos no auditados en esta sesión |
+| Backend de telemetría | `grafana/otel-lgtm` (imagen y digest — **PENDIENTE-DIGEST**) | ADR-013, `observability/collector/README.md` |
+
+Todas las imágenes de aplicación se construyen dentro de Minikube
+(`imagePullPolicy: Never`) y no se descargan de un registro; sin acceso a
+Docker/Minikube en esta sesión (restricción de S3-experimentos) no fue
+posible calcular digests reales. Quien continúe T60 con acceso al clúster
+debe reemplazar cada **PENDIENTE-DIGEST** con el digest real (`docker
+image inspect` o `minikube image ls`).
+
+## 3. Registro de recortes y desviaciones frente a §7 de taller3.md
+
+| # | Recorte o desviación | Evidencia en el repo | Resolución |
+|---|---|---|---|
+| a | `LoteEvidencia` (E1) no lleva `traceparent`; no hay Span Link real entre C2 y C4 | `src/shared/contracts/e1.ts` no define ningún campo de contexto de traza en `RegistroEvidencia` ni en `LoteEvidencia`; `docs/observability/README.md` y `docs/observability/justificacion-metricas.md` no documentan un Span Link C2→C4 implementado, solo lo describen como objetivo de ADR-013 | Sin resolver. Registrado como brecha entre ADR-013 (que exige "correlacionar trazas C1–C2–C4–C5") y el contrato E1 actual. Queda para quien retome T40/T41: agregar `traceparent` (o `traceId`/`spanId`) opcional a `RegistroEvidencia` y crear el Span Link en la recepción de M2. |
+| b | N3/A1 usa como proxy `nexo_c4_lotes_evidencia_total{resultado="conflicto"}` en vez de una métrica de integridad directa | `observability/alerts/alertas-t42.yaml` y `observability/dashboards/sincronizacion-y-resiliencia.json` referencian ese contador de resultado `conflicto` | Aceptado como proxy documentado; no hay diferencia de comportamiento observable entre un conflicto de idempotencia (`idOrigen` repetido con contenido distinto) y un duplicado de negocio real. Se anota aquí para que T57 lo tenga en cuenta al leer N3 durante F1/F3. |
+| c | Los ConfigMaps de tableros y alertas en Kubernetes están embebidos a mano, con riesgo de deriva frente a los archivos versionados en `observability/` | `deploy/kubernetes/observability/grafana-dashboards-configmap.yaml`, `grafana-provisioning-configmap.yaml` y `alert-webhook-configmap.yaml` no se generan desde `observability/dashboards/*.json` ni `observability/alerts/*.yaml` por ningún script del repo | Sin resolver. No existe una tarea de `deploy/scripts/` que regenere los ConfigMaps a partir de las fuentes versionadas; queda como deuda técnica para quien retome la plataforma de observabilidad. |
+| d | Para F2 (SER-06) se usó *scale-to-zero* del Deployment de `nexo-otel-lgtm` en vez de una `NetworkPolicy`, porque el CNI de Minikube (`kindnet`) no soporta el aislamiento de egreso necesario | `chaos/scripts/actions.ts` implementa la acción `scale` (líneas 305–310 y 377–406) como el mecanismo de corte, sin ninguna acción de tipo `NetworkPolicy` dirigida a `nexo-observability`; el resto de `NetworkPolicy` del repo (`deploy/kubernetes/application/networkpolicies.yaml`) solo cubre `nexo-venue`/`nexo-central`/`nexo-external` | Adoptado en G06 y ADR-013 ("cortar la exportación: escalar `otel-lgtm` a 0"); es la misma decisión registrada en `gaps.md` G06, ya resuelta de origen y coherente con el código actual. |
+| e | `#/preparacion` (panel C5) y CA1–CA4 no tienen fuente de datos real en algunas vistas, salvo que S3-panel lo resuelva en la ola en curso | `src/central-core/web/js/vistas/config.js` y `ayuda.js` mencionan `preparacion`/CA1–CA4 en el contexto de configuración y ayuda del panel; el estado exacto de conexión a datos reales de esa vista es propiedad de S3-panel (fuera del alcance editable de esta sesión, según la restricción del encargo) | En curso por S3-panel (T31 aparece "en curso" en `docs/context/taller3.md` §5, Fase 3). No se verifica aquí para no invadir `src/central-core/web/`; queda pendiente de que S3-panel confirme el cierre en su propio PR. |
+| f | El estado O2 de conciliación (M3) usa un repositorio mínimo/en evolución; S3-panel lo está corrigiendo | `src/central-core/modules/reconciliation/infrastructure/index.ts` ya tiene un repositorio respaldado por PostgreSQL con consultas completas (detección de diferencias, condiciones de cierre); no se detectó un stub o `TODO` explícito en el código inspeccionado, pero la corrección está en curso fuera del alcance de esta sesión | En curso por S3-panel. No se modifica `src/`; se deja constancia de que, al momento de este corte, el repositorio de conciliación no muestra marcas de "mínimo" en el código, y se recomienda que S3-panel confirme en su propio PR si el ajuste ya está aplicado o sigue pendiente. |
+| g | El README raíz y varios README de subcarpetas (`deploy/minikube/README.md`, `scripts/dev-reader.mjs`) describen el repositorio como si estuviera en construcción ("Estado actual… en curso", "pendiente en S1-reader") pese a que T02–T41 ya están en `hecho` según `docs/context/taller3.md` §5 | Comparación directa entre el README raíz (sección "Estado actual" y "Próximos pasos") y el estado real de `src/`, `deploy/`, `observability/`, `chaos/` | Resuelto en este PR: el README raíz se reescribe en T63 con el estado real y los pasos de ejecución vigentes. Los README de subcarpetas quedan fuera del alcance de esta sesión (no se toca `src/`); se recomienda una tarea de limpieza editorial (T64) para actualizarlos. |
+| h | `nexo-ticketing` (boletería simulada) aparece documentado como en `CrashLoopBackOff` "hasta que otra sesión implemente T23", pero T23 ya figura `hecho` en el plan | `deploy/minikube/README.md` y `deploy/scripts/README.md` mantienen esa nota; `docs/context/taller3.md` marca T23 como `hecho` | Nota editorial desactualizada, no verificable sin desplegar en Minikube (restricción de esta sesión). Se documenta aquí para que la sesión de plataforma la confirme y actualice esos README cuando el clúster esté disponible. |
+
+## 4. Notas de método
+
+- No se ejecutó ningún `docker`, `minikube`, `kubectl`, `helm`, `npm run
+  dev`, `npm run test:integration` ni prueba con Testcontainers en esta
+  sesión, por la reserva exclusiva de Minikube/Docker de S3-experimentos.
+  Toda esta matriz se construyó por lectura de código y de evidencia ya
+  versionada, más `npm run lint`, `npm test` (unitarias) y `npx tsc
+  --noEmit`.
+- `docs/fault-experiments/` solo contiene su `README.md`: T51–T57 (F1–F4 en
+  Minikube y su análisis) siguen `pendiente` en `docs/context/taller3.md`
+  §5, Fase 5. Por eso la columna "experimento" de casi toda la matriz queda
+  en `PENDIENTE-T57`, salvo donde ya existe evidencia de carga equivalente
+  fuera del arnés de `nexo-chaos` (fila ADR-002/ADR-011, citada
+  explícitamente).
