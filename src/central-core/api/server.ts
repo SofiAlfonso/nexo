@@ -15,8 +15,11 @@ import {
   crearServicioIngestaEvidencia, crearServicioVigilanciaLatidos, registrarRutasEvidencia, registrarRutasIncidentes,
 } from '../modules/evidence-ingestion/api/index.ts';
 import { RepositorioIncidentesPg } from '../modules/evidence-ingestion/infrastructure/index.ts';
+import { crearServicioLiquidacion } from '../modules/contracting-settlement/api/index.ts';
+import { crearServicioConciliacion } from '../modules/reconciliation/api/index.ts';
 import { HubStream } from './stream/hub.ts';
 import { registrarRutasAuth } from './rutas/auth.ts';
+import { registrarRutasCierre } from './rutas/cierre.ts';
 import { registrarRutasO2 } from './rutas/o2.ts';
 import { registrarRutaStream } from './rutas/stream.ts';
 import { registrarGuardiaSesion } from './plugins/sesion.ts';
@@ -54,6 +57,8 @@ export function crearApp(pool: Pool): AppC4 {
     new ActividadRepositorioPg(pool),
   );
   const hub = new HubStream();
+  const servicioLiquidacion = crearServicioLiquidacion(pool);
+  const servicioConciliacion = crearServicioConciliacion(pool, servicioLiquidacion);
 
   const vigilancia = setInterval(() => {
     servicioVigilancia.revisarPuntosSinComunicacion()
@@ -80,6 +85,7 @@ export function crearApp(pool: Pool): AppC4 {
   registrarRutasEvidencia(fastify, servicioIngesta);
   registrarRutasIncidentes(fastify, incidentesRepositorio);
   registrarRutasO2(fastify, servicioO2);
+  registrarRutasCierre(fastify, servicioConciliacion);
   registrarRutaStream(fastify, servicioO2, hub);
 
   // Difunde por SSE cuando un lote E1 se acepta (no en reintentos repetidos): la reconexión ya

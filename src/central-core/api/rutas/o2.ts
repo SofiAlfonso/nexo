@@ -87,12 +87,8 @@ export function registrarRutasO2(fastify: FastifyInstance, servicio: ServicioO2)
     return Boleta.parse(boleta);
   });
 
-  // Preparación y cierre (M1/M3/M4): fuera de alcance de M1 ola 1; 501 explícito para que el
-  // panel distinga "no implementado" de un 404 genérico.
+  // Preparación (M1): fuera de alcance de M1 ola 1; 501 explícito para que el panel distinga
+  // "no implementado" de un 404 genérico. Cierre (M3/M4): ver `registrarRutasCierre`.
   fastify.post(RUTAS.control.ruta, sinImplementar('Preparación no implementada en M1'));
   fastify.post(RUTAS.confirmarApertura.ruta, sinImplementar('Preparación no implementada en M1'));
-  fastify.post(RUTAS.cierrePreliminar.ruta, sinImplementar('Cierre no implementado en M1'));
-  fastify.post(RUTAS.cierreDefinitivo.ruta, sinImplementar('Cierre no implementado en M1'));
-  fastify.post(RUTAS.resolverDiferencia.ruta, sinImplementar('Cierre no implementado en M1'));
-  fastify.post(RUTAS.cobro.ruta, sinImplementar('Cierre no implementado en M1'));
 }
