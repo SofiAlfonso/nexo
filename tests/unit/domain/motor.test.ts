@@ -7,10 +7,22 @@ const motor = new MotorPrimerIngreso();
 const evaluar = (cambios: Partial<ContextoIngreso> = {}) => motor.evaluar(contexto(cambios));
 
 describe('MotorPrimerIngreso: prioridad y límites de evaluación', () => {
-  it('PB-01 código ajeno al evento se trata como desconocido', () => {
-    expect(evaluar({ boleta: { ...contexto().boleta!, eventoId: 'EVT-2026-11' } })).toMatchObject({
+  it('PB-01 una misma referencia externa en dos eventos se evalúa con sus propios permisos', () => {
+    const base = contexto();
+    expect(evaluar({ boleta: { ...base.boleta!, eventoId: 'EVT-2026-11' } })).toMatchObject({
       decision: 'rechazado', motivo: 'CODIGO_DESCONOCIDO', zonaBoleta: 'Norte', admision: false,
     });
+    const otroEvento = {
+      ...base.evento, eventoId: 'EVT-2026-11', clienteId: 'CLI-002', boleteriaId: 'BOL-002',
+    };
+    const otroIntento = { ...base.intento, eventoId: otroEvento.eventoId, zonaSolicitada: 'Sur' };
+    expect(evaluar({
+      evento: otroEvento,
+      intento: otroIntento,
+      punto: { ...base.punto!, eventoId: otroEvento.eventoId, zonas: ['Sur'] },
+      boleta: { ...base.boleta!, eventoId: otroEvento.eventoId, referencia: base.boleta!.referencia, zona: 'Sur' },
+    })).toMatchObject({ decision: 'aceptado', zonaBoleta: 'Sur', admision: true });
+    expect(evaluar().zonaBoleta).toBe('Norte');
     expect(evaluar({ boleta: null })).toMatchObject({ decision: 'rechazado', motivo: 'CODIGO_DESCONOCIDO', zonaBoleta: null });
   });
   it('PB-05 17:59:59 antes de la ventana se rechaza', () => {
