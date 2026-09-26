@@ -1,7 +1,7 @@
 # Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento (T60)
 
 Estado al pase final del taller 3 (S4-final, 26-09-2026, sobre `main` en
-`01aeb86`). La primera versión (S4-coherencia, PR #26, `fc74c1e`) se hizo
+`b07198e`, PR #36). La primera versión (S4-coherencia, PR #26, `fc74c1e`) se hizo
 sin Minikube y dejó la columna **experimento** en espera de F1–F4. Esta
 versión la completa con los resultados de F1–F4 ejecutados en Minikube
 (T51–T54), su evidencia (T56, [`chaos/evidence/`](../../chaos/evidence/README.md))

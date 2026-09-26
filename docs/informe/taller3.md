@@ -1,6 +1,6 @@
 # Informe del taller 3 de NEXO: implementación, observabilidad y análisis de fallos
 
-Curso ST1625. Entregable 3 (tareas T61, T62 y T64). Versión final del 26 de septiembre de 2026, sobre `main` en `01aeb86` (PR #35). El borrador anterior se escribió sobre `968c955` (PR #27, publicado en el PR #29, `3d8685f`).
+Curso ST1625. Entregable 3 (tareas T61, T62 y T64). Versión final del 26 de septiembre de 2026, sobre `main` en `b07198e` (PR #36; el último cambio de documentación previo es el PR #35, `01aeb86`). El borrador anterior se escribió sobre `968c955` (PR #27, publicado en el PR #29, `3d8685f`).
 
 Este informe sigue el orden de la rúbrica de [taller3.md §1](../context/taller3.md): aplicación, observabilidad, fallos y patrones, seguidos de la autoevaluación. Cada afirmación remite a un archivo del repositorio, a un PR o a una evidencia versionada. Los PR se citan con su número y el SHA corto de su *squash* en `main`, obtenidos con `gh pr view`.
 
@@ -450,7 +450,7 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 |---|---|---|
 | PENDIENTE-DIGEST | §7 | Sesión con acceso a Docker o Minikube ([matriz §2](../coherencia/matriz.md)): `minikube image ls --format table` o `docker image inspect` |
 
-Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR-PASE-FINAL), escrito sobre `main` en `01aeb86` (PR #35).
+Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR-PASE-FINAL), escrito sobre `main` en `b07198e` (PR #36).
 
 ## Anexo A. Verificación de enlaces (T64)
 
