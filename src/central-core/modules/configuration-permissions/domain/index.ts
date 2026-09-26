@@ -12,3 +12,6 @@ export interface PuntoConfigurado {
   zona: string;
   zonas: string[];
 }
+
+export { LocalidadDesconocida, contenidoIdempotente, normalizarLocalidad, traducirVersion } from './boleteria.ts';
+export type { CambioCanonico, OperacionCanonica } from './boleteria.ts';

@@ -168,9 +168,11 @@ export class PermisosRepositorioPg implements PermisosRepositorio {
       };
     }
     const { rows } = await this.pool.query<FilaCambio>(`
-      SELECT c.operacion, c.version, c.referencia, z.nombre AS zona, c.recibido_en
+      SELECT c.operacion, c.version, c.referencia, z.nombre AS zona,
+             COALESCE(b.anulacion_emitida_en, c.recibido_en) AS recibido_en
       FROM m1_config_permisos.cambios_permisos c
       LEFT JOIN m1_config_permisos.zonas z ON z.evento_id = c.evento_id AND z.id = c.zona_id
+      LEFT JOIN m1_config_permisos.boletas b ON b.evento_id = c.evento_id AND b.referencia = c.referencia
       WHERE c.evento_id = $1 AND c.version > $2 AND c.version <= $3
       ORDER BY c.version
     `, [eventoId, desdeVersion, hastaVersion]);

@@ -3,7 +3,6 @@
 Implementa configuración, permisos y el adaptador C3 de boletería.
 Contiene sus capas `domain/`, `application/`, `infrastructure/` y `api/`.
 Un módulo no importa el `infrastructure/` de otro módulo; se comunica por su `application/` (consultas B1–B4).
-Se completa en la ola 1.
 
 P2: `registrarRutasPermisos(fastify, servicio)` registra `GET /v1/permisos`;
 `crearServicioPermisos(pool?)` compone repositorios D2. La composición debe pasar
@@ -23,6 +22,29 @@ el punto debe tener zona principal y al menos una fila en `punto_zonas`.
 Se envían nombres de `zonas`, no identificadores internos. Los timestamps
 `apertura` y `cierre` definen la ventana absoluta de P2; sus segundos del día
 para O2 se calculan en la zona local del proceso Node. La anulación incremental
-usa `cambios_permisos.recibido_en` como `anuladaEn` (el historial no guarda el
-instante de emisión). Solo se consultan columnas de configuración de puntos;
+usa el instante de anulación emitido por la boletería (`boletas.anulacion_emitida_en`)
+como `anuladaEn`, o `cambios_permisos.recibido_en` si no existe. Solo se consultan columnas de configuración de puntos;
 el estado operativo y la telemetría pertenecen a M2.
+
+## Adaptador C3 (P1 → modelo canónico, ADR-007)
+
+`iniciarAdaptadorBoleteria(pool, config, log)` (desde `api/`) sondea la boletería cada
+`BOLETERIA_INTERVALO_MS` (5000 por omisión) con `GET /versiones` y `GET /versiones/{n}`; C4 lo
+arranca solo si `BOLETERIA_URL` está definida. `BOLETERIA_EVENTO_EXTERNO` (`TA-FECHA-14` por
+omisión) enlaza el evento externo con el evento actual de M1, cuya columna `boleteria` debe
+coincidir con la del índice.
+
+- `domain/boleteria.ts` traduce localidades a zonas por nombre normalizado (sin tildes ni
+  mayúsculas), `cambio-localidad` a `cambio-zona` y descarta `comprador`: ningún dato personal
+  llega a D2. Una localidad desconocida rechaza la versión completa.
+- `infrastructure/importaciones-pg.ts` aplica cada versión externa en una transacción de D2 con el
+  evento bloqueado: solo los cambios efectivos consumen una versión canónica (una por cambio, PK de
+  `cambios_permisos`); repetir una emisión vigente o reanular no crea versiones; nunca se
+  deshace una anulación. `importaciones_boleteria` (migración 020, solo adición) guarda la huella
+  SHA-256 del contenido (sin comprador ni `publicadaEn`): repetir versión y huella es idempotente,
+  otra huella es conflicto de integridad.
+- Cada ciclo verifica que la última versión importada conserve su huella y que la boletería no
+  haya retrocedido; si no, C3 se detiene con `conflicto` y no importa nada más (una boletería
+  reiniciada sin estado no puede reescribir el historial).
+
+C3 no decide ingresos: solo publica versiones que P2 distribuye; C2 sigue siendo la autoridad.
