@@ -232,12 +232,41 @@ describe('C4 - composición Fastify (login, O2, M2 E1, incidentes)', () => {
     expect(actividad.length).toBeGreaterThan(0);
   });
 
-  it('rutas de preparación/cierre fuera de alcance de M1 responden 501', async () => {
+  it('preparación: los 6 controles llegan confirmados y togglear uno bloquea/desbloquea la apertura', async () => {
     const cookie = await iniciarSesion(app);
-    const respuesta = await app.fastify.inject({
+
+    const estado = await app.fastify.inject({ method: 'GET', url: '/api/eventos/actual/estado', cookies: cookie });
+    const preparacionInicial = (estado.json() as { preparacion: { confirmada: boolean; controles: Array<{ id: string; ok: boolean }> } }).preparacion;
+    expect(preparacionInicial.confirmada).toBe(true);
+    expect(preparacionInicial.controles).toHaveLength(6);
+    expect(preparacionInicial.controles.every(c => c.ok)).toBe(true);
+
+    const desmarcar = await app.fastify.inject({
+      method: 'POST', url: '/api/preparacion/controles/permisos', cookies: cookie, payload: { ok: false },
+    });
+    expect(desmarcar.statusCode).toBe(200);
+    expect((desmarcar.json() as { controles: Array<{ id: string; ok: boolean }> }).controles.find(c => c.id === 'permisos')?.ok).toBe(false);
+
+    const bloqueada = await app.fastify.inject({
       method: 'POST', url: '/api/preparacion/confirmar', cookies: cookie,
     });
-    expect(respuesta.statusCode).toBe(501);
+    expect(bloqueada.statusCode).toBe(409);
+
+    const invalido = await app.fastify.inject({
+      method: 'POST', url: '/api/preparacion/controles/no-existe', cookies: cookie, payload: { ok: true },
+    });
+    expect(invalido.statusCode).toBe(400);
+
+    const remarcar = await app.fastify.inject({
+      method: 'POST', url: '/api/preparacion/controles/permisos', cookies: cookie, payload: { ok: true },
+    });
+    expect(remarcar.statusCode).toBe(200);
+
+    const confirmada = await app.fastify.inject({
+      method: 'POST', url: '/api/preparacion/confirmar', cookies: cookie,
+    });
+    expect(confirmada.statusCode).toBe(200);
+    expect((confirmada.json() as { confirmada: boolean }).confirmada).toBe(true);
   });
 });
 
@@ -272,6 +301,22 @@ async function sembrarDatos(pool: Pool): Promise<void> {
     'GENERAL', EVENTO_ID, 'General',
   ]);
   await pool.query('INSERT INTO m1_config_permisos.politicas (evento_id) VALUES ($1)', [EVENTO_ID]);
+
+  await pool.query(
+    `INSERT INTO m1_config_permisos.controles_preparacion (evento_id, id, titulo, confirmado, confirmado_en)
+     VALUES
+       ($1, 'permisos', 'Boletas y reglas verificadas', true, now() - interval '2 hours'),
+       ($1, 'contingencia', 'Conectividad y contingencia acordadas', true, now() - interval '2 hours'),
+       ($1, 'reemplazo', 'Puntos y repuestos probados', true, now() - interval '2 hours'),
+       ($1, 'integridad', 'Integridad comprobada', true, now() - interval '2 hours'),
+       ($1, 'privacidad', 'Seguimiento exclusivo a la boleta', true, now() - interval '2 hours'),
+       ($1, 'adicionales', 'Adicionales aceptados por el cliente', true, now() - interval '2 hours')`,
+    [EVENTO_ID],
+  );
+  await pool.query(
+    `UPDATE m1_config_permisos.eventos SET apertura_confirmada_en = now() - interval '2 hours' WHERE id = $1`,
+    [EVENTO_ID],
+  );
 
   for (let i = 1; i <= CANTIDAD_PUNTOS; i += 1) {
     const id = puntoId(i);

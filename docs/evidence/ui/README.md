@@ -105,3 +105,29 @@ vez de `ServicioConciliacion.obtenerConciliacion` (M3 real, ya mergeado en #18 p
 rutas dedicadas `/api/cierre/*` sí usan el servicio real. Cablear el estado en vivo al servicio real
 requiere tocar `central-core/application/o2/` e `infrastructure/o2-repositorio.ts`, fuera de la
 propiedad de esta sesión (`web/**`, `evidence-ingestion/**`, `seed.sql`).
+
+## T31 — Cierre del panel sin rutas 501 ni datos inventados (S3-panel): cierre y preparación
+
+Capturas nuevas (`t31-01-preparacion.png`, `t31-03-cierre.png`) tomadas con Playwright contra
+`npm run dev` propio de S3-panel (central `:18380`, coordinador `:18381`, boletería `:18382`;
+D1/D2/otel-lgtm propios levantados por `scripts/dev.mjs`), autenticada como `supervisor` /
+`nexo_operador_dev`. Ambas rutas se verificaron con 0 errores de consola tras un
+`location.reload(true)` forzado.
+
+- **`t31-01-preparacion.png` (`#/preparacion`)**: cierra el hallazgo de integración de arriba en la
+  parte que correspondía a T31. `GET /api/eventos/actual/estado` ahora arma `preparacion` con datos
+  reales de `m1_config_permisos.controles_preparacion`/`apertura_confirmada_en` (D2), con escritura
+  real vía `POST /api/preparacion/controles/:id` y `POST /api/preparacion/confirmar` (antes 501). La
+  captura muestra "6/6 · Confirmado" para `EVT-2026-02` (evento ya `abierto`, preparación sembrada
+  consistente con ese estado). CA1–CA4 ("Pruebas de aceptación") se deja como recorte honesto:
+  "No disponible todavía" — no existe ninguna fuente real de esos criterios en el repositorio, y no se
+  fabrica un dato. Cobertura de la regla de negocio (control inválido, control pendiente bloquea la
+  apertura) en `tests/unit/central/servicio-o2-preparacion.test.ts` (unitario, sin Testcontainers) y
+  `tests/integration/central/c4-server.test.ts` (extremo a extremo contra Postgres real).
+- **`t31-03-cierre.png` (`#/cierre`)**: `EventoConfigRepositorioPg.obtenerEventoActual` ahora también
+  resuelve eventos en estado `cerrado` (antes solo `abierto`/`preparacion`), así que el estado en vivo
+  no queda en blanco justo cuando `#/cierre` necesita mostrar conciliación/liquidación real. Verificado
+  con `tests/integration/settlement/cierre.test.ts` contra Postgres real (evento sembrado `cerrado`,
+  con una diferencia ya resuelta y saldo cobrado).
+- `#/puertas` y `#/puertas/:id` se re-verificaron sin cambios de código en esta ronda (0 errores de
+  consola).

@@ -1,5 +1,5 @@
 import type {
-  Accion, Boleta, EntradaActividad, EstadoActual, EstadoPunto, Incidente, Intento, PuntoDetalle, PuntoResumen,
+  Accion, Boleta, EntradaActividad, EstadoActual, EstadoPunto, Incidente, Intento, Preparacion, PuntoDetalle, PuntoResumen,
 } from '@nexo/shared/contracts';
 import { ControlPreparacion } from '@nexo/shared/contracts';
 import type { EventoConfigRepositorio, PuntoConfigRepositorio } from '../../modules/configuration-permissions/application/index.ts';
@@ -8,7 +8,7 @@ import type {
   AccionesRepositorio, ActividadRepositorio, BoletasRepositorio, ConsultaIntentosOpciones, EstadoOperativoRepositorio,
   EstadoPuntoLeido, IntentosRepositorio, ResultadoDecisionAccion,
 } from './puertos.ts';
-import type { PreparacionConciliacionRepositorio } from './puertos-preparacion.ts';
+import type { ConciliacionPuerto, PreparacionRepositorio } from './puertos-preparacion.ts';
 
 const ESTADO_PUNTO_VACIO: EstadoPunto = 'sin-abrir';
 
@@ -48,7 +48,8 @@ export class ServicioO2 {
   private readonly puntosConfig: PuntoConfigRepositorio;
   private readonly operativo: EstadoOperativoRepositorio;
   private readonly incidentes: IncidenteRepositorio;
-  private readonly preparacionConciliacion: PreparacionConciliacionRepositorio;
+  private readonly preparacion: PreparacionRepositorio;
+  private readonly conciliacion: ConciliacionPuerto;
   private readonly intentos: IntentosRepositorio;
   private readonly acciones: AccionesRepositorio;
   private readonly boletas: BoletasRepositorio;
@@ -60,7 +61,8 @@ export class ServicioO2 {
     puntosConfig: PuntoConfigRepositorio,
     operativo: EstadoOperativoRepositorio,
     incidentes: IncidenteRepositorio,
-    preparacionConciliacion: PreparacionConciliacionRepositorio,
+    preparacion: PreparacionRepositorio,
+    conciliacion: ConciliacionPuerto,
     intentos: IntentosRepositorio,
     acciones: AccionesRepositorio,
     boletas: BoletasRepositorio,
@@ -71,7 +73,8 @@ export class ServicioO2 {
     this.puntosConfig = puntosConfig;
     this.operativo = operativo;
     this.incidentes = incidentes;
-    this.preparacionConciliacion = preparacionConciliacion;
+    this.preparacion = preparacion;
+    this.conciliacion = conciliacion;
     this.intentos = intentos;
     this.acciones = acciones;
     this.boletas = boletas;
@@ -93,17 +96,18 @@ export class ServicioO2 {
   async obtenerPunto(puntoId: string): Promise<PuntoDetalle | null> {
     const evento = await this.eventosConfig.obtenerEventoActual();
     if (!evento) return null;
-    const [config, operativo] = await Promise.all([
+    const [config, operativo, recientes] = await Promise.all([
       this.puntosConfig.listarPuntosConfig(evento.id),
       this.operativo.obtenerPunto(evento.id, puntoId),
+      this.intentos.listar(evento.id, { limite: 10, puntoId }),
     ]);
     const puntoConfig = config.find(punto => punto.id === puntoId);
     if (!puntoConfig) return null;
     return {
       ...resumenPunto(puntoConfig, operativo),
-      // No proyectado en M1 (ola 1): latencias, intentos recientes, checklist de preparación y actividad del punto.
+      // No proyectado en M1 (ola 1): latencias, checklist de preparación y actividad/lectores del punto.
       latencias: [],
-      recientes: [],
+      recientes,
       preparacion: { lector: false, credencial: false, zonas: puntoConfig.zonas.length > 0, version: true, prueba: false },
       lectores: [],
       actividad: [],
@@ -117,15 +121,9 @@ export class ServicioO2 {
     const [coordinador, contadores, conciliacion, preparacion] = await Promise.all([
       this.operativo.obtenerEstadoCoordinador(evento.id),
       this.operativo.contarDecisiones(evento.id),
-      this.preparacionConciliacion.obtenerConciliacion(evento.id),
-      this.preparacionConciliacion.obtenerPreparacion(evento.id),
+      this.conciliacion.obtenerConciliacion(evento.id),
+      this.componerPreparacion(evento.id),
     ]);
-
-    const controles: EstadoActual['preparacion']['controles'] = [];
-    for (const control of preparacion.controles) {
-      const validado = ControlPreparacion.safeParse({ id: control.id, titulo: control.titulo, ok: control.ok, detalle: '' });
-      if (validado.success) controles.push(validado.data);
-    }
 
     return {
       ahora: ahora.toISOString(),
@@ -197,19 +195,39 @@ export class ServicioO2 {
         duranteCorte: 0,
         sincronizaciones: [],
       },
-      conciliacion: {
-        estado: conciliacion.estado,
-        preliminarEnS: conciliacion.preliminarEn ? segundosDelDia(conciliacion.preliminarEn) : null,
-        definitivoEnS: conciliacion.definitivoEn ? segundosDelDia(conciliacion.definitivoEn) : null,
-        diferencias: [],
-        saldoCobrado: false,
-        condiciones: [],
-      },
-      preparacion: {
-        confirmada: preparacion.confirmada,
-        controles,
-      },
+      conciliacion,
+      preparacion,
     };
+  }
+
+  private async componerPreparacion(eventoId: string): Promise<Preparacion> {
+    const leida = await this.preparacion.obtenerPreparacion(eventoId);
+    const controles: Preparacion['controles'] = [];
+    for (const control of leida.controles) {
+      const validado = ControlPreparacion.safeParse({ id: control.id, titulo: control.titulo, ok: control.ok, detalle: '' });
+      if (validado.success) controles.push(validado.data);
+    }
+    return { confirmada: leida.confirmada, controles };
+  }
+
+  /** `null` si `id` no es un control válido; `'evento-no-encontrado'` si no hay evento actual. */
+  async alternarControlPreparacion(id: string, ok: boolean): Promise<Preparacion | 'evento-no-encontrado' | 'control-invalido'> {
+    if (!ControlPreparacion.shape.id.safeParse(id).success) return 'control-invalido';
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return 'evento-no-encontrado';
+    await this.preparacion.alternarControl(evento.id, id, ok);
+    return this.componerPreparacion(evento.id);
+  }
+
+  /** `'controles-pendientes'` si algún control aún no está confirmado (regla del taller: un control
+   * pendiente bloquea la apertura, sin excepciones desde la API). */
+  async confirmarAperturaPreparacion(): Promise<Preparacion | 'evento-no-encontrado' | 'controles-pendientes'> {
+    const evento = await this.eventosConfig.obtenerEventoActual();
+    if (!evento) return 'evento-no-encontrado';
+    const actual = await this.componerPreparacion(evento.id);
+    if (actual.controles.length === 0 || actual.controles.some(control => !control.ok)) return 'controles-pendientes';
+    await this.preparacion.confirmarApertura(evento.id);
+    return this.componerPreparacion(evento.id);
   }
 
   async listarIncidentes(): Promise<Incidente[]> {

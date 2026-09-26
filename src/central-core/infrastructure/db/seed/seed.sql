@@ -40,6 +40,25 @@ VALUES
     ('Z-PALCOS', 'EVT-2026-02', 'Palcos')
 ON CONFLICT (id) DO NOTHING;
 
+-- Controles previos (CA1-CA4, docs/context/prototipo.md): confirmados por defecto, coherente
+-- con que EVT-2026-02 ya está 'abierto' (la preparación tuvo que completarse antes de abrir).
+-- El flujo de escritura (#/preparacion: alternar un control, confirmar apertura) se verifica con
+-- datos reales en tests/unit/central/servicio-o2-preparacion.test.ts (guardián "controles-pendientes")
+-- y en tests/integration/central/c4-server.test.ts (ruta HTTP contra Postgres).
+INSERT INTO m1_config_permisos.controles_preparacion(evento_id, id, titulo, confirmado, confirmado_en)
+VALUES
+    ('EVT-2026-02', 'permisos', 'Boletas y reglas verificadas', true, now() - interval '2 hours'),
+    ('EVT-2026-02', 'contingencia', 'Conectividad y contingencia acordadas', true, now() - interval '2 hours'),
+    ('EVT-2026-02', 'reemplazo', 'Puntos y repuestos probados', true, now() - interval '2 hours'),
+    ('EVT-2026-02', 'integridad', 'Integridad comprobada', true, now() - interval '2 hours'),
+    ('EVT-2026-02', 'privacidad', 'Seguimiento exclusivo a la boleta', true, now() - interval '2 hours'),
+    ('EVT-2026-02', 'adicionales', 'Adicionales aceptados por el cliente', true, now() - interval '2 hours')
+ON CONFLICT (evento_id, id) DO NOTHING;
+
+UPDATE m1_config_permisos.eventos
+SET apertura_confirmada_en = COALESCE(apertura_confirmada_en, now() - interval '2 hours')
+WHERE id = 'EVT-2026-02';
+
 INSERT INTO m1_config_permisos.puntos(id, evento_id, nombre, zona_id)
 SELECT 'P-' || lpad(n::text, 2, '0'), 'EVT-2026-02',
        'Puerta ' || zona || ' ' || (n - inicio + 1), zona_id

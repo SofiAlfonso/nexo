@@ -147,6 +147,7 @@ export const Preparacion = z.object({
   confirmada: z.boolean(),
   controles: z.array(ControlPreparacion),
 });
+export type Preparacion = z.infer<typeof Preparacion>;
 
 export const EstadoActual = z.object({
   ahora: Instante,

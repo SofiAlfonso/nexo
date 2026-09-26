@@ -120,6 +120,33 @@ describe('C4 - rutas de cierre (#/cierre): conciliación y liquidación (M3/M4)'
     const repetido = await app.fastify.inject({ method: 'POST', url: '/api/cierre/cobro', cookies: cookieFinanzas, payload: {} });
     expect(repetido.statusCode).toBe(409);
   });
+
+  it('GET /api/eventos/actual/estado refleja la conciliación real tras el cierre (evento ya "cerrado")', async () => {
+    // El evento sembrado nace `cerrado` (M3 exige esa ventana cerrada para el preliminar); O2 debe
+    // seguir resolviéndolo como "actual" para que #/cierre no quede sin datos justo cuando existen
+    // (antes de este ajuste `EventoConfigRepositorioPg.obtenerEventoActual` solo consideraba
+    // `abierto`/`preparacion` y esta ruta devolvía 404).
+    const cookie = await iniciarSesion(app, 'supervisor1', 'clave-prueba-123');
+    const respuesta = await app.fastify.inject({ method: 'GET', url: '/api/eventos/actual/estado', cookies: cookie });
+    expect(respuesta.statusCode).toBe(200);
+    const estado = respuesta.json() as {
+      evento: { id: string };
+      conciliacion: {
+        estado: string; saldoCobrado: boolean; diferencias: Array<{ tipo: string; estado: string }>;
+        condiciones: Array<{ id: string; ok: boolean }>;
+      };
+    };
+    expect(estado.evento.id).toBe(EVENTO_ID);
+    // La secuencia previa (preliminar → resolver diferencia → definitivo → cobro) ya dejó el
+    // evento conciliado y cobrado en D2; el endpoint pasivo debe leerlo desde `ServicioConciliacion`,
+    // no devolver el stub hardcodeado (`diferencias: []`, `condiciones: []`, `saldoCobrado: false`).
+    expect(estado.conciliacion.estado).toBe('conciliado');
+    expect(estado.conciliacion.saldoCobrado).toBe(true);
+    expect(estado.conciliacion.diferencias).toHaveLength(1);
+    expect(estado.conciliacion.diferencias[0]?.tipo).toBe('anulacion');
+    expect(estado.conciliacion.diferencias[0]?.estado).toBe('resuelta');
+    expect(estado.conciliacion.condiciones.every(c => c.ok)).toBe(true);
+  });
 });
 
 async function iniciarSesion(app: AppC4, usuario: string, contrasena: string): Promise<Record<string, string>> {
@@ -151,6 +178,7 @@ async function sembrarDatos(pool: Pool): Promise<void> {
      VALUES ($1, $2, $3, $4, $5, now() - interval '5 hours', now() - interval '1 hour', 0, 'cerrado')`,
     [EVENTO_ID, RECINTO_ID, 'Evento de prueba', 'Prueba', 'boleteria-sim'],
   );
+  await pool.query('INSERT INTO m1_config_permisos.politicas (evento_id) VALUES ($1)', [EVENTO_ID]);
   await pool.query('INSERT INTO m1_config_permisos.zonas (id, evento_id, nombre) VALUES ($1, $2, $3)', [
     'GENERAL', EVENTO_ID, 'General',
   ]);

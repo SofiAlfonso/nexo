@@ -1,22 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  Accion, Boleta, ConsultaIntentos, DecisionAccion, EstadoActual, ListaAcciones, ListaActividad, ListaIntentos,
-  ListaPuntos, PuntoDetalle, RUTAS, type CodigoError,
+  Accion, Boleta, CambioControl, ConsultaIntentos, DecisionAccion, EstadoActual, ListaAcciones, ListaActividad,
+  ListaIntentos, ListaPuntos, PuntoDetalle, RUTAS, type CodigoError,
 } from '@nexo/shared/contracts';
 import type { ServicioO2 } from '../../application/o2/servicio-o2.ts';
 
-// No hay un código de la taxonomía D12 para "no implementado": estas rutas quedan fuera del
-// alcance de M1 (preparación/cierre) y devuelven 501 explícito en vez de un 404 genérico.
-function sinImplementar(mensaje: string) {
-  return async (_request: unknown, reply: { code(n: number): { send(body: unknown): unknown } }) => reply.code(501).send({
-    mensaje,
-  });
-}
-
 /**
  * O2 mínimo (ola 1): estado/puntos/intentos/incidentes ya cubiertos por otras rutas registradas
- * en `server.ts`; aquí se añaden acciones, actividad y boletas, y se dejan explícitos con 501 los
- * puntos de preparación/cierre que quedan fuera de alcance de M1.
+ * en `server.ts`; aquí se añaden acciones, actividad, boletas y preparación (control/apertura).
+ * Cierre (M3/M4) vive en `registrarRutasCierre`.
  */
 export function registrarRutasO2(fastify: FastifyInstance, servicio: ServicioO2): void {
   fastify.get(RUTAS.estado.ruta, async (_request, reply) => {
@@ -87,8 +79,36 @@ export function registrarRutasO2(fastify: FastifyInstance, servicio: ServicioO2)
     return Boleta.parse(boleta);
   });
 
-  // Preparación (M1): fuera de alcance de M1 ola 1; 501 explícito para que el panel distinga
-  // "no implementado" de un 404 genérico. Cierre (M3/M4): ver `registrarRutasCierre`.
-  fastify.post(RUTAS.control.ruta, sinImplementar('Preparación no implementada en M1'));
-  fastify.post(RUTAS.confirmarApertura.ruta, sinImplementar('Preparación no implementada en M1'));
+  // Preparación (M1): control individual y confirmación de apertura, sobre `controles_preparacion`
+  // sembrado por evento. Cierre (M3/M4): ver `registrarRutasCierre`.
+  fastify.post<{ Params: { id: string }; Body: unknown }>(RUTAS.control.ruta, async (request, reply) => {
+    const parseo = CambioControl.safeParse(request.body);
+    if (!parseo.success) {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'SOLICITUD_INVALIDA', mensaje: 'Cambio de control inválido' };
+      return reply.code(400).send(cuerpo);
+    }
+    const resultado = await servicio.alternarControlPreparacion(request.params.id, parseo.data.ok);
+    if (resultado === 'control-invalido') {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'SOLICITUD_INVALIDA', mensaje: 'Control no reconocido' };
+      return reply.code(400).send(cuerpo);
+    }
+    if (resultado === 'evento-no-encontrado') {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'NO_ENCONTRADO', mensaje: 'No hay un evento actual' };
+      return reply.code(404).send(cuerpo);
+    }
+    return resultado;
+  });
+
+  fastify.post(RUTAS.confirmarApertura.ruta, async (_request, reply) => {
+    const resultado = await servicio.confirmarAperturaPreparacion();
+    if (resultado === 'evento-no-encontrado') {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'NO_ENCONTRADO', mensaje: 'No hay un evento actual' };
+      return reply.code(404).send(cuerpo);
+    }
+    if (resultado === 'controles-pendientes') {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'CONFLICTO_ESTADO', mensaje: 'Hay controles de preparación pendientes' };
+      return reply.code(409).send(cuerpo);
+    }
+    return resultado;
+  });
 }

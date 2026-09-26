@@ -4,7 +4,9 @@ import type {
   AccionesRepositorio, ActividadRepositorio, BoletasRepositorio, ConsultaIntentosOpciones, ContadoresDecisiones,
   EstadoCoordinadorLeido, EstadoOperativoRepositorio, EstadoPuntoLeido, IntentosRepositorio, ResultadoDecisionAccion,
 } from '../application/o2/puertos.ts';
-import type { ConciliacionLeida, PreparacionConciliacionRepositorio, PreparacionLeida } from '../application/o2/puertos-preparacion.ts';
+import type { PreparacionLeida, PreparacionRepositorio } from '../application/o2/puertos-preparacion.ts';
+import type { EventoConfigRepositorio } from '../modules/configuration-permissions/application/index.ts';
+import type { EventoConfigurado } from '../modules/configuration-permissions/domain/index.ts';
 
 /** Segundos desde la medianoche local; misma convención usada por `servicio-o2.ts` y M2. */
 function segundosDelDia(instante: Date): number {
@@ -161,24 +163,13 @@ export class EstadoOperativoRepositorioPg implements EstadoOperativoRepositorio 
   }
 }
 
-/** Conciliación (M3) y preparación (M1) leídas directamente: fuera del alcance de M1/M2 propios. */
-export class PreparacionConciliacionRepositorioPg implements PreparacionConciliacionRepositorio {
+/** Preparación (M1) leída directamente: fuera del alcance de M1 propio. La conciliación real
+ * (M3) llega por `ConciliacionPuerto` (`ServicioConciliacion`), no por este repositorio. */
+export class PreparacionRepositorioPg implements PreparacionRepositorio {
   private readonly pool: Pool;
 
   constructor(pool: Pool) {
     this.pool = pool;
-  }
-
-  async obtenerConciliacion(eventoId: string): Promise<ConciliacionLeida> {
-    const { rows } = await this.pool.query<{
-      estado: ConciliacionLeida['estado']; preliminar_en: Date | null; definitivo_en: Date | null;
-    }>('SELECT estado, preliminar_en, definitivo_en FROM m3_conciliacion.conciliaciones WHERE evento_id = $1', [eventoId]);
-    const fila = rows[0];
-    return {
-      estado: fila?.estado ?? 'sin-iniciar',
-      preliminarEn: fila?.preliminar_en ?? null,
-      definitivoEn: fila?.definitivo_en ?? null,
-    };
   }
 
   async obtenerPreparacion(eventoId: string): Promise<PreparacionLeida> {
@@ -195,6 +186,22 @@ export class PreparacionConciliacionRepositorioPg implements PreparacionConcilia
       confirmada: evento.rows[0]?.apertura_confirmada_en !== null && evento.rows[0]?.apertura_confirmada_en !== undefined,
       controles: controles.rows.map(fila => ({ id: fila.id, titulo: fila.titulo, ok: fila.confirmado })),
     };
+  }
+
+  async alternarControl(eventoId: string, id: string, ok: boolean): Promise<void> {
+    await this.pool.query(
+      `UPDATE m1_config_permisos.controles_preparacion
+         SET confirmado = $3, confirmado_en = CASE WHEN $3 THEN now() ELSE NULL END
+       WHERE evento_id = $1 AND id = $2`,
+      [eventoId, id, ok],
+    );
+  }
+
+  async confirmarApertura(eventoId: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE m1_config_permisos.eventos SET apertura_confirmada_en = now() WHERE id = $1 AND apertura_confirmada_en IS NULL',
+      [eventoId],
+    );
   }
 }
 
@@ -449,5 +456,89 @@ export class ActividadRepositorioPg implements ActividadRepositorio {
       [eventoId],
     );
     return rows.map(fila => ({ t: segundosDelDia(fila.creada_en), texto: fila.texto, tono: tonoBitacora(fila) }));
+  }
+}
+
+interface FilaEventoActualO2 {
+  id: string;
+  nombre: string;
+  nombre_corto: string;
+  recinto: string;
+  boleteria: string;
+  apertura: Date;
+  cierre: Date;
+  admisiones_estimadas: number;
+  gratuito: boolean;
+  estado: EventoConfigurado['estado'];
+  version_permisos: number;
+  ultimo_cambio_recibido: Date | null;
+  version_politicas: number;
+  reingreso_permitido: boolean;
+  reingreso_tras_min: number;
+  reingreso_suspendido: boolean;
+}
+
+/**
+ * Resuelve el evento "actual" para O2 (`GET /api/eventos/actual/estado` y el SSE `estado`) con un
+ * criterio más amplio que `configuration-permissions.EventoConfigRepositorioPg`: incluye `cerrado`.
+ * M1 no considera "actual" un evento cerrado (P2/importación de boletería ya no aplican), pero O2
+ * debe seguir mostrándolo mientras dure el cierre — M3 exige `estado = 'cerrado'` para entregar el
+ * preliminar (ver `reconciliation/infrastructure`), así que excluirlo aquí dejaría sin datos a
+ * `#/cierre` justo cuando existen. Se duplica (no se decora) la consulta de M1 para no tocar su
+ * módulo ni ampliar el alcance de P2/importación, que sí deben ignorar un evento ya cerrado.
+ */
+export class EventoActualO2RepositorioPg implements EventoConfigRepositorio {
+  private readonly pool: Pool;
+
+  constructor(pool: Pool) {
+    this.pool = pool;
+  }
+
+  async obtenerVersionPermisosVigente(eventoId: string): Promise<number> {
+    const { rows } = await this.pool.query<{ version_permisos: number }>(
+      'SELECT version_permisos FROM m1_config_permisos.eventos WHERE id = $1', [eventoId],
+    );
+    return rows[0]?.version_permisos ?? 0;
+  }
+
+  async obtenerEventoActual(): Promise<EventoConfigurado | null> {
+    const { rows } = await this.pool.query<FilaEventoActualO2>(`
+      SELECT e.id, e.nombre, e.nombre_corto, r.nombre AS recinto, e.boleteria,
+             e.apertura, e.cierre, e.admisiones_estimadas, e.gratuito, e.estado,
+             e.version_permisos, e.ultimo_cambio_recibido,
+             p.version AS version_politicas, p.reingreso_permitido,
+             p.reingreso_tras_min, p.reingreso_suspendido
+      FROM m1_config_permisos.eventos e
+      JOIN m1_config_permisos.recintos r ON r.id = e.recinto_id
+      JOIN m1_config_permisos.politicas p ON p.evento_id = e.id
+      WHERE e.estado IN ('abierto', 'cerrado', 'preparacion')
+      ORDER BY CASE e.estado WHEN 'abierto' THEN 0 WHEN 'cerrado' THEN 1 ELSE 2 END, e.id DESC
+      LIMIT 1
+    `);
+    const fila = rows[0];
+    if (!fila) return null;
+    return {
+      id: fila.id,
+      nombre: fila.nombre,
+      nombreCorto: fila.nombre_corto,
+      recinto: fila.recinto,
+      boleteria: fila.boleteria,
+      aperturaS: segundosDelDia(fila.apertura),
+      cierreS: segundosDelDia(fila.cierre),
+      aperturaEn: fila.apertura.toISOString(),
+      cierreEn: fila.cierre.toISOString(),
+      admisionesEstimadas: fila.admisiones_estimadas,
+      gratuito: fila.gratuito,
+      estado: fila.estado,
+      versionPermisos: fila.version_permisos,
+      ultimoCambioRecibidoS: fila.ultimo_cambio_recibido
+        ? segundosDelDia(fila.ultimo_cambio_recibido) : null,
+      politicas: {
+        version: fila.version_politicas,
+        reingresoPermitido: fila.reingreso_permitido,
+        reingresoTrasMin: fila.reingreso_tras_min,
+        reingresoSuspendido: fila.reingreso_suspendido,
+      },
+    };
   }
 }
