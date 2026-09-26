@@ -16,8 +16,10 @@ export async function migrate(pool: Pool): Promise<void> {
     if (!match) throw new Error(`Invalid D2 migration filename: ${filename}`);
     return { filename, version: Number(match[1]) };
   }).sort((a, b) => a.version - b.version);
-  if (migrations.some(({ version }, index) => !Number.isSafeInteger(version) || version !== index + 1)) {
-    throw new Error('D2 migrations must have unique consecutive versions beginning with 001');
+  // Gaps are allowed (each session owns a numeric range); versions must be positive and unique.
+  if (migrations.some(({ version }, index) =>
+    !Number.isSafeInteger(version) || version < 1 || (index > 0 && version === migrations[index - 1]!.version))) {
+    throw new Error('D2 migrations must have unique positive integer versions');
   }
 
   const client = await pool.connect();

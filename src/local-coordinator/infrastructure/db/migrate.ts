@@ -15,8 +15,10 @@ export async function migrate(pool: Pool): Promise<void> {
     .map(({ name, match }) => ({ name, version: Number(match[1]) }))
     .sort((a, b) => a.version - b.version);
 
-  if (files.some(({ version }, index) => !Number.isSafeInteger(version) || version !== index + 1)) {
-    throw new Error('D1 migrations must have unique, consecutive versions starting at 001');
+  // Gaps are allowed (each session owns a numeric range); versions must be positive and unique.
+  if (files.some(({ version }, index) =>
+    !Number.isSafeInteger(version) || version < 1 || (index > 0 && version === files[index - 1]!.version))) {
+    throw new Error('D1 migrations must have unique positive integer versions');
   }
 
   const client = await pool.connect();
