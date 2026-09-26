@@ -54,11 +54,20 @@ como un despliegue productivo definitivo.
 
 ## Estado actual
 
-El repositorio cuenta con el andamiaje TypeScript y los workspaces npm
-`@nexo/shared`, `@nexo/local-coordinator`, `@nexo/central-core`,
-`@nexo/reader-client` y `@nexo/ticketing-sim`. Los contratos V1/H1/E1/P1/P2/O2/Auth
-están en `src/shared/contracts/` junto con sus fixtures, y CI está configurado.
-La implementación de los componentes está en curso (taller 3).
+Los seis componentes (C1–C5, D1–D2) están implementados: el lector emulado
+(`src/reader-client/`), el coordinador local con su persistencia
+(`src/local-coordinator/`), el núcleo central con M1–M4 y el panel C5
+(`src/central-core/`), la boletería simulada (`src/ticketing-sim/`), los
+manifiestos de Minikube (`deploy/`), la observabilidad (`observability/`) y
+`nexo-chaos` (`chaos/`). El hito M1 (login, panel con datos reales, V1 → D1 →
+E1 → D2 → SSE) está en `main` y `npm run test:m1` lo verifica de punta a
+punta. Los cuatro experimentos de fallos (F1 RED-01, F2 SER-06, F3 BD-01, F4
+REC-01) siguen `pendiente` de ejecutarse y documentarse en
+`docs/fault-experiments/` (ver `docs/context/taller3.md` §5, Fase 5). El
+estado detallado por tarea (T00–T64) está en
+[`docs/context/taller3.md`](docs/context/taller3.md) y la trazabilidad
+ADR ↔ código ↔ prueba ↔ experimento en
+[`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
 
 ## Advertencia de seguridad
 
@@ -143,35 +152,120 @@ nexo/
     └── examples/
 ```
 
-## Desarrollo
+## Ejecución paso a paso
 
-Requisitos: Node.js >= 24 y npm.
+### Requisitos
+
+- Node.js >= 24 y npm (`package.json` declara `engines.node: ">=24"`).
+- Para el laboratorio completo en Kubernetes: Docker Desktop con WSL 2,
+  Minikube, `kubectl` y Helm (ver [ADR-015](docs/decisions/ADR-015-laboratorio-local-minikube.md)
+  y [deploy/minikube/README.md](deploy/minikube/README.md)). Perfil mínimo
+  recomendado: `minikube start --driver=docker --cpus=4 --memory=8192`.
+- Ningún secreto ni dato personal va en Git; las contraseñas de laboratorio
+  se piden por variable de entorno (ver `config/examples/`).
+
+### 1. Instalar dependencias y verificar el andamiaje
 
 ```sh
 npm ci
-npm run build
+npm run build      # typecheck de todos los workspaces
 npm run lint
-npm test
-npm run test:integration
+npm test           # pruebas unitarias (Vitest)
+```
+
+### 2. Entorno local con Docker Compose (hito M1)
+
+`npm run dev` levanta D1, D2 y `otel-lgtm` con
+`deploy/compose/docker-compose.dev.yml` (proyecto Compose `nexo-dev`,
+compartido entre sesiones: nunca usar `down -v`), aplica migraciones y
+semilla si ya existen, y arranca C4 (`central-core`) y C2
+(`local-coordinator`) como procesos Node:
+
+```sh
 npm run dev
 ```
 
-`npm run build` ejecuta el typecheck de todos los workspaces.
-`npm run test:integration` requiere Docker y usa Testcontainers.
-`npm run dev` es un placeholder hasta M1.
+En otra terminal, arranca el lector emulado (C1) contra el C2 local:
 
-## Próximos pasos
+```sh
+npm run dev:reader
+```
 
-Los siguientes pasos aún **no** están implementados y requieren instrucción
-explícita para comenzar:
+Para detener los procesos de Node con Ctrl+C basta; D1/D2/`otel-lgtm` siguen
+corriendo hasta `npm run dev:down` (o `npm run dev:down -- --reset` para
+borrar volúmenes).
 
-- Definir y documentar decisiones de arquitectura (ADRs) en `docs/decisions/`.
-- Implementar el cliente de puerta (`src/reader-client/`).
-- Implementar el coordinador local y su persistencia (`src/local-coordinator/`).
-- Implementar el núcleo central por capas y módulos (`src/central-core/`).
-- Crear manifiestos/charts de Kubernetes y scripts de Minikube (`deploy/`).
-- Configurar el Collector de OpenTelemetry y los dashboards/alertas
-  (`observability/`).
-- Implementar los cuatro experimentos de fallos iniciales (`chaos/`).
-- Añadir pruebas unitarias, de integración, de carga y de resiliencia
-  (`tests/`).
+Prueba de humo de punta a punta (V1 → D1 → E1 → D2 → SSE), con `npm run dev`
+arriba:
+
+```sh
+npm run test:m1
+```
+
+Pruebas de integración completas (requieren Docker/Testcontainers):
+
+```sh
+npm run test:integration
+```
+
+### 3. Despliegue completo en Minikube
+
+Con Minikube corriendo y los namespaces/observabilidad ya aplicados (ver
+[deploy/minikube/README.md](deploy/minikube/README.md)):
+
+```sh
+node deploy/scripts/up.mjs     # o deploy/scripts/up.ps1 en PowerShell
+```
+
+Construye las 5 imágenes locales (`imagePullPolicy: Never`, sin registro),
+crea los Secrets de laboratorio, aplica los manifiestos de
+`deploy/kubernetes/{namespaces,data,application}` y ejecuta migraciones y
+semilla. Otros scripts en [`deploy/scripts/`](deploy/scripts/README.md):
+
+- `node --import tsx deploy/scripts/seed.ts` / `deploy/scripts/seed.ps1` —
+  siembra D1/D2 (requiere `SEED_OPERATOR_PASSWORD`).
+- `node deploy/scripts/load.mjs` / `load.ps1` — exporta boletas activas y
+  corre el lector emulado como Job de carga (perfil `nominal`, 30 s).
+- `node deploy/scripts/down.mjs` / `down.ps1` — retira Deployments/Jobs,
+  conserva PVC y Secrets.
+- `node deploy/scripts/reset.mjs --confirm` — como `down`, además borra PVC
+  y Secrets (destruye datos).
+
+### 4. Experimentos de fallos (`nexo-chaos`)
+
+`chaos/scripts/nexo-chaos.ts` valida, planea, ejecuta y revierte los cuatro
+experimentos de `chaos/experiments/` (RED-01, SER-06, BD-01, REC-01):
+
+```sh
+node chaos/scripts/nexo-chaos.ts validate chaos/experiments/red-01-central-connection/experiment.yaml
+node chaos/scripts/nexo-chaos.ts plan chaos/experiments/red-01-central-connection/experiment.yaml
+node chaos/scripts/nexo-chaos.ts run chaos/experiments/red-01-central-connection/experiment.yaml --confirm
+node chaos/scripts/nexo-chaos.ts status
+node chaos/scripts/nexo-chaos.ts restore
+```
+
+Ver [chaos/README.md](chaos/README.md) para el detalle de cada subcomando,
+el watchdog de reversión (máx. 15 min) y el puerto de Toxiproxy requerido
+para F1. Cada ejecución deja su registro en `chaos/evidence/`.
+
+### 5. Ver Grafana (dashboards y alertas)
+
+Con el Collector y `otel-lgtm` desplegados en `nexo-observability`:
+
+```sh
+kubectl -n nexo-observability port-forward svc/nexo-otel-lgtm 3000:3000
+```
+
+Abrir `http://localhost:3000`. Los dashboards versionados están en
+[`observability/dashboards/`](observability/dashboards/) (operación del
+evento; sincronización y resiliencia) y las alertas en
+[`observability/alerts/`](observability/alerts/); ver
+[`docs/observability/`](docs/observability/README.md) para la
+justificación de cada métrica.
+
+## Estado y trazabilidad
+
+- Plan de tareas y estado por fase: [`docs/context/taller3.md`](docs/context/taller3.md).
+- Matriz ADR ↔ código ↔ prueba ↔ experimento y registro de recortes:
+  [`docs/coherencia/matriz.md`](docs/coherencia/matriz.md).
+- Guion del video demo: [`docs/demo/guion-video.md`](docs/demo/guion-video.md).
