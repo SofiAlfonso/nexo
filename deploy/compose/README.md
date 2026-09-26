@@ -14,6 +14,12 @@ Puertos publicados:
 - OTLP/HTTP: `localhost:4318`
 - Grafana: [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
 
+`otel-lgtm` provisiona automáticamente los dashboards de
+`observability/dashboards/` (carpeta **NEXO**) y las alertas de
+`observability/alerts/` (T41/T42). Para recibir sus notificaciones en
+desarrollo, arranca `node observability/alerts/webhook-receptor.mjs` antes
+de levantar el stack (ver `NEXO_ALERT_WEBHOOK_URL` en `.env.example`).
+
 Conexiones PostgreSQL predeterminadas:
 
 - D1: `postgresql://nexo_venue:nexo_venue_dev@localhost:5433/nexo_venue`
