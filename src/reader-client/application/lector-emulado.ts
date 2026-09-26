@@ -12,6 +12,7 @@ import type { Decision, Proposito } from '@nexo/shared/contracts';
 import { ClienteHttpCoordinador, ErrorHttpCoordinador } from '../infrastructure/cliente-coordinador.ts';
 import type { CoordinadorLector, CredencialesCoordinador } from '../infrastructure/cliente-coordinador.ts';
 import { DiarioJsonl } from '../infrastructure/diario-jsonl.ts';
+import { registrarResultadoLector } from '../infrastructure/telemetria/metricas-lector.ts';
 
 export interface OpcionesLector {
   lectorId: string;
@@ -164,6 +165,7 @@ export class LectorEmulado {
     }
     const latenciaMs = Math.max(0, performance.now() - inicio);
     const decision = respuesta?.decision ?? 'sin-respuesta';
+    registrarResultadoLector(decision, latenciaMs);
     await this.diario.resultado(solicitud.idOrigen, decision, latenciaMs, respuesta);
     if (respuesta) this.versionPermisos = respuesta.versionPermisos;
     if (errorFatal) throw errorFatal;
