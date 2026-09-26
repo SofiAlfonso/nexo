@@ -92,11 +92,19 @@ config:
       sending_queue:
         enabled: true
         storage: file_storage
+        # Suficiente para varias decenas de minutos de lotes (traces+metrics+logs) sin backend
+        # (F2, taller3 SS de resiliencia): con la cola persistida en file_storage, un queue_size
+        # generoso no crece la memoria del proceso, solo el disco de la PVC.
+        queue_size: 10000
       retry_on_failure:
         enabled: true
         initial_interval: 5s
         max_interval: 30s
-        max_elapsed_time: 5m
+        # Sin limite: con sending_queue.storage=file_storage la cola persiste en la PVC
+        # nexo-otel-collector-storage, asi que un backend caido no debe hacer que el exportador
+        # descarte lotes por agotar max_elapsed_time. F2 (Collector aislado de otel-lgtm 15 min)
+        # debe recuperar y reenviar todo sin perdida; se valida hasta 30+ min de outage.
+        max_elapsed_time: 0
 
   service:
     extensions:

@@ -30,11 +30,12 @@ config:
       sending_queue:
         enabled: true
         storage: file_storage
+        queue_size: 10000
       retry_on_failure:
         enabled: true
         initial_interval: 5s
         max_interval: 30s
-        max_elapsed_time: 5m
+        max_elapsed_time: 0
 
   service:
     extensions:

@@ -11,9 +11,14 @@ El colector usa una cola de envío con `file_storage` sobre el PVC
 reinicios del pod y respalda el corte de exportación **SER-06** cuando el
 destino no está disponible; no sustituye el almacenamiento duradero del
 backend. El despliegue tiene una sola réplica y estrategia `Recreate` para
-evitar dos pods compartiendo la misma cola. Si el reintento excede
-`max_elapsed_time: 5m`, o se llena la cola o el PVC, puede perderse telemetría:
-no es una garantía de entrega indefinida. El volumen `/data` de otel-lgtm es
+evitar dos pods compartiendo la misma cola. `retry_on_failure.max_elapsed_time`
+es `0` (sin límite): con la cola persistida en `file_storage` sobre la PVC, un
+backend caído (p. ej. el escenario de caos F2, Collector aislado de
+`otel-lgtm`) no debe hacer que el exportador descarte lotes por agotar un
+límite de tiempo de reintento; solo se pierde telemetría si se llena la cola
+(`queue_size: 10000`) o el propio PVC. No es una garantía de entrega
+indefinida, pero sí cubre outages de varias decenas de minutos con el volumen
+de datos esperado en desarrollo. El volumen `/data` de otel-lgtm es
 `emptyDir`: sus datos se pierden cuando se reemplaza el pod. Ambos son
 componentes de desarrollo/demo, no una instalación productiva.
 
