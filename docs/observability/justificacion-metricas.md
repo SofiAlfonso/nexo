@@ -38,5 +38,7 @@ desviación se documenta también en `observability/alerts/README.md`
   heartbeat H1, apoyo de KR1.2 y de la alerta A8 ("sin comunicación" > 60 s,
   T2 §8.6).
 - Métricas internas del Collector (`otelcol_exporter_queue_size`,
-  `otelcol_exporter_send_failed_*`): apoyo de las alertas A13/A14 (T2 §8.4),
-  no atribuibles a un componente de negocio de NEXO.
+  `otelcol_exporter_{send,enqueue}_failed_*_total`): apoyo de las alertas A13/A14 (T2 §8.4),
+  no atribuibles a un componente de negocio de NEXO. El Collector se
+  autorrecoge con el receptor `prometheus/self`, y las consultas filtran por
+  `k8s_pod_name=~"nexo-otel-collector-.*"` para no mezclar el collector interno de `otel-lgtm`.

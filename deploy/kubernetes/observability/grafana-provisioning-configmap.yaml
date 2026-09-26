@@ -161,7 +161,8 @@ data:
                 model:
                   refId: A
                   expr: >-
-                    otelcol_exporter_queue_size / otelcol_exporter_queue_capacity
+                    max by (exporter, data_type) (otelcol_exporter_queue_size{k8s_pod_name=~"nexo-otel-collector-.*"})
+                    / max by (exporter, data_type) (otelcol_exporter_queue_capacity{k8s_pod_name=~"nexo-otel-collector-.*"})
                   instant: true
               - refId: C
                 datasourceUid: "__expr__"
@@ -183,6 +184,9 @@ data:
                 T2 §8.4/§8.6 A13. `execErrState: OK` porque el Collector puede estar apagado o sin la métrica
                 interna habilitada sin que eso deba disparar esta alerta (T40: detener el Collector no bloquea
                 validaciones).
+                Se filtra por `k8s_pod_name` porque otel-lgtm expone métricas otelcol_* homónimas de su
+                collector interno (hallazgo de F2). Ni A13 ni A14 detectan la caída del propio otel-lgtm:
+                Grafana evalúa dentro de él, así que esa pérdida exige un watchdog externo (dead-man's switch).
     
           - uid: nexo-a14-exportacion-fallida
             title: "A14 — Telemetría descartada o exportación fallida"
@@ -194,9 +198,8 @@ data:
                 model:
                   refId: A
                   expr: >-
-                    sum(increase(otelcol_exporter_send_failed_spans[5m]))
-                    + sum(increase(otelcol_exporter_send_failed_metric_points[5m]))
-                    + sum(increase(otelcol_exporter_send_failed_log_records[5m]))
+                    sum(increase({__name__=~"otelcol_exporter_(send|enqueue)_failed_.+_total",
+                      k8s_pod_name=~"nexo-otel-collector-.*"}[5m])) or vector(0)
                   instant: true
               - refId: C
                 datasourceUid: "__expr__"
@@ -214,7 +217,7 @@ data:
               nexo_metrica: apoyo-8.4
             annotations:
               summary: "El Collector descartó telemetría o falló al exportarla a otel-lgtm/Grafana Cloud."
-              description: "T2 §8.4/§8.6 A14, crítica operativa (no de negocio): revisar backlog y reintentos del Collector."
+              description: "T2 §8.4/§8.6 A14, crítica operativa (no de negocio): envíos fallidos o lotes rechazados por cola llena (`enqueue_failed`); revisar backlog y reintentos del Collector."
     
     contactPoints:
       - orgId: 1
