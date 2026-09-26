@@ -59,7 +59,7 @@ describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', ()
     if (id === 'PU-03-02') expect(db.outbox[0]!.registro).toMatchObject({ zonaSolicitada: 'NO_IDENTIFICADA' });
     expect(db.llamadas.confirmar).toBe(1);
   });
-  it('PU-03-05 / PB-02 retransmisión igual recupera resultado original sin duplicar escrituras', async () => {
+  it('PU-03-05 retransmisión igual recupera resultado original sin duplicar escrituras', async () => {
     const { db, servicio, solicitud, reloj } = sistema();
     const original = await servicio.ejecutar(solicitud);
     reloj.avanzar(90_000);
@@ -73,10 +73,10 @@ describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', ()
   it('PB-03 entradas vacías o fecha inválida fallan antes de resolver alcance o abrir unidad', async () => {
     const { db, alcance, servicio, solicitud } = sistema();
     for (const cambios of [
-      { idOrigen: '' }, { idOrigen: '  ' }, { eventoId: '' }, { lectorId: ' ' },
+      { idOrigen: '' }, { idOrigen: '  ' }, { idOrigen: null }, { eventoId: '' }, { lectorId: ' ' },
       { puntoId: '' }, { codigo: '' }, { instanteLector: new Date(Number.NaN) },
     ]) {
-      await expect(servicio.ejecutar({ ...solicitud, ...cambios })).rejects.toBeInstanceOf(ErrorEntradaInvalida);
+      await expect(servicio.ejecutar({ ...solicitud, ...cambios } as SolicitudIngreso)).rejects.toBeInstanceOf(ErrorEntradaInvalida);
     }
     expect(alcance.llamadas).toBe(0);
     expect(db.llamadas.abrir).toBe(0);
@@ -112,6 +112,13 @@ describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', ()
     expect(r).toMatchObject({ decision: 'sin-respuesta', motivo: 'SIN_COORDINADOR', admision: false });
     expect([db.intentos.size, db.consumos.size, db.outbox.length]).toEqual([0, 0, 0]);
     expect(db.llamadas.cancelar).toBe(1);
+  });
+  it('PB-11 lector que solicita contingencia sin política no abre ni confirma', async () => {
+    const { db, servicio, solicitud } = sistema();
+    const r = await servicio.ejecutar({ ...solicitud, modo: 'local-contingencia' });
+    expect(r).toMatchObject({ decision: 'sin-respuesta', motivo: 'SIN_COORDINADOR', admision: false });
+    expect([db.intentos.size, db.consumos.size, db.bitacora.length, db.outbox.length]).toEqual([0, 0, 0, 0]);
+    expect(db.llamadas.confirmar).toBe(0);
   });
   it.each([
     ['PB-12', 'cargarParaActualizar'],
@@ -169,10 +176,16 @@ describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', ()
     expect([db.intentos.size, db.consumos.size, db.outbox.length]).toEqual([2, 1, 2]);
     expect([...db.consumos.values()][0]!.clave).toMatchObject({ referencia: REFERENCIA, proposito: 'PRIMER_INGRESO' });
   });
-  it.todo('PU-04-02 mismo lote consolidado una vez (C2 despachador / M2)');
-  it.todo('PU-04-03 timeout del receptor conserva outbox pendiente (C2 despachador)');
-  it.todo('PU-04-05 intento histórico sin decisión queda pendiente (C2 despachador / M2)');
-  it.todo('PU-05-02 reemplazo de lector revoca credencial antigua (gestión de puntos C2)');
+  it('PU-05-02 tras cambiar la asignación, el lector anterior no valida y el nuevo sí', async () => {
+    const { db, alcance, servicio, solicitud } = sistema();
+    alcance.valor = { ...alcance.valor, lectorId: 'LEC-002', revocado: true };
+    await expect(servicio.ejecutar(solicitud)).rejects.toBeInstanceOf(ErrorSinConfianza);
+    expect(db.llamadas.abrir).toBe(0);
+    alcance.valor = { lectorId: 'LEC-002', eventoId: EVENTO, puntoId: 'P-01', revocado: false };
+    expect(await servicio.ejecutar({ ...solicitud, lectorId: 'LEC-002' }))
+      .toMatchObject({ decision: 'aceptado', admision: true });
+    expect(db.consumos.size).toBe(1);
+  });
 });
 
 describe('ValidarPrimerIngreso: plazo de respuesta', () => {
