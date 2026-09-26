@@ -187,8 +187,15 @@ async function main() {
     dbEnv,
   );
 
+  // Boletería simulada (P1). Persiste su estado para que reiniciarla no
+  // reescriba versiones ya importadas por C3 (que lo trataría como conflicto).
+  spawnService("ticketing", path.join("src", "ticketing-sim", "index.ts"), {
+    PORT: env.TICKETING_PORT ?? "8082",
+    TICKETING_ESTADO_ARCHIVO: env.TICKETING_ESTADO_ARCHIVO ?? path.join("tmp", "ticketing-estado.json"),
+  });
   spawnService("central", path.join("src", "central-core", "index.ts"), {
     PORT: env.CENTRAL_PORT ?? "8080",
+    BOLETERIA_URL: env.BOLETERIA_URL ?? `http://localhost:${env.TICKETING_PORT ?? "8082"}`,
   });
   spawnService("coordinator", path.join("src", "local-coordinator", "index.ts"), {
     PORT: env.COORDINATOR_PORT ?? "8081",
