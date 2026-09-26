@@ -4,10 +4,6 @@ Curso ST1625. Entregable 3 (tareas T61, T62 y T64). Versión final del 26 de sep
 
 Este informe sigue el orden de la rúbrica de [taller3.md §1](../context/taller3.md): aplicación, observabilidad, fallos y patrones, seguidos de la autoevaluación. Cada afirmación remite a un archivo del repositorio, a un PR o a una evidencia versionada. Los PR se citan con su número y el SHA corto de su *squash* en `main`, obtenidos con `gh pr view`.
 
-Marcador usado:
-
-- **PENDIENTE-DIGEST**: digests de imágenes que no se pueden calcular sin Docker ni Minikube ([matriz §2](../coherencia/matriz.md)).
-
 Los resultados de F1–F4 (T51–T54), su evidencia (T56) y su análisis (T57) están en [docs/fault-experiments/](../fault-experiments/README.md) y [chaos/evidence/](../../chaos/evidence/README.md) desde el PR #35 (`01aeb86`).
 
 La plantilla de LaTeX del taller 2 que recomienda [taller3.md §8](../context/taller3.md) (pregunta 6) no está en el repositorio. Este Markdown es la fuente del informe y puede transcribirse a esa plantilla sin cambiar su contenido.
@@ -399,7 +395,7 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 | — | `alertas.log` y `logs/` de la evidencia no están versionados (`.gitignore`) | La fuente de las alertas es `alertas-estado.json` (§2.3) |
 | — | RLS en D2 no implementado | [ADR-009](../decisions/ADR-009-aislamiento-cliente-evento.md), recortada |
 | — | Sin D3 (MinIO): D2 retiene los 90 días | [ADR-012](../decisions/ADR-012-persistencia-auditoria-recuperacion.md) |
-| — | Digests de imágenes sin calcular | **PENDIENTE-DIGEST** ([matriz §2](../coherencia/matriz.md)) |
+| — | Manifiestos con tags, no fijados por digest | Digests e IDs de las imágenes desplegadas registrados en la [matriz §2](../coherencia/matriz.md); fijarlos queda en §8.3, punto 7 |
 
 ## 8. Autoevaluación (T62)
 
@@ -446,11 +442,7 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 
 ## 9. Pendientes del informe
 
-| Marcador | Sección | Quién lo cierra |
-|---|---|---|
-| PENDIENTE-DIGEST | §7 | Sesión con acceso a Docker o Minikube ([matriz §2](../coherencia/matriz.md)): `minikube image ls --format table` o `docker image inspect` |
-
-Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR #37), escrito sobre `main` en `b07198e` (PR #36).
+No quedan marcadores pendientes. Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR #37), escrito sobre `main` en `b07198e` (PR #36), y los digests de las imágenes se registraron en la [matriz §2](../coherencia/matriz.md) (PR de digests).
 
 ## Anexo A. Verificación de enlaces (T64)
 

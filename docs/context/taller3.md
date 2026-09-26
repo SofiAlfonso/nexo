@@ -236,7 +236,7 @@ Estados: `pendiente`, `en curso`, `hecho`, `hecho (con recorte)`, `bloqueado`. `
 
 | ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
 |---|---|---|---|---|---|---|
-| T60 | Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento; actualizar el estado de los ADR con PoC ejecutada; configuración de NEXO_04 con runtime e imágenes por digest; registro de recortes | A | Orquestador | T57 | hecho (con recorte): PR #26 y PR #37; digests pendientes (PENDIENTE-DIGEST, matriz §2) | Ningún ADR contradice lo desplegado; cada desviación de la §7 tiene resolución. |
+| T60 | Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento; actualizar el estado de los ADR con PoC ejecutada; configuración de NEXO_04 con runtime e imágenes por digest; registro de recortes | A | Orquestador | T57 | hecho (con recorte): PR #26, PR #37 y digests registrados en la matriz §2; los manifiestos siguen con tags | Ningún ADR contradice lo desplegado; cada desviación de la §7 tiene resolución. |
 | T61 | Informe del taller 3: aplicación, observabilidad, fallos y patrones (patrón → atributo de calidad → archivo del repo) | M | Sol | T43, T57, T60 | hecho: PR #29, #30 y PR #37 | Cada afirmación remite a una evidencia del repo. |
 | T62 | Autoevaluación: logros, dificultades y propuestas de evolución | A | Orquestador | T61 | hecho: PR #29 y PR #37 (informe §8) | Sección incluida en el informe. |
 | T63 | README de ejecución paso a paso y guion del video demo | B | Luna | T60 | hecho: PR #26 y PR #37 | Un integrante que no trabajó en el código levanta el sistema siguiendo el README. |
