@@ -131,3 +131,20 @@ D1/D2/otel-lgtm propios levantados por `scripts/dev.mjs`), autenticada como `sup
   con una diferencia ya resuelta y saldo cobrado).
 - `#/puertas` y `#/puertas/:id` se re-verificaron sin cambios de código en esta ronda (0 errores de
   consola).
+
+## T31 — Cierre del panel sin rutas 501 ni datos inventados (S3-panel): `#/lector`
+
+Captura nueva (`t31-02-lector.png`) tomada con Playwright contra `npm run dev` propio de S3-panel
+(central `:18380`, coordinador `:18381`, boletería `:18382`), autenticada como
+`supervisor` / `nexo_operador_dev`, 0 errores de consola tras `location.reload(true)`.
+
+- **`t31-02-lector.png` (`#/lector`)**: el botón "Prueba un caso" del punto 04 llamaba a
+  `POST /api/lector/escaneos` con un cuerpo `SolicitudEscaneoLector`, un endpoint y un tipo que nunca
+  existieron en `src/shared/contracts/` ni en `src/central-core/api/rutas/` — es decir, simulaba una
+  validación V1 desde el navegador. V1 es responsabilidad exclusiva de C2 (invariante 1/2), y ADR-008
+  reserva mTLS para lectores físicos (PR #10); autenticar un "lector web" equivalente exigiría un
+  mecanismo de sesión nuevo en C2, fuera del alcance de esta sesión. Se retira el botón/flujo simulado
+  de `lector.js` (también se corrige un bug real: `cargarPuntoDetalle` no manejaba el caso sin
+  `recientes`). La vista ahora solo muestra evidencia real de intentos V1 ya registrados (histórico
+  desde D2/D1), sin fabricar una validación nueva. Documentado como recorte explícito en
+  `docs/coherencia/matriz.md` §3, fila (i).

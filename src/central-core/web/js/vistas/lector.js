@@ -1,10 +1,11 @@
 /* ============================================================
    vistas/lector.js — Lector en puerta
 
-   Lo que ve el operador de puerta y, al lado, por qué. Cada caso de
-   prueba pasa por el mismo servicio de decisión que usa el tráfico
-   real: el resultado no está escrito a mano. El lector no tiene
-   ningún campo de identidad del asistente (R1, ADR-006).
+   Recorte honesto (T31, ola 2): el panel no simula ni ejecuta escaneos.
+   Muestra el tráfico real de esta puerta (mismo `recientes` que `#/puertas`,
+   proyectado desde D2). Los escaneos reales se hacen con el lector emulado
+   C1 (`npm run dev:reader`), autenticado por mTLS ante C2 (ADR-008, PR #10):
+   el panel web no tiene ni puede tener esa identidad de lector físico.
    ============================================================ */
 
 NEXO.vistas.lector = (function () {
@@ -13,16 +14,6 @@ NEXO.vistas.lector = (function () {
   var u = NEXO.util, esc = u.esc, ico = u.icono, fmt = u.fmt;
   var d = NEXO.dominio, M = d.Motivo;
   var c;
-  var modo = 'pruebas';
-
-  var CASOS = [
-    { id: 'valida', icono: 'ticket', titulo: 'Boleta válida', espera: 'Primer ingreso: se acepta y cuenta como admisión.' },
-    { id: 'repetida', icono: 'repeat', titulo: 'La misma boleta otra vez', espera: 'Ya se usó hace menos de 10 min: se rechaza.' },
-    { id: 'otra-zona', icono: 'map-pin', titulo: 'Boleta de otra zona', espera: 'No autoriza la zona de esta puerta.' },
-    { id: 'anulada', icono: 'ban', titulo: 'Boleta anulada', espera: 'La boletería la anuló y el cambio ya llegó.' },
-    { id: 'desconocida', icono: 'circle-help', titulo: 'Código desconocido', espera: 'No pertenece al evento; igual se registra.' },
-    { id: 'copia', icono: 'copy', titulo: 'Copia en otra puerta a la vez', espera: 'El coordinador acepta solo una de las dos.' }
-  ];
 
   var PASOS = [
     { t: '¿El lector alcanzó al coordinador?', m: [M.SIN_COORDINADOR, M.PUNTO_SUSPENDIDO] },
@@ -43,20 +34,17 @@ NEXO.vistas.lector = (function () {
       c.cabecera({
         kicker: 'En la puerta', icono: 'scan-line',
         titulo: 'Lector en puerta',
-        texto: 'Así lo ve el operador. Prueba cada caso y observa qué regla decide y qué queda registrado. NEXO decide; el lector solo comunica el resultado.',
+        texto: 'Tráfico real de esta puerta. NEXO decide; el lector solo comunica el resultado.',
         acciones: '<label class="nowrap dim" for="sel-punto">Puerta</label><select id="sel-punto" class="select" style="width:auto" data-campo="punto">' +
           e0.puntos.map(function (p) { return '<option value="' + p.id + '"' + (p.id === e0.lector.puntoId ? ' selected' : '') + '>' + p.id + ' · ' + esc(p.nombre) + '</option>'; }).join('') + '</select>'
       }) +
       '<div class="rgrid">' +
-        '<div class="phonewrap"><div class="phone"><div class="phone__screen" data-slot="pantalla"></div></div>' +
-          '<div class="seg" style="margin-top:14px" data-slot="modo"></div></div>' +
+        '<div class="phonewrap"><div class="phone"><div class="phone__screen" data-slot="pantalla"></div></div></div>' +
         '<div class="stack" style="min-width:0">' +
           '<div data-slot="aviso"></div>' +
-          '<section class="card"><div class="card__head"><h2>Prueba un caso</h2><p>Cada botón presenta un código en esta puerta.</p></div>' +
-            '<div class="card__body"><div class="cases">' + CASOS.map(function (k) {
-              return '<button type="button" class="case" data-accion="escanear" data-arg="' + k.id + '"><span class="bubble bubble--info">' + ico(k.icono, 18) + '</span>' +
-                '<span><b>' + esc(k.titulo) + '</b><small>' + esc(k.espera) + '</small></span></button>';
-            }).join('') + '</div></div></section>' +
+          '<section class="card"><div class="card__head"><h2>Cómo se genera un intento aquí</h2></div>' +
+            '<div class="card__body"><p class="dim" style="font-size:13px">El panel web no escanea ni simula boletas: no tiene ni puede tener la credencial de un lector físico (mTLS, ADR-008). ' +
+            'Para ver una validación real en esta pantalla, ejecuta el lector emulado C1 en esta puerta (<code>npm run dev:reader</code>) y su resultado aparecerá aquí y en <code>#/puertas</code> en segundos.</p></div></section>' +
           '<div class="grid grid--2">' +
             '<section class="card"><div class="card__head"><h2>Cómo decidió el coordinador</h2>' +
               c.tip('Las reglas se evalúan en este orden. La primera que falla decide el rechazo. Si todas pasan, el consumo y la decisión se confirman juntos antes de responder.', 'ADR-003 · reglas 2 a 5') +
@@ -69,27 +57,23 @@ NEXO.vistas.lector = (function () {
       '</div>';
     cont.appendChild(raiz);
     var s = u.ranuras(raiz);
+    var detalleCargado = {};
 
     raiz.addEventListener('input', function (ev) {
       if (ev.target.getAttribute('data-campo') === 'punto') NEXO.api.fijarPuntoLector(ev.target.value);
     });
-    c.delegar(raiz, {
-      escanear: function () {
-        NEXO.store.avisar({ tono: 'info', titulo: 'Lector físico no conectado todavía', texto: 'Los casos de prueba se conectarán a un lector real después de M1.' });
-      },
-      modo: function (m) { modo = m; NEXO.store.notificar(); }
-    });
 
     return {
       actualizar: function (e) {
-        var p = e.puntosPorId[e.lector.puntoId];
+        var id = e.lector.puntoId;
+        var p = e.puntosPorId[id];
+        if (!Array.isArray(p.recientes) && !detalleCargado[id]) {
+          detalleCargado[id] = true;
+          NEXO.api.cargarPuntoDetalle(id);
+        }
         var recientes = p.recientes || [];
-        var it = modo === 'pruebas' ? e.lector.manuales[0] : recientes[0];
-        var hist = modo === 'pruebas' ? e.lector.manuales : recientes;
-        u.ranura(s.modo, [['pruebas', 'Mis pruebas'], ['vivo', 'Tráfico en vivo']].map(function (m) {
-          return '<button type="button" data-accion="modo" data-arg="' + m[0] + '" aria-pressed="' + (modo === m[0]) + '">' + m[1] + '</button>';
-        }).join(''));
-        u.ranura(s.pantalla, pantalla(e, p, it, hist));
+        var it = recientes[0];
+        u.ranura(s.pantalla, pantalla(e, p, it, recientes));
         u.ranura(s.aviso, aviso(e, p));
         u.ranura(s.pasos, pasos(it));
         u.ranura(s.evidencia, evidencia(e, it));
@@ -121,7 +105,7 @@ NEXO.vistas.lector = (function () {
 
     var cuerpo;
     if (!it) {
-      cuerpo = '<div class="ph-idle">' + ico('scan-line', 56) + '<b>Listo para leer</b><small>Acerca un código QR o de barras</small></div>';
+      cuerpo = '<div class="ph-idle">' + ico('scan-line', 56) + '<b>Sin intentos recientes</b><small>Esperando la próxima lectura del lector físico en esta puerta</small></div>';
     } else {
       var x = d.DECISION[it.decision];
       var palabra = { aceptado: 'ACEPTADO', rechazado: 'RECHAZADO', 'sin-respuesta': 'SIN RESPUESTA' }[it.decision];
@@ -146,7 +130,7 @@ NEXO.vistas.lector = (function () {
   }
 
   function pasos(it) {
-    if (!it) return '<p class="dim">Prueba un caso para ver el recorrido de la decisión.</p>';
+    if (!it) return '<p class="dim">Aún no hay un intento reciente en esta puerta.</p>';
     var falla = -1, alt = false;
     PASOS.forEach(function (p, i) {
       if (falla === -1 && p.m.indexOf(it.motivo) !== -1) falla = i;
@@ -166,7 +150,7 @@ NEXO.vistas.lector = (function () {
   }
 
   function evidencia(e, it) {
-    if (!it) return '<p class="dim">Aquí verás el registro del último intento.</p>';
+    if (!it) return '<p class="dim">Aún no hay un registro para mostrar.</p>';
     var ev = it.evidencia;
     return '<dl class="kv">' +
       '<dt>Identificador de origen</dt><dd class="mono">' + esc(it.id) + '</dd>' +
