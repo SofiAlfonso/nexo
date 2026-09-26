@@ -9,6 +9,7 @@ import { crearServidor } from './api/servidor.ts';
 import { cargarConfig } from './config.ts';
 import type { ConfigCoordinador } from './config.ts';
 import { crearClienteE1Http } from './infrastructure/e1/cliente-e1.ts';
+import { cargarConfigPermisos, crearSincronizadorPermisos } from './infrastructure/permisos/index.ts';
 import { crearAlmacenMemoria, semillaDemo } from './infrastructure/persistence/memoria/almacen-memoria.ts';
 import { crearAlmacenPostgres } from './infrastructure/persistence/postgres/index.ts';
 
@@ -37,6 +38,11 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
       .catch((fallo: unknown) => app.log.warn({ fallo }, 'No se pudieron refrescar versiones'));
   }, 10_000) : null;
   refresco?.unref();
+  // P2: C2 instala en D1 los permisos firmados por M1; la decisión sigue siendo local.
+  const permisosP2 = config.centralUrl && config.postgres ? crearSincronizadorPermisos({
+    ...cargarConfigPermisos(), postgres: config.postgres, centralUrl: config.centralUrl,
+    eventoId: config.eventoId, recintoId: config.recintoId, log: app.log,
+  }) : null;
   const despachador = config.centralUrl ? new DespachadorOutbox({
     outbox: almacen.outbox, latidos, v1: contador, cliente: crearClienteE1Http(config.centralUrl),
     config, estado: () => ({
@@ -48,8 +54,10 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
   try {
     await app.listen({ host: config.host, port: config.port });
     despachador?.iniciar();
+    permisosP2?.sincronizador.iniciar();
   } catch (fallo) {
     if (refresco) clearInterval(refresco);
+    await permisosP2?.cerrar();
     await app.close();
     await almacen.cerrar();
     throw fallo;
@@ -60,6 +68,7 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
     deteniendo ??= (async () => {
       if (refresco) clearInterval(refresco);
       await despachador?.detener();
+      await permisosP2?.cerrar();
       await app.close();
       await almacen.cerrar();
     })();
