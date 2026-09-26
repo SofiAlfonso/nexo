@@ -137,6 +137,48 @@ describe('C4 - composición Fastify (login, O2, M2 E1, incidentes)', () => {
     expect(incidentes.some((i) => i.clasificacion === 'SIN_COMUNICACION' && i.puntoId === puntoId(2))).toBe(true);
   });
 
+  it('POST /api/incidentes/:id/acciones persiste tomar/nota en D2 (T31, KR1.3)', async () => {
+    const cookie = await iniciarSesion(app);
+    const respuestaLista = await app.fastify.inject({ method: 'GET', url: '/api/incidentes', cookies: cookie });
+    const incidentes = respuestaLista.json() as Array<{ id: string; clasificacion: string; puntoId: string | null }>;
+    const incidente = incidentes.find((i) => i.clasificacion === 'SIN_COMUNICACION' && i.puntoId === puntoId(2));
+    expect(incidente).toBeDefined();
+    const id = incidente!.id;
+
+    const respuestaTomar = await app.fastify.inject({
+      method: 'POST', url: `/api/incidentes/${id}/acciones`, cookies: cookie, payload: { accion: 'tomar' },
+    });
+    expect(respuestaTomar.statusCode).toBe(200);
+    const actualizado = respuestaTomar.json() as {
+      estado: string; actuadaEnS: number | null; bitacora: Array<{ tipo: string; texto: string; autor: string }>;
+    };
+    expect(actualizado.estado).toBe('en-curso');
+    expect(actualizado.actuadaEnS).not.toBeNull();
+
+    const respuestaNota = await app.fastify.inject({
+      method: 'POST', url: `/api/incidentes/${id}/acciones`, cookies: cookie,
+      payload: { accion: 'nota', texto: 'Verificando conectividad del punto' },
+    });
+    expect(respuestaNota.statusCode).toBe(200);
+    const conNota = respuestaNota.json() as { bitacora: Array<{ tipo: string; texto: string; autor: string }> };
+    const nota = conNota.bitacora.find((entrada) => entrada.tipo === 'nota' && entrada.texto === 'Verificando conectividad del punto');
+    expect(nota).toBeDefined();
+    expect(nota?.autor).toBe('SUPERVISOR');
+  });
+
+  it('POST /api/incidentes/:id/acciones responde 401 sin sesión y 404 si el incidente no existe', async () => {
+    const cookie = await iniciarSesion(app);
+    const sinSesion = await app.fastify.inject({
+      method: 'POST', url: '/api/incidentes/INC-0001/acciones', payload: { accion: 'tomar' },
+    });
+    expect(sinSesion.statusCode).toBe(401);
+
+    const noEncontrado = await app.fastify.inject({
+      method: 'POST', url: '/api/incidentes/INC-9999/acciones', cookies: cookie, payload: { accion: 'tomar' },
+    });
+    expect(noEncontrado.statusCode).toBe(404);
+  });
+
   it('GET /api/boletas/:ref devuelve la boleta sembrada', async () => {
     const cookie = await iniciarSesion(app);
     const respuesta = await app.fastify.inject({ method: 'GET', url: '/api/boletas/BOL-0001', cookies: cookie });

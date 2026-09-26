@@ -1,5 +1,5 @@
 import type { AcuseLoteEvidencia, LoteEvidencia, RegistroEvidencia } from '../../../../shared/contracts/e1.ts';
-import type { Incidente } from '../../../../shared/contracts/o2.ts';
+import type { AccionIncidente, Incidente } from '../../../../shared/contracts/o2.ts';
 import { conSpan, metrics, trace } from '../../../../shared/telemetry/index.ts';
 import {
   incidenteSinComunicacion, intentoDiarioPendiente, sinComunicacion, UMBRAL_SIN_COMUNICACION_MS,
@@ -21,11 +21,21 @@ const registrosEvidenciaTotal = meter.createCounter('nexo_c4_registros_evidencia
 
 export type Resultado = AcuseLoteEvidencia['resultados'][number];
 
+/** Autor de una acción sobre un incidente: sale siempre del operador autenticado (ADR-016). */
+export interface AutorAccion {
+  usuario: string;
+  rol: string;
+}
+
+export type ResultadoAccionIncidente = { tipo: 'no-encontrada' } | { tipo: 'ok'; incidente: Incidente };
+
 export interface IncidenteRepositorio {
   crearSiNoExisteActivo(eventoId: string, incidente: NuevoIncidente, detectadoEn?: Date): Promise<Incidente>;
   resolverActivoPorPunto(eventoId: string, puntoId: string, instante: Date): Promise<void>;
   listar(): Promise<Incidente[]>;
   obtener(id: string): Promise<Incidente | null>;
+  /** Aplica una acción de operador (T31/KR1.3): persiste el cambio y su entrada de bitácora en D2. */
+  aplicarAccion(id: string, accion: AccionIncidente, autor: AutorAccion): Promise<ResultadoAccionIncidente>;
 }
 
 export interface ProyeccionPuntosRepositorio {

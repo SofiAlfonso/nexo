@@ -157,11 +157,15 @@ VALUES
      '2026-08-31 10:00:00-05', '2026-08-31 10:00:00-05')
 ON CONFLICT (evento_id) DO NOTHING;
 
+-- Nombres ficticios (no personas reales); los mismos que OPERADORES_FIXTURES en
+-- web/js/api.js (modo `?fixtures`) para que la interfaz sea consistente entre
+-- desarrollo y datos reales de D2. `DO UPDATE` corrige un sembrado previo cuyo
+-- `nombre` quedó igual al texto del rol.
 INSERT INTO auth.operadores(usuario, nombre, rol, contrasena_hash)
 VALUES
-    ('supervisor', 'Supervisor del operador', 'SUPERVISOR', :'operator_password_hash'),
-    ('lider-tecnico', 'Líder técnico', 'LIDER_TECNICO', :'operator_password_hash'),
-    ('logistica', 'Logística de puerta', 'LOGISTICA', :'operator_password_hash'),
-    ('cierre', 'Responsable de cierre', 'CIERRE', :'operator_password_hash'),
-    ('finanzas', 'Líder comercial y financiero', 'FINANZAS', :'operator_password_hash')
-ON CONFLICT (usuario) DO NOTHING;
+    ('supervisor', 'Ana Rueda', 'SUPERVISOR', :'operator_password_hash'),
+    ('lider-tecnico', 'Marco Peña', 'LIDER_TECNICO', :'operator_password_hash'),
+    ('logistica', 'Iris Camacho', 'LOGISTICA', :'operator_password_hash'),
+    ('cierre', 'Diego Salas', 'CIERRE', :'operator_password_hash'),
+    ('finanzas', 'Paula Ortiz', 'FINANZAS', :'operator_password_hash')
+ON CONFLICT (usuario) DO UPDATE SET nombre = EXCLUDED.nombre;

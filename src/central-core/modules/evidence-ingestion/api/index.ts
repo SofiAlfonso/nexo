@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import { conSpan, extraerContexto, SpanKind, trace } from '../../../../shared/telemetry/index.ts';
 import { AcuseLoteEvidencia, LoteEvidencia } from '../../../../shared/contracts/e1.ts';
-import { Incidente, ListaIncidentes } from '../../../../shared/contracts/o2.ts';
+import { AccionIncidente, Incidente, ListaIncidentes } from '../../../../shared/contracts/o2.ts';
+import type { CodigoError } from '../../../../shared/contracts/common.ts';
 import { RUTAS } from '../../../../shared/contracts/routes.ts';
 import {
   ConflictoEvidencia, ServicioIngestaEvidencia, ServicioVigilanciaLatidos, type IncidenteRepositorio,
@@ -49,5 +50,25 @@ export function registrarRutasIncidentes(fastify: FastifyInstance, incidentes: I
       return reply.code(404).send({ error: 'NO_ENCONTRADO', mensaje: 'Incidente no encontrado' });
     }
     return Incidente.parse(incidente);
+  });
+
+  // T31/KR1.3: persiste la acción del operador (y su tiempo de reacción) en D2.
+  fastify.post<{ Params: { id: string } }>(RUTAS.accionIncidente.ruta, async (request, reply) => {
+    const parseo = AccionIncidente.safeParse(request.body);
+    if (!parseo.success) {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'SOLICITUD_INVALIDA', mensaje: 'Acción de incidente inválida' };
+      return reply.code(400).send(cuerpo);
+    }
+    const operador = request.sesion?.operador;
+    if (!operador) {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'NO_AUTENTICADO', mensaje: 'Se requiere iniciar sesión' };
+      return reply.code(401).send(cuerpo);
+    }
+    const resultado = await incidentes.aplicarAccion(request.params.id, parseo.data, { usuario: operador.usuario, rol: operador.rol });
+    if (resultado.tipo === 'no-encontrada') {
+      const cuerpo: { error: CodigoError; mensaje: string } = { error: 'NO_ENCONTRADO', mensaje: 'Incidente no encontrado' };
+      return reply.code(404).send(cuerpo);
+    }
+    return Incidente.parse(resultado.incidente);
   });
 }

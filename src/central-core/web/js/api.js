@@ -104,6 +104,20 @@ NEXO.api = (function () {
     });
   }
 
+  /**
+   * Convierte un fallo de red/servidor en un aviso visible (nunca falla en silencio).
+   * Un 501 identifica una ruta todavía sin implementar en otra sesión de la ola 2
+   * (p. ej. cierre/liquidación); se muestra como «no disponible todavía», sin inventar datos.
+   */
+  function avisarError(error) {
+    if (error && error.status === 501) {
+      store.avisar({ titulo: 'No disponible todavía', texto: 'Esta acción aún no está conectada al backend real.', tono: 'info' });
+    } else {
+      store.avisar({ titulo: 'No se pudo completar la acción', texto: (error && error.message) || '', tono: 'no' });
+    }
+    throw error;
+  }
+
   function cargarFixture(nombre) {
     return fetch(FDIR + nombre, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('No se encontró el fixture ' + nombre);
@@ -491,7 +505,7 @@ NEXO.api = (function () {
       e.preparacion = prep;
       store.notificar();
       return prep;
-    });
+    }).catch(avisarError);
   }
 
   function confirmarApertura() {
@@ -499,7 +513,7 @@ NEXO.api = (function () {
     if (FIXTURES) { e.preparacion.confirmada = true; store.notificar(); return Promise.resolve(e.preparacion); }
     return peticionReal('POST', '/api/preparacion/confirmar').then(function (prep) {
       e.preparacion = prep; store.notificar(); return prep;
-    });
+    }).catch(avisarError);
   }
 
   function cierreAccion(ruta, cuerpo) {
@@ -513,7 +527,7 @@ NEXO.api = (function () {
       e.conciliacion = traducirConciliacion(c);
       store.notificar();
       return e.conciliacion;
-    });
+    }).catch(avisarError);
   }
   function entregarPreliminar() { return cierreAccion('/api/cierre/preliminar', {}); }
   function declararConciliado() { return cierreAccion('/api/cierre/definitivo', {}); }
@@ -530,14 +544,14 @@ NEXO.api = (function () {
       e.conciliacion = traducirConciliacion(c);
       store.notificar();
       return e.conciliacion;
-    });
+    }).catch(avisarError);
   }
   function resolverTodas(tipo) {
     var abiertas = store.get().conciliacion.diferencias.filter(function (x) { return x.estado === 'abierta' && x.tipo === tipo; });
     return Promise.all(abiertas.map(function (x) {
       var op = (x.opciones && x.opciones[0] && x.opciones[0].id) || 'excluir';
       return resolverDiferencia(x.id, op);
-    }));
+    })).catch(function () { /* cada llamada ya avisó su propio error */ });
   }
 
   // ==========================================================
