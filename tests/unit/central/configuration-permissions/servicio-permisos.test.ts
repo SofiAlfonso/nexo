@@ -119,7 +119,7 @@ describe('ServicioPermisos', () => {
         const pool = {
           query: async (sql: string, parametros: unknown[]) => {
             consultadas.push({ sql, parametros });
-            return sql.includes('m1_config_permisos.boletas')
+            return !sql.includes('m1_config_permisos.cambios_permisos')
               ? { rows: [{ version: 2, referencia: 'TA-001', zona: 'Sur' }] }
               : { rows: [{ operacion: 'anulacion', version: 3, referencia: 'TA-001', zona: null,
                 recibido_en: new Date('2026-09-25T15:00:00.000Z') }] };
