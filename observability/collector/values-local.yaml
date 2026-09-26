@@ -68,6 +68,16 @@ config:
     jaeger: null
     zipkin: null
     prometheus: null
+    # Autoscrape de la telemetría interna (:8888) para que A13/A14 vean la cola de ESTE Collector
+    # (otel-lgtm trae su propio collector interno con métricas otelcol_* homónimas). Las muestras
+    # viajan por la misma cola persistente, así que tras F2 llegan con su marca de tiempo original.
+    prometheus/self:
+      config:
+        scrape_configs:
+          - job_name: nexo-otel-collector
+            scrape_interval: 15s
+            static_configs:
+              - targets: ["${env:MY_POD_IP}:8888"]
     otlp:
       protocols:
         grpc:
@@ -123,6 +133,7 @@ config:
       metrics:
         receivers:
           - otlp
+          - prometheus/self
         processors:
           - memory_limiter
           - batch

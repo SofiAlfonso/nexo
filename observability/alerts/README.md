@@ -32,9 +32,18 @@ archivo junto con un punto de contacto de webhook local (T2 §8.6).
   N/T de T2 §3.2) instrumentada en `RegistroLatidos` de C2 para dar
   visibilidad de puntos sin latido reciente.
 - A13 y A14 leen métricas internas del propio OpenTelemetry Collector
-  (`otelcol_exporter_queue_size`, `otelcol_exporter_send_failed_*`); solo se
-  disparan si el Collector expone su métrica interna de telemetría (owner:
-  `observability/collector/`, S2-otel).
+  (`otelcol_exporter_queue_size`/`_capacity` y
+  `otelcol_exporter_{send,enqueue}_failed_*_total`). El Collector las publica en
+  `:8888` y las recoge con su propio receptor `prometheus/self`
+  (`observability/collector/values-local.yaml`), así que viajan por la misma
+  cola persistente. Las expresiones filtran por
+  `k8s_pod_name=~"nexo-otel-collector-.*"` porque `otel-lgtm` trae un
+  collector interno con métricas homónimas (hallazgo de F2). En Compose no hay
+  Collector propio y ambas quedan en `Normal`.
+- Ninguna de estas alertas detecta la caída del propio `otel-lgtm`: Grafana
+  evalúa las reglas dentro de ese contenedor, así que F2 (SER-06) no puede
+  notificarse desde aquí. Hace falta un watchdog externo (*dead-man's switch*);
+  queda como recorte en `docs/coherencia/matriz.md`.
 
 ## Cómo probarlas en desarrollo
 
