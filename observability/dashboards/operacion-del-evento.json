@@ -1,0 +1,167 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "NEXO — Operación del evento",
+  "uid": "nexo-operacion-evento",
+  "description": "T41 (T2 §8.5): supervisión en vivo de la validación de ingreso. N1 (admisiones), N2 (disponibilidad del flujo) y T1 (latencia de validación) medidos en C2 y C1 durante un evento en curso.",
+  "tags": ["nexo", "observabilidad", "t41"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "N1 — Admisiones aceptadas (ventana)",
+      "description": "Primeros consumos aceptados por C2 (decision=aceptado, admision=true). T2 §3.2 N1.",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(nexo_c2_validaciones_total{decision=\"aceptado\", admision=\"true\"}[$__range]))",
+          "legendFormat": "admisiones",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "N1 — Admisiones aceptadas por minuto",
+      "description": "Tasa de primeros consumos aceptados, base del ingreso facturable I(N) = 500 + 0,40N (T1 §5.1 del taller1).",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(nexo_c2_validaciones_total{decision=\"aceptado\", admision=\"true\"}[5m])) * 60",
+          "legendFormat": "admisiones/min",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "N2 — Disponibilidad del flujo de validación",
+      "description": "Decisiones definitivas / solicitudes del lector, con timeouts y sin-respuesta en el denominador. SLO ≥ 99,9 % (T2 §8.2, CA2).",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "1 - (sum(rate(nexo_c2_validaciones_total{decision=\"sin-respuesta\"}[5m])) or vector(0)) / sum(rate(nexo_c2_validaciones_total[5m]))",
+          "legendFormat": "disponibilidad",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.99 },
+              { "color": "green", "value": 0.999 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "T1 — p95 de latencia de validación (C2)",
+      "description": "p95 de nexo_c2_validacion_duracion_ms. SLO p95 ≤ 500 ms (T2 §3.2 T1).",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(nexo_c2_validacion_duracion_ms_bucket[5m])) by (le))",
+          "legendFormat": "p95 C2",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(nexo_c1_validacion_duracion_ms_bucket[5m])) by (le))",
+          "legendFormat": "p95 C1 (extremo a extremo)",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "custom": { "thresholdsStyle": { "mode": "line" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "T1 — % de respuestas en ≤ 300 ms",
+      "description": "Respuestas en 300 ms o menos / solicitudes, con tardías y sin respuesta en el denominador. SLO ≥ 95 % (T2 §8.2).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(nexo_c2_validacion_duracion_ms_bucket{le=\"300\"}[5m])) / sum(rate(nexo_c2_validacion_duracion_ms_count[5m]))",
+          "legendFormat": "≤ 300 ms",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.9 },
+              { "color": "green", "value": 0.95 }
+            ]
+          },
+          "custom": { "thresholdsStyle": { "mode": "line" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Resultados del lector por decisión (C1)",
+      "description": "Apoyo operativo: mezcla de decisiones vista desde el lector emulado (aceptado, rechazado, sin-respuesta).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(nexo_c1_resultados_total[5m])) by (decision)",
+          "legendFormat": "{{decision}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    }
+  ]
+}
