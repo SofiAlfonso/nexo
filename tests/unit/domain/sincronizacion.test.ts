@@ -56,6 +56,8 @@ class OutboxDoble implements OutboxPendiente {
 }
 
 describe('PU-04: sincronización con dobles de los puertos E1', () => {
+  it.todo('PU-04-05 M2 proyecta un intento histórico sin decisión como pendiente, sin aceptación retroactiva');
+
   it('PU-04-02 el mismo lote devuelve el mismo acuse sin volver a persistirlo', async () => {
     const repo = new LotesDobles();
     const ingesta = new ServicioIngestaEvidencia(repo);
