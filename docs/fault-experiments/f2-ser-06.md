@@ -25,13 +25,13 @@ Carga nominal 1380 s. El archivo de evidencia registra inicio 05:08:45.610Z y fi
 | N2 C2 | s/d en resumen | 100 % | 100 % |
 | T1 p95 C2 | s/d en resumen | 27,89 ms media | 26,78 ms media |
 | Outbox pendiente | s/d | 0 | 0 |
-| Cola Collector | 0 | hasta 185 batches | 0 a ~45 s |
+| Cola Collector | 0 | hasta 185 batches | 0 a ~68 s de restaurar |
 
 La cola fue medida por una sonda al puerto `:8888` del Collector cada 15 s. `sent_*` quedó congelado durante la caída y volvió a crecer tras la restauración.
 
 ## Recuperación
 
-La cola alcanzó 185 batches de métricas y 184 de trazas; con capacidad configurada de 10000 batches es <2 %. Drenó a 0 a las 05:28:19Z, ~45 s después de restaurar. Prometheus recuperó datos de 05:13-05:27 por replay de la cola; quedó ~1 min no visible (05:12-05:13), probablemente enviado mientras LGTM terminaba.
+La cola alcanzó 185 batches de métricas y 184 de trazas; con capacidad configurada de 10000 batches es <2 %. El máximo se midió a las 05:27:33Z, 22 s después de restaurar, mientras LGTM arrancaba; drenó a 0 a las 05:28:19Z, ~46 s después del máximo y ~68 s después de restaurar. Prometheus recuperó datos de 05:13-05:27 por replay de la cola; quedó ~1 min no visible (05:12-05:13), probablemente enviado mientras LGTM terminaba.
 
 ## Integridad
 
@@ -66,7 +66,6 @@ No podía disparar una alerta de observabilidad porque Grafana, Prometheus y el 
 - [carga-resumen.json](../../chaos/evidence/ser-06-observability-outage/carga-resumen.json)
 - [nexo-chaos-run.json](../../chaos/evidence/ser-06-observability-outage/nexo-chaos-run.json)
 - [alertas-estado.json](../../chaos/evidence/ser-06-observability-outage/alertas-estado.json)
-- [alertas.log](../../chaos/evidence/ser-06-observability-outage/alertas.log)
 - [manifiesto.json](../../chaos/evidence/ser-06-observability-outage/manifiesto.json)
 - Snapshot previo: [antes-de-la-caida](../../chaos/evidence/ser-06-observability-outage/antes-de-la-caida/)
 - Capturas: [n2-disponibilidad.png](../../chaos/evidence/ser-06-observability-outage/capturas/n2-disponibilidad.png), [t1-p95.png](../../chaos/evidence/ser-06-observability-outage/capturas/t1-p95.png), [t1-pct-300ms.png](../../chaos/evidence/ser-06-observability-outage/capturas/t1-pct-300ms.png), [t3-errores.png](../../chaos/evidence/ser-06-observability-outage/capturas/t3-errores.png)

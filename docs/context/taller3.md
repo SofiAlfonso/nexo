@@ -169,7 +169,7 @@ Reglas para delegar:
 
 ## 5. Plan de tareas y seguimiento
 
-Estados: `pendiente`, `en curso`, `hecho`, `bloqueado`. Horas estimadas de reloj con agentes en paralelo.
+Estados: `pendiente`, `en curso`, `hecho`, `hecho (con recorte)`, `bloqueado`. `hecho (con recorte)` indica que la tarea se cerró con una parte del criterio sin cumplir, registrada en [matriz §3](../coherencia/matriz.md) y en el [informe](../informe/taller3.md) §7. Horas estimadas de reloj con agentes en paralelo.
 
 ### Fase 0. Preparación (0,5 h)
 
@@ -207,7 +207,7 @@ Estados: `pendiente`, `en curso`, `hecho`, `bloqueado`. Horas estimadas de reloj
 | ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
 |---|---|---|---|---|---|---|
 | T30 | Portar el prototipo (T2 §7, detalle en P §1 a §11, criterios de aceptación en P §14 a §17 y estilo en DESIGN.md) a `src/central-core/web/`, servido por C4; sustituir `simulador.js` por `api.js` (REST y SSE) que llena el mismo `store`; pantalla de login que reemplaza el selector de rol (ADR-016); quitar guion, saltos de reloj y personal simulado; mostrar la antigüedad de los datos cuando C4 no recibe del recinto; ajustar la tarjeta del coordinador a `nodo-unico` | M | Sol | T22 | hecho | Las seis rutas cargan con datos reales; ninguna vista usa el simulador; con F1 activo el resumen muestra antigüedad y no valores congelados. |
-| T31 | Vista `#/lector` validando contra C2 con credencial de lector web; acciones de incidentes persistidas en D2 con tiempos para KR1.3; cierre preliminar y liquidación desde `#/cierre` | M | Sol | T30, T20 | en curso | Una validación manual aparece en `#/puertas` y en Grafana; una acción sobre un incidente queda registrada. |
+| T31 | Vista `#/lector` validando contra C2 con credencial de lector web; acciones de incidentes persistidas en D2 con tiempos para KR1.3; cierre preliminar y liquidación desde `#/cierre` | M | Sol | T30, T20 | hecho (con recorte): PR #32 y #33; `#/lector` sin validación manual y CA1–CA4 sin fuente (matriz §3, recortes e, i) | Una validación manual aparece en `#/puertas` y en Grafana; una acción sobre un incidente queda registrada. |
 | T32 | Comparación visual prototipo frente a panel real, pantalla por pantalla | B | Luna | T30 | hecho | Lista de diferencias con capturas en `docs/evidence/ui/`. |
 
 ### Fase 4. Observabilidad (1,5 h)
@@ -224,23 +224,23 @@ Estados: `pendiente`, `en curso`, `hecho`, `bloqueado`. Horas estimadas de reloj
 | ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
 |---|---|---|---|---|---|---|
 | T50 | `nexo-chaos` en `chaos/scripts/`: `validate`, `plan`, `run --confirm`, `status`, `abort`, `restore` sobre YAML (T2 §11.2); acciones Toxiproxy, `kubectl scale`, NetworkPolicy, `stress-ng` y límites de CPU; reversión por temporizador; registro JSON de cada ejecución | M | Sol | T26 | hecho | Una ejecución de prueba deja su registro en `chaos/evidence/`. |
-| T51 | F1 RED-01/EXP 01: YAML en `chaos/experiments/red-01-central-connection/`, ejecución y verificación | A | Orquestador | T21, T41, T50 | pendiente | Drenado ≥ 99,5 % en 5 min; cero pérdidas y duplicados según SQL de integridad. |
-| T52 | F2 SER-06/EXP 06: corte de la exportación del Collector (G06) | A | Orquestador | T40, T50 | pendiente | T1 en objetivo durante la caída; cola drena; alerta disparada. |
-| T53 | F3 BD-01 | A | Orquestador | T20, T24, T50 | pendiente | Cero aceptaciones sin D1; integridad al recuperar. |
-| T54 | F4 REC-01 | A | Orquestador | T41, T50 | pendiente | Degradación visible en T1 y alerta; integridad sin cambios. |
+| T51 | F1 RED-01/EXP 01: YAML en `chaos/experiments/red-01-central-connection/`, ejecución y verificación | A | Orquestador | T21, T41, T50 | hecho: PR #35, aprobada (1410/1410 drenados en 15 s; PR #31 tras la corrida 1) | Drenado ≥ 99,5 % en 5 min; cero pérdidas y duplicados según SQL de integridad. |
+| T52 | F2 SER-06/EXP 06: corte de la exportación del Collector (G06) | A | Orquestador | T40, T50 | hecho (con recorte): PR #35, aprobada con degradación prevista; alerta imposible con Grafana dentro de `otel-lgtm` (PR #34, matriz §3, recorte j) | T1 en objetivo durante la caída; cola drena; alerta disparada. |
+| T53 | F3 BD-01 | A | Orquestador | T20, T24, T50 | hecho: PR #35, aprobada con degradación prevista (0 aceptaciones sin D1) | Cero aceptaciones sin D1; integridad al recuperar. |
+| T54 | F4 REC-01 | A | Orquestador | T41, T50 | hecho (con recorte): PR #35, no concluyente; A6 no disparó con 100m (matriz §3, recorte l) | Degradación visible en T1 y alerta; integridad sin cambios. |
 | T55 | Pruebas de integridad EXP 03 y EXP 04 en `tests/resilience/` | M | Sol | T20, T24 | hecho | Reintentos devuelven la decisión original; 500 consumos, 500 aceptaciones y 500 rechazos. |
-| T56 | Evidencias por experimento: paneles, logs, trazas, registro de `nexo-chaos` y consultas de integridad | B | Luna | T51 a T54 | pendiente | Misma estructura de archivos en cada carpeta de `chaos/evidence/`. |
-| T57 | Análisis y conclusiones de F1 a F4 con la escala de T2 §11.3 | A | Orquestador | T56 | pendiente | Por fallo: hipótesis, perturbación, métricas, recuperación, resultado y aprendizaje, en `docs/fault-experiments/`. |
+| T56 | Evidencias por experimento: paneles, logs, trazas, registro de `nexo-chaos` y consultas de integridad | B | Luna | T51 a T54 | hecho: PR #35 (`chaos/evidence/`; `alertas.log` y `logs/` no versionados, recorte n) | Misma estructura de archivos en cada carpeta de `chaos/evidence/`. |
+| T57 | Análisis y conclusiones de F1 a F4 con la escala de T2 §11.3 | A | Orquestador | T56 | hecho: PR #35 (`docs/fault-experiments/`) | Por fallo: hipótesis, perturbación, métricas, recuperación, resultado y aprendizaje, en `docs/fault-experiments/`. |
 
 ### Fase 6. Documentación y coherencia (1,5 h)
 
 | ID | Tarea | Cx | Agente | Depende de | Estado | Criterio de aceptación |
 |---|---|---|---|---|---|---|
-| T60 | Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento; actualizar el estado de los ADR con PoC ejecutada; configuración de NEXO_04 con runtime e imágenes por digest; registro de recortes | A | Orquestador | T57 | pendiente | Ningún ADR contradice lo desplegado; cada desviación de la §7 tiene resolución. |
-| T61 | Informe del taller 3: aplicación, observabilidad, fallos y patrones (patrón → atributo de calidad → archivo del repo) | M | Sol | T43, T57, T60 | pendiente | Cada afirmación remite a una evidencia del repo. |
-| T62 | Autoevaluación: logros, dificultades y propuestas de evolución | A | Orquestador | T61 | pendiente | Sección incluida en el informe. |
-| T63 | README de ejecución paso a paso y guion del video demo | B | Luna | T60 | pendiente | Un integrante que no trabajó en el código levanta el sistema siguiendo el README. |
-| T64 | Revisión de estilo, referencias y enlaces del informe | B | Luna | T61, T62 | pendiente | Sin referencias rotas ni enlaces huérfanos. |
+| T60 | Matriz de coherencia ADR ↔ código ↔ prueba ↔ experimento; actualizar el estado de los ADR con PoC ejecutada; configuración de NEXO_04 con runtime e imágenes por digest; registro de recortes | A | Orquestador | T57 | hecho (con recorte): PR #26 y PR #37; digests pendientes (PENDIENTE-DIGEST, matriz §2) | Ningún ADR contradice lo desplegado; cada desviación de la §7 tiene resolución. |
+| T61 | Informe del taller 3: aplicación, observabilidad, fallos y patrones (patrón → atributo de calidad → archivo del repo) | M | Sol | T43, T57, T60 | hecho: PR #29, #30 y PR #37 | Cada afirmación remite a una evidencia del repo. |
+| T62 | Autoevaluación: logros, dificultades y propuestas de evolución | A | Orquestador | T61 | hecho: PR #29 y PR #37 (informe §8) | Sección incluida en el informe. |
+| T63 | README de ejecución paso a paso y guion del video demo | B | Luna | T60 | hecho: PR #26 y PR #37 | Un integrante que no trabajó en el código levanta el sistema siguiendo el README. |
+| T64 | Revisión de estilo, referencias y enlaces del informe | B | Luna | T61, T62 | hecho: PR #29 y PR #37 (0 enlaces rotos) | Sin referencias rotas ni enlaces huérfanos. |
 
 ### Cronograma por bloques
 
@@ -282,6 +282,7 @@ Base para T61: patrones de T2 §4.5 más los que aparecen al implementar. Cada f
 | 25-09-2026 | — | El prototipo muestra réplica y reingresos; la configuración fija `nodo-unico` y el caso de uso excluye reingreso (T2 §7.5). | Entregables 04, 05-06 y 07 | Recomendado en D9 y D10 (§8.1); aplicar en T30 y documentar en T60. |
 | 25-09-2026 | — | Revisión del repositorio real: 23 gaps entre el repo y este plan (namespaces, motor de D1, métricas, cola del Collector, estructura de C4, contratos, contexto para agentes, rama sin fusionar) y plan de sesiones paralelas por olas. | [gaps.md](gaps.md) | Resuelto: G01 a G23 decididos y aplicados en la ola 0 (ADR-001 a ADR-016, andamiaje y CI). |
 | 25-09-2026 | T22, T30 | Hito M1 cumplido en `main` (27fee6c): login, panel con datos reales de D2, V1 → D1 → E1 → D2 → SSE y `npm run dev`; `npm run test:m1` en verde. C4 responde 501 en preparación y cierre hasta T22 (M3, M4) y T31. P2 aún no se consume en C2 (usa los permisos sembrados en D1). Desde aquí se trabaja con ramas y PR. | §3.4, §3.5 | Pendientes asignados a la ola 2. |
+| 26-09-2026 | T51–T57 | F1–F4 ejecutados en Minikube. F1 corta C2→C4 durante 5 min (no los 15 min de EXP 01) y F3 solo hace D1 indisponible (sin los subcasos de disco de EXP 05). Ninguna alerta asociada a un fallo se disparó y F4 fue no concluyente. | ADR-002, 005, 011, 012, 013; T42 | Registrado en [matriz §3](../coherencia/matriz.md) (recortes j–n) y en el [informe](../informe/taller3.md) §3 y §7; los ADR siguen pendientes de PoC completa. |
 
 ## 8. Preguntas abiertas y recomendaciones
 

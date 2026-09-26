@@ -142,8 +142,8 @@ espera de rollouts, Secrets de laboratorio desde `config/examples/`).
 
 `observability/` no lo toca ninguno de estos scripts (otra sesión ya lo
 despliega); `up` solo aplica `namespaces/` y `deploy/kubernetes/{data,application}`.
-`nexo-ticketing` (boletería simulada) queda en `CrashLoopBackOff` hasta que
-otra sesión implemente T23; no bloquea el resto del despliegue.
+`nexo-ticketing` (boletería simulada) está implementada (T23,
+`src/ticketing-sim/`); si no arranca, no bloquea el resto del despliegue.
 
 **Prueba de frontera**: `npx vitest run --config vitest.integration.config.ts
 tests/integration/k8s/network-policies.test.ts` verifica contra el clúster

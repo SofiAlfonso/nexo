@@ -28,3 +28,4 @@ Probar recuperación y restauración: presentar nuevamente boletas consumidas y 
 - La PoC usa solo `nodo-unico`: PostgreSQL 16 para D1 en su propio StatefulSet en `nexo-venue`, junto a `src/local-coordinator/` como C2.
 - BD-01 prueba que D1 indisponible detiene aceptaciones nuevas y que al volver no se duplican consumos.
 - RED-06, BD-06, EXP 07 y las otras dos topologías candidatas quedan fuera de esta PoC; la elección final sigue pendiente del piloto.
+- 26-09-2026: PoC de `nodo-unico` ejecutada con F3 BD-01, **aprobada con degradación prevista**: 0 aceptaciones sin D1, 0 duplicados al volver y ~21 s de reconexión de C2 ([f3-bd-01.md](../fault-experiments/f3-bd-01.md)). El estado no cambia, porque no se compararon las tres topologías.
