@@ -22,3 +22,54 @@ export interface Almacen {
   salud(): Promise<boolean>;
   cerrar(): Promise<void>;
 }
+
+/** Motivos de revocación admitidos por la lista rica de ADR-008 (`revoked.json`). */
+export type MotivoRevocacion = 'lost' | 'compromised' | 'retired';
+
+export interface SolicitudReemplazoLector {
+  eventoId: string;
+  puntoId: string;
+  lectorAnterior: string;
+  lectorNuevo: string;
+  motivo: MotivoRevocacion;
+}
+
+/** Credencial anterior revocada según la lista de revocaciones de la CA de laboratorio. */
+export interface CredencialRevocada {
+  lectorId: string;
+  serialNumber: string;
+  fingerprint256: string;
+  revokedAt: string;
+}
+
+export interface SolicitudRevocacionPendiente {
+  id: number;
+  eventoId: string;
+  lectorId: string;
+  motivo: MotivoRevocacion;
+  solicitadaEn: Date;
+}
+
+export interface ReemplazoRegistrado {
+  reemplazoId: number;
+  solicitudRevocacionId: number;
+  reemplazadoEn: Date;
+  /** `true` si el mismo reemplazo ya estaba registrado (reintento del operador). */
+  repetido: boolean;
+}
+
+/**
+ * Gestión de la asignación lector–punto en D1 (PU-05-02). `reemplazar` es atómico: cierra la
+ * asignación anterior (el lector queda revocado y deshabilitado), asigna el nuevo lector al punto
+ * y deja una solicitud de revocación de la credencial anterior, todo en solo adición.
+ */
+export interface RepositorioAsignaciones {
+  reemplazar(solicitud: SolicitudReemplazoLector, instante: Date): Promise<ReemplazoRegistrado>;
+  revocacionesPendientes(eventoId: string): Promise<SolicitudRevocacionPendiente[]>;
+  registrarRevocacion(solicitudId: number, credencial: CredencialRevocada, registradaEn: Date): Promise<void>;
+}
+
+/** Revoca la credencial mTLS de un lector (ADR-008) y devuelve su entrada de `revoked.json`. */
+export interface RevocadorCredenciales {
+  revocar(lectorId: string, motivo: MotivoRevocacion): Promise<CredencialRevocada>;
+}

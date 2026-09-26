@@ -31,6 +31,9 @@ Todas las columnas `*_en` y `instante_*` son `timestamptz`; identificadores, mot
 | `lote_diario` | `id_lote text PK`, `evento_id text`, `lector_id text` (FK), `contenido_hash text` (hex SHA-256), `acuse jsonb`, `recibido_en timestamptz`. Repetir lote devuelve acuse guardado; registros H1 se preservan como evidencia sin autorizar. |
 | `diario_lote` | `id_lote text PK`, `evento_id text`, `lector_id text` (FK), `acuse jsonb`, `recibido_en timestamptz` |
 | `intento_diario` | `evento_id text`, `id_origen text` (PK compuesto), `id_lote text` (FK a diario_lote), `lector_id text`, `punto_id text`, `codigo text`, `proposito text`, `zona_solicitada text`, `motivo_local text`, `instante_lector timestamptz`, `recibido_en timestamptz` |
+| `reemplazo_lector` | `id bigserial PK`, `evento_id`, `punto_id`, `lector_anterior`, `lector_nuevo` (FK a lector, distintos), `motivo` (`lost`/`compromised`/`retired`), `reemplazado_en`; `UNIQUE (evento_id, lector_anterior)`. Migración `040` (PU-05-02). La asignación vigente sigue siendo `lector.punto_id`; al reemplazar, el lector anterior queda `revocado` y deshabilitado en la misma transacción. Solo adición. |
+| `solicitud_revocacion` | `id bigserial PK`, `reemplazo_id` (único, FK), `evento_id`, `lector_id`, `motivo`, `solicitada_en`. Pendiente mientras no tenga `revocacion_credencial`. Solo adición. |
+| `revocacion_credencial` | `solicitud_id PK` (FK), `numero_serie`, `huella_sha256`, `revocada_en`, `registrada_en`: la entrada de `revoked.json` (ADR-008) que confirma la revocación. Solo adición. |
 
 Ninguna tabla almacena comprador ni secretos. `permiso_version` guarda paquetes firmados y las filas `boleta`/`punto` representan el estado aplicado por C2 tras verificar firma, versión y continuidad.
 

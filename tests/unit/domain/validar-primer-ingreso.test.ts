@@ -4,7 +4,12 @@ import {
   ErrorConflictoIdempotencia, ErrorConsumoDuplicado, ErrorEntradaInvalida,
   ErrorSinConfianza, ValidarPrimerIngreso, huellaIntento,
 } from '../../../src/shared/domain/index.ts';
-import type { SolicitudIngreso } from '../../../src/shared/domain/index.ts';
+import type { AlcanceAutenticado, ResolutorAlcance, SolicitudIngreso } from '../../../src/shared/domain/index.ts';
+import { ReemplazarLector } from '../../../src/local-coordinator/application/reemplazo-lector.ts';
+import type {
+  CredencialRevocada, MotivoRevocacion, ReemplazoRegistrado, RepositorioAsignaciones,
+  RevocadorCredenciales, SolicitudReemplazoLector, SolicitudRevocacionPendiente,
+} from '../../../src/local-coordinator/application/puertos.ts';
 import { AlcanceFijo, AutoridadFija, BASE, contexto, EVENTO, REFERENCIA, RelojFijo, TelemetriaEspia, UnidadesEnMemoria } from './dobles.ts';
 
 function sistema() {
@@ -22,7 +27,40 @@ function sistema() {
 }
 
 describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', () => {
-  it.todo('PU-05-02 C2/mTLS reemplaza el lector, cierra la asignación anterior y solicita revocar su credencial');
+  it('PU-05-02 C2/mTLS reemplaza el lector, cierra la asignación anterior y solicita revocar su credencial', async () => {
+    const { db, autoridad, reloj, solicitud } = sistema();
+    const puntos = new AsignacionesMemoria();
+    const revocador = new RevocadorEspia();
+    const servicio = new ValidarPrimerIngreso({ unidades: db, alcance: puntos, autoridad, reloj });
+    const caso = new ReemplazarLector({ asignaciones: puntos, revocador, reloj });
+    const reemplazo: SolicitudReemplazoLector = {
+      eventoId: EVENTO, puntoId: 'P-01', lectorAnterior: 'LEC-001', lectorNuevo: 'LEC-002', motivo: 'retired',
+    };
+
+    revocador.falla = new Error('CA no disponible');
+    expect(await caso.ejecutar(reemplazo)).toMatchObject({
+      repetido: false, revocacion: { estado: 'pendiente', error: 'CA no disponible' },
+    });
+    expect(puntos.lectores.get('LEC-001')).toEqual({ puntoId: 'P-01', habilitado: false, revocado: true });
+    expect(puntos.lectores.get('LEC-002')).toEqual({ puntoId: 'P-01', habilitado: true, revocado: false });
+    await expect(servicio.ejecutar(solicitud)).rejects.toBeInstanceOf(ErrorSinConfianza);
+    expect(db.llamadas.abrir).toBe(0);
+
+    revocador.falla = null;
+    expect(await caso.revocarPendientes(EVENTO)).toEqual([{
+      lectorId: 'LEC-001', estado: 'revocada', credencial: expect.objectContaining({ lectorId: 'LEC-001' }),
+    }]);
+    expect(revocador.llamadas).toEqual([['LEC-001', 'retired'], ['LEC-001', 'retired']]);
+    expect(puntos.revocaciones.get(1)).toMatchObject({ lectorId: 'LEC-001', serialNumber: '0A1B' });
+    expect(await caso.ejecutar(reemplazo)).toMatchObject({ repetido: true, revocacion: { estado: 'revocada' } });
+    expect(await caso.revocarPendientes(EVENTO)).toEqual([]);
+    await expect(caso.ejecutar({ ...reemplazo, lectorNuevo: 'LEC-003' })).rejects.toThrow(/ya fue reemplazado/);
+    await expect(caso.ejecutar({ ...reemplazo, lectorAnterior: 'LEC-002', lectorNuevo: 'LEC-001' })).rejects.toThrow(/nunca se reutiliza/);
+
+    expect(await servicio.ejecutar({ ...solicitud, lectorId: 'LEC-002' }))
+      .toMatchObject({ decision: 'aceptado', admision: true });
+    expect(db.consumos.size).toBe(1);
+  });
 
   it('PU-03-01 aceptación confirma intento, consumo único, bitácora y outbox E1 antes de responder', async () => {
     const { db, servicio, solicitud, telemetria } = sistema();
@@ -209,3 +247,51 @@ describe('ValidarPrimerIngreso: plazo de respuesta', () => {
     expect(db.llamadas.confirmar).toBe(1);
   });
 });
+
+class AsignacionesMemoria implements RepositorioAsignaciones, ResolutorAlcance {
+  readonly lectores = new Map<string, { puntoId: string; habilitado: boolean; revocado: boolean }>([
+    ['LEC-001', { puntoId: 'P-01', habilitado: true, revocado: false }],
+  ]);
+  readonly reemplazos: Array<SolicitudReemplazoLector & { id: number; en: Date }> = [];
+  readonly revocaciones = new Map<number, CredencialRevocada>();
+
+  async resolver(lectorId: string): Promise<AlcanceAutenticado> {
+    const l = this.lectores.get(lectorId);
+    if (!l) return { lectorId, eventoId: null, puntoId: null, revocado: false };
+    return { lectorId, eventoId: EVENTO, puntoId: l.puntoId, revocado: l.revocado || !l.habilitado };
+  }
+  async reemplazar(s: SolicitudReemplazoLector, instante: Date): Promise<ReemplazoRegistrado> {
+    const previo = this.reemplazos.find((r) => r.lectorAnterior === s.lectorAnterior);
+    if (previo) {
+      if (previo.lectorNuevo !== s.lectorNuevo || previo.puntoId !== s.puntoId) {
+        throw new Error(`${s.lectorAnterior} ya fue reemplazado`);
+      }
+      return { reemplazoId: previo.id, solicitudRevocacionId: previo.id, reemplazadoEn: previo.en, repetido: true };
+    }
+    const anterior = this.lectores.get(s.lectorAnterior);
+    if (!anterior || anterior.puntoId !== s.puntoId || anterior.revocado) throw new Error('sin asignación vigente');
+    if (this.lectores.get(s.lectorNuevo)?.revocado) throw new Error('nunca se reutiliza una identidad');
+    this.lectores.set(s.lectorNuevo, { puntoId: s.puntoId, habilitado: true, revocado: false });
+    this.lectores.set(s.lectorAnterior, { ...anterior, habilitado: false, revocado: true });
+    const id = this.reemplazos.push({ ...s, id: this.reemplazos.length + 1, en: instante });
+    return { reemplazoId: id, solicitudRevocacionId: id, reemplazadoEn: instante, repetido: false };
+  }
+  async revocacionesPendientes(): Promise<SolicitudRevocacionPendiente[]> {
+    return this.reemplazos.filter((r) => !this.revocaciones.has(r.id)).map((r) => ({
+      id: r.id, eventoId: r.eventoId, lectorId: r.lectorAnterior, motivo: r.motivo, solicitadaEn: r.en,
+    }));
+  }
+  async registrarRevocacion(id: number, credencial: CredencialRevocada): Promise<void> {
+    if (!this.revocaciones.has(id)) this.revocaciones.set(id, credencial);
+  }
+}
+
+class RevocadorEspia implements RevocadorCredenciales {
+  falla: Error | null = null;
+  readonly llamadas: Array<[string, MotivoRevocacion]> = [];
+  async revocar(lectorId: string, motivo: MotivoRevocacion): Promise<CredencialRevocada> {
+    this.llamadas.push([lectorId, motivo]);
+    if (this.falla) throw this.falla;
+    return { lectorId, serialNumber: '0A1B', fingerprint256: 'a'.repeat(64), revokedAt: new Date(BASE).toISOString() };
+  }
+}
