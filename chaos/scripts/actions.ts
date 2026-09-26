@@ -218,6 +218,12 @@ function matchesToxic(toxic: RecordValue, action: Extract<Action, { type: 'toxip
 }
 
 function policySpec(action: Extract<Action, { type: 'networkPolicy' }>): RecordValue {
+  if ('mode' in action) {
+    if (action.mode !== 'denyAll') throw new Error('Unsupported network policy mode');
+    return {
+      podSelector: { matchLabels: action.podSelector }, policyTypes: ['Egress'], egress: [],
+    };
+  }
   const blocked = cidr(action.targetIpBlock);
   const otherPorts = [
     ...(action.port > 1 ? [{ protocol: 'TCP', port: 1, endPort: action.port - 1 }] : []),
@@ -275,8 +281,10 @@ export async function prepareAction(action: Action, deps: Dependencies): Promise
       if (entries.length === 0 || entries.some(([key, value]) => !/^[\w./-]+$/.test(key) || !/^[\w.-]+$/.test(value))) {
         throw new Error('A safe nonempty pod selector is required');
       }
-      integer(action.port, 'port', 1);
-      if (action.port > 65535) throw new Error('Invalid port');
+      if (!('mode' in action)) {
+        integer(action.port, 'port', 1);
+        if (action.port > 65535) throw new Error('Invalid port');
+      }
       const existing = await policies(action, deps);
       if (existing.length !== 0) throw new Error('Existing policies could override the injected egress isolation');
       const pods = json(await kubectl(deps, action.namespace, ['get', 'pods', '-l', entries.map(([k, v]) => `${k}=${v}`).join(','), '-o', 'json']), 'pods').items;

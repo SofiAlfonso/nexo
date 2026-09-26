@@ -37,7 +37,14 @@ const ipv4Cidr = z.string().refine((value) => {
 const cpuLimit = z.string()
   .regex(/^(?:[1-9]\d{0,2}m|1000m|1)$/, 'Use a positive CPU limit no greater than one core');
 
-const actionSchema = z.discriminatedUnion('type', [
+const networkPolicy = {
+  type: z.literal('networkPolicy'),
+  namespace,
+  name: target,
+  podSelector: z.record(selectorKey, selectorValue).refine((selector) => Object.keys(selector).length > 0, 'Select specific pods'),
+};
+
+const actionSchema = z.union([
   z.strictObject({
     type: z.literal('toxiproxy'),
     namespace,
@@ -62,12 +69,13 @@ const actionSchema = z.discriminatedUnion('type', [
     replicas: z.literal(0),
   }),
   z.strictObject({
-    type: z.literal('networkPolicy'),
-    namespace,
-    name: target,
-    podSelector: z.record(selectorKey, selectorValue).refine((selector) => Object.keys(selector).length > 0, 'Select specific pods'),
+    ...networkPolicy,
     targetIpBlock: ipv4Cidr,
     port: z.number().int().min(1).max(65_535),
+  }),
+  z.strictObject({
+    ...networkPolicy,
+    mode: z.literal('denyAll'),
   }),
   z.strictObject({
     type: z.literal('stress'),
