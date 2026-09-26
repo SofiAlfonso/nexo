@@ -4,9 +4,10 @@ import type { AcuseLoteEvidencia, LoteEvidencia, RegistroDecision, RegistroEvide
 import { Incidente } from '../../../../shared/contracts/o2.ts';
 import { ConflictoEvidencia } from '../application/index.ts';
 import type {
-  IncidenteRepositorio, LoteEvidenciaRepositorio, ProcesarAceptados, ProyeccionPuntosRepositorio, Resultado,
+  IncidenteRepositorio, LoteEvidenciaRepositorio, ProcesarAceptados, ProyeccionIntentosDiarioRepositorio,
+  ProyeccionPuntosRepositorio, Resultado,
 } from '../application/index.ts';
-import { segundosDelDia, type NuevoIncidente } from '../domain/index.ts';
+import { segundosDelDia, type IntentoDiarioPendiente, type NuevoIncidente } from '../domain/index.ts';
 
 type Conexion = Pool | PoolClient;
 
@@ -72,6 +73,26 @@ export class RepositorioPuntosPg implements ProyeccionPuntosRepositorio {
        WHERE evento_id = $1 AND punto_id = $2 AND estado IN ('en-linea', 'sin-comunicacion')
          AND ultima_comunicacion < now() - interval '60 seconds'`,
       [eventoId, puntoId],
+    );
+  }
+}
+
+export class RepositorioIntentosDiarioPg implements ProyeccionIntentosDiarioRepositorio {
+  private readonly db: Conexion;
+  constructor(db: Conexion) { this.db = db; }
+
+  async registrarPendiente(intento: IntentoDiarioPendiente): Promise<void> {
+    await this.db.query(
+      `INSERT INTO m2_evidencia.intentos_diario
+        (evidencia_id, evento_id, id_origen, referencia, zona_solicitada, proposito, punto_id, lector_id,
+         motivo_local, instante_lector, recibido_en_coordinador, estado)
+       SELECT e.id, e.evento_id, e.id_origen, $3, $4, $5, $6, $7, $8, $9, $10, $11
+       FROM m2_evidencia.evidencias e
+       WHERE e.evento_id = $1 AND e.tipo = 'intento-diario' AND e.id_origen = $2
+       ON CONFLICT (evento_id, id_origen) DO NOTHING`,
+      [intento.eventoId, intento.idOrigen, intento.referencia, intento.zonaSolicitada, intento.proposito,
+        intento.puntoId, intento.lectorId, intento.motivoLocal, intento.instanteLector,
+        intento.recibidoEnCoordinador, intento.estado],
     );
   }
 }
@@ -294,7 +315,10 @@ export class RepositorioLotesPg implements LoteEvidenciaRepositorio {
           resultados[indice]!.estado = 'duplicado';
         }
       }
-      await procesarAceptados?.(aceptados, new RepositorioPuntosPg(client), new RepositorioIncidentesPg(client));
+      await procesarAceptados?.(
+        aceptados, new RepositorioPuntosPg(client), new RepositorioIncidentesPg(client),
+        new RepositorioIntentosDiarioPg(client),
+      );
       const acuse: AcuseLoteEvidencia = {
         idLote: lote.idLote, recibidoEn: new Date().toISOString(),
         aceptados: aceptados.length, duplicados: resultados.length - aceptados.length,

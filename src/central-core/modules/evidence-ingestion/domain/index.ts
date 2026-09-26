@@ -1,3 +1,4 @@
+import type { RegistroIntentoDiario } from '../../../../shared/contracts/e1.ts';
 import type { Incidente } from '../../../../shared/contracts/o2.ts';
 
 export const UMBRAL_SIN_COMUNICACION_MS = 60_000;
@@ -38,5 +39,33 @@ export function incidenteSinComunicacion(puntoId: string, detectadoEn: Date): Nu
       { texto: 'Confirmar la sincronización del diario', hecho: false },
     ],
     bitacora: [{ t, autor: 'sistema', tipo: 'sistema', texto: 'Detectado por vigilancia de latidos (>60s)' }],
+  };
+}
+
+/**
+ * PU-04-05: un intento del diario del lector llega sin decisión de C2. M2 lo conserva como
+ * `pendiente` y nunca lo convierte en aceptación ni admisión: la nube no autoriza.
+ */
+export interface IntentoDiarioPendiente {
+  eventoId: string;
+  idOrigen: string;
+  referencia: string;
+  zonaSolicitada: string;
+  proposito: RegistroIntentoDiario['proposito'];
+  puntoId: string;
+  lectorId: string;
+  motivoLocal: string;
+  instanteLector: string;
+  recibidoEnCoordinador: string;
+  estado: 'pendiente';
+}
+
+export function intentoDiarioPendiente(eventoId: string, registro: RegistroIntentoDiario): IntentoDiarioPendiente {
+  return {
+    eventoId, idOrigen: registro.idOrigen, referencia: registro.codigo,
+    zonaSolicitada: registro.zonaSolicitada, proposito: registro.proposito,
+    puntoId: registro.puntoId, lectorId: registro.lectorId, motivoLocal: registro.motivoLocal,
+    instanteLector: registro.instanteLector, recibidoEnCoordinador: registro.recibidoEnCoordinador,
+    estado: 'pendiente',
   };
 }
