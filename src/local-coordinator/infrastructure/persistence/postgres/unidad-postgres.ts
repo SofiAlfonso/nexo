@@ -19,6 +19,15 @@ interface ErrorPg {
   constraint?: string;
 }
 
+interface FilaBoleta {
+  cliente_id: string;
+  boleteria_id: string;
+  referencia: string;
+  zona: string;
+  anulada_en: Date | null;
+  anulacion_recibida_en: Date | null;
+}
+
 export function esErrorPg(e: unknown): e is ErrorPg {
   return typeof e === 'object' && e !== null && 'code' in e;
 }
@@ -94,29 +103,12 @@ export class UnidadValidacionPostgres implements UnidadValidacion {
       'SELECT punto_id, zonas, habilitado FROM punto WHERE evento_id = $1 AND punto_id = $2',
       [intento.eventoId, intento.puntoId],
     );
-    const bo = await this.cliente.query<{
-      cliente_id: string;
-      boleteria_id: string;
-      referencia: string;
-      zona: string;
-      anulada_en: Date | null;
-      anulacion_recibida_en: Date | null;
-    }>(
-      `SELECT cliente_id, boleteria_id, referencia, zona, anulada_en, anulacion_recibida_en
-         FROM boleta WHERE evento_id = $1 AND codigo = $2 FOR UPDATE`,
-      [intento.eventoId, intento.codigo],
-    );
-    const b = bo.rows[0];
-    let consumo: { idOrigen: string; puntoId: string; consumidoEn: Date } | null = null;
-    if (b) {
-      const co = await this.cliente.query<{ id_origen: string; punto_id: string | null; consumido_en: Date }>(
-        `SELECT id_origen, punto_id, consumido_en FROM consumo
-          WHERE cliente_id = $1 AND evento_id = $2 AND boleteria_id = $3 AND referencia = $4 AND proposito = 'PRIMER_INGRESO'`,
-        [b.cliente_id, intento.eventoId, b.boleteria_id, b.referencia],
-      );
-      const c = co.rows[0];
-      if (c) consumo = { idOrigen: c.id_origen, puntoId: c.punto_id ?? '', consumidoEn: c.consumido_en };
-    }
+    // Una boleta ya consumida o anulada solo puede rechazarse y ese estado confirmado no se revierte:
+    // se lee sin candado para que los reintentos sobre una misma boleta no se serialicen en su fila
+    // (F1: con pocas boletas usadas, cada V1 esperaba el fsync del anterior). Si la boleta podría
+    // aceptarse, se toma el candado y se vuelve a leer el consumo; el UNIQUE de `consumo` sigue siendo la garantía.
+    let { boleta: b, consumo } = await this.leerBoleta(intento, false);
+    if (b && !b.anulada_en && !consumo) ({ boleta: b, consumo } = await this.leerBoleta(intento, true));
     const p = pt.rows[0];
     return {
       evento: {
@@ -139,6 +131,26 @@ export class UnidadValidacionPostgres implements UnidadValidacion {
         : null,
       versiones,
     };
+  }
+
+  private async leerBoleta(intento: IntentoDeValidacion, bloquear: boolean): Promise<{
+    boleta: FilaBoleta | null;
+    consumo: { idOrigen: string; puntoId: string; consumidoEn: Date } | null;
+  }> {
+    const bo = await this.cliente.query<FilaBoleta>(
+      `SELECT cliente_id, boleteria_id, referencia, zona, anulada_en, anulacion_recibida_en
+         FROM boleta WHERE evento_id = $1 AND codigo = $2${bloquear ? ' FOR UPDATE' : ''}`,
+      [intento.eventoId, intento.codigo],
+    );
+    const b = bo.rows[0];
+    if (!b) return { boleta: null, consumo: null };
+    const co = await this.cliente.query<{ id_origen: string; punto_id: string | null; consumido_en: Date }>(
+      `SELECT id_origen, punto_id, consumido_en FROM consumo
+        WHERE cliente_id = $1 AND evento_id = $2 AND boleteria_id = $3 AND referencia = $4 AND proposito = 'PRIMER_INGRESO'`,
+      [b.cliente_id, intento.eventoId, b.boleteria_id, b.referencia],
+    );
+    const c = co.rows[0];
+    return { boleta: b, consumo: c ? { idOrigen: c.id_origen, puntoId: c.punto_id ?? '', consumidoEn: c.consumido_en } : null };
   }
 
   async registrarIntento(intento: IntentoDeValidacion, huella: string, resultado: ResultadoValidacion): Promise<void> {
