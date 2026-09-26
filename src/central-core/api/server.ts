@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import { LoteEvidencia, RUTAS } from '@nexo/shared/contracts';
+import { conSpan, trace } from '@nexo/shared/telemetry';
 import { ServicioAuth } from '../application/auth/servicioAuth.ts';
 import { ServicioO2 } from '../application/o2/servicio-o2.ts';
 import { AuthRepositorioPg, SesionesRepositorioPg } from '../infrastructure/auth-repositorio.ts';
@@ -23,6 +24,8 @@ import { registrarRutasCierre } from './rutas/cierre.ts';
 import { registrarRutasO2 } from './rutas/o2.ts';
 import { registrarRutaStream } from './rutas/stream.ts';
 import { registrarGuardiaSesion } from './plugins/sesion.ts';
+
+const tracer = trace.getTracer('nexo.central-core');
 
 const RAIZ_WEB = path.join(import.meta.dirname, '..', 'web');
 
@@ -96,17 +99,19 @@ export function crearApp(pool: Pool): AppC4 {
     if (esLoteEvidencia && reply.statusCode === RUTAS.loteEvidencia.estado) {
       void (async () => {
         try {
-          const estado = await servicioO2.obtenerEstadoActual();
-          if (estado) hub.publicar({ tipo: 'estado', datos: estado });
+          await conSpan(tracer, 'panel.update', async () => {
+            const estado = await servicioO2.obtenerEstadoActual();
+            if (estado) hub.publicar({ tipo: 'estado', datos: estado });
 
-          const lote = LoteEvidencia.safeParse(request.body);
-          if (!lote.success) return;
-          const idOrigenesDecision = lote.data.registros
-            .filter(registro => registro.tipo === 'decision')
-            .map(registro => registro.idOrigen);
-          if (idOrigenesDecision.length === 0) return;
-          const intentos = await intentosRepositorio.listarPorIdOrigen(lote.data.eventoId, idOrigenesDecision);
-          for (const intento of intentos) hub.publicar({ tipo: 'intento', datos: intento });
+            const lote = LoteEvidencia.safeParse(request.body);
+            if (!lote.success) return;
+            const idOrigenesDecision = lote.data.registros
+              .filter(registro => registro.tipo === 'decision')
+              .map(registro => registro.idOrigen);
+            if (idOrigenesDecision.length === 0) return;
+            const intentos = await intentosRepositorio.listarPorIdOrigen(lote.data.eventoId, idOrigenesDecision);
+            for (const intento of intentos) hub.publicar({ tipo: 'intento', datos: intento });
+          });
         } catch (error) {
           fastify.log.error(error, 'No se pudo difundir el estado/intento tras un lote E1');
         }

@@ -7,6 +7,7 @@ import {
   RUTAS,
   SolicitudValidacion,
 } from '@nexo/shared/contracts';
+import { inyectarCabeceras } from '@nexo/shared/telemetry';
 import { Agent, fetch as undiciFetch } from 'undici';
 
 export interface CredencialesCoordinador {
@@ -47,7 +48,7 @@ export class ClienteHttpCoordinador implements CoordinadorLector {
     if (credenciales) {
       this.agente = new Agent({ connect: { ...credenciales, rejectUnauthorized: true } });
       this.enviar = (input, init) => undiciFetch(input, {
-        method: init.method, headers: { 'content-type': 'application/json' },
+        method: init.method, headers: init.headers as Record<string, string>,
         body: init.body as string, signal: init.signal,
         dispatcher: this.agente, redirect: 'manual',
       }) as Promise<Response>;
@@ -70,7 +71,7 @@ export class ClienteHttpCoordinador implements CoordinadorLector {
     const url = new URL(ruta, this.baseUrl);
     const respuesta = await this.enviar(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: inyectarCabeceras({ 'content-type': 'application/json' }),
       body: JSON.stringify(esquemaCuerpo.parse(cuerpo)),
       signal: AbortSignal.timeout(timeoutMs),
     });

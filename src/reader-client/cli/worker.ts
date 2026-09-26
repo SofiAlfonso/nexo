@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { iniciarTelemetria } from '@nexo/shared/telemetry';
 import { LectorEmulado } from '../application/index.ts';
 import { cargarBoletas, cargarPerfil, ejecutarCarga, ejecutarPares, guardarReporteJson } from '../load/index.ts';
 import type { PresentacionCarga } from '../load/index.ts';
@@ -120,6 +121,7 @@ export async function ejecutar(configuracion: Configuracion): Promise<void> {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  iniciarTelemetria({ servicio: 'nexo-reader-client' });
   try {
     const ruta = process.argv[2];
     if (!ruta) throw new Error('Falta archivo de configuración');

@@ -8,6 +8,9 @@ import {
   ErrorConflictoIdempotencia, ErrorEntradaInvalida, ErrorSinConfianza, resultadoSinConfirmacion,
 } from '@nexo/shared/domain';
 import type { ResultadoValidacion } from '@nexo/shared/domain';
+import {
+  CAMPOS_LOG_PROHIBIDOS, conSpan, extraerContexto, pinoMixinTraza, SpanKind, trace,
+} from '@nexo/shared/telemetry';
 import type { Almacen } from '../application/puertos.ts';
 import type { RegistroLatidos } from '../application/latidos.ts';
 import type { ServicioValidacion } from '../application/servicio-validacion.ts';
@@ -27,9 +30,20 @@ function error(status: number, codigo: ErrorRespuesta['error'], mensaje: string,
   return { status, cuerpo: ErrorRespuesta.parse({ error: codigo, mensaje, ...(detalles === undefined ? {} : { detalles }) }) };
 }
 
+/** T2 §8.4: agrega `trace_id`/`span_id` a cada línea y redacta campos prohibidos (QR, credenciales). */
+function construirOpcionesLogger(logger: Dependencias['logger']): FastifyServerOptions['logger'] {
+  if (!logger) return false;
+  const base = logger === true ? {} : logger;
+  return { ...base, mixin: pinoMixinTraza(), redact: { paths: [...CAMPOS_LOG_PROHIBIDOS], censor: '[REDACTADO]' } };
+}
+
+const tracer = trace.getTracer('nexo.local-coordinator');
+
 export function crearServidor(deps: Dependencias): FastifyInstance {
-  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1024 * 1024,
-    https: opcionesTlsCoordinador(deps.config.tls) ?? null });
+  const app = Fastify({
+    logger: construirOpcionesLogger(deps.logger), bodyLimit: 1024 * 1024,
+    https: opcionesTlsCoordinador(deps.config.tls) ?? null,
+  });
   registrarAutenticacionLectores(app, deps.config.tls);
   const ahora = () => deps.reloj?.ahora() ?? new Date();
   const responderSinConfirmacion = (idOrigen: string) => RespuestaValidacion.parse({
@@ -55,8 +69,13 @@ export function crearServidor(deps: Dependencias): FastifyInstance {
       return reply.code(e.status).send(e.cuerpo);
     }
     const s = parseado.data;
+    // T25 enlazará lectorId con la identidad de la credencial mTLS.
+    const padre = extraerContexto(request.headers);
     try {
-      return respuesta(await deps.servicio.ejecutar({ ...s, instanteLector: new Date(s.instanteLector) }));
+      return await conSpan(tracer, 'validation.process', async (span) => {
+        span.setAttribute('nexo.punto_id', s.puntoId);
+        return respuesta(await deps.servicio.ejecutar({ ...s, instanteLector: new Date(s.instanteLector) }));
+      }, { kind: SpanKind.SERVER, padre });
     } catch (fallo) {
       if (fallo instanceof ErrorConflictoIdempotencia) {
         const e = error(409, 'CONFLICTO_IDEMPOTENCIA', fallo.message);

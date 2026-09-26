@@ -1,4 +1,14 @@
 import type { Latido, RegistroLatidoPunto } from '@nexo/shared/contracts';
+import { metrics } from '@nexo/shared/telemetry';
+
+const meter = metrics.getMeter('nexo.local-coordinator');
+/**
+ * Edad en segundos desde el último latido recibido por punto, apoyo de A8 (T2 §8.6:
+ * punto sin comunicación más de 60 s). No es una de las seis métricas N/T de T2 §3.2.
+ */
+const latidoEdadGauge = meter.createObservableGauge('nexo_c2_latido_edad_s', {
+  description: 'Segundos desde el último latido H1 recibido, por punto (apoyo de la alerta A8)',
+});
 
 /**
  * Último latido por punto (H1). Los latidos no pasan por D1: el despachador E1
@@ -7,12 +17,23 @@ import type { Latido, RegistroLatidoPunto } from '@nexo/shared/contracts';
 export class RegistroLatidos {
   private readonly ultimos = new Map<string, Latido>();
   private readonly pendientes = new Set<string>();
+  private readonly recibidoEn = new Map<string, number>();
+
+  constructor() {
+    latidoEdadGauge.addCallback((resultado) => {
+      const ahora = Date.now();
+      for (const [puntoId, recibidoEn] of this.recibidoEn) {
+        resultado.observe((ahora - recibidoEn) / 1000, { puntoId });
+      }
+    });
+  }
 
   registrar(latido: Latido): void {
     const previo = this.ultimos.get(latido.puntoId);
     if (previo && previo.lectorId === latido.lectorId && previo.secuencia > latido.secuencia) return;
     this.ultimos.set(latido.puntoId, latido);
     this.pendientes.add(latido.puntoId);
+    this.recibidoEn.set(latido.puntoId, Date.now());
   }
 
   ultimo(puntoId: string): Latido | undefined {

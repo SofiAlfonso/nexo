@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { RegistroDecision } from '../contracts/index.ts';
+import { conSpan, trace } from '../telemetry/index.ts';
 import {
   ErrorConflictoIdempotencia,
   ErrorConsumoDuplicado,
@@ -37,6 +38,9 @@ export interface SolicitudIngreso {
   venceEn?: Date;
 }
 
+/** T2 §8.3: sub-spans del proceso de validación, hijos del span raíz `validation.process` (C2). */
+const tracer = trace.getTracer('nexo.shared.validar-primer-ingreso');
+
 /** Huella estable (SHA-256 hex) del contenido de un intento: distingue retransmisión de conflicto (PB-04). */
 export function huellaIntento(i: IntentoDeValidacion): string {
   const canonico = JSON.stringify([
@@ -69,7 +73,7 @@ export class ValidarPrimerIngreso {
 
   async ejecutar(solicitud: SolicitudIngreso): Promise<ResultadoValidacion> {
     const intento = normalizar(solicitud);
-    const alcance = await this.deps.alcance.resolver(intento.lectorId);
+    const alcance = await conSpan(tracer, 'permission.read', () => this.deps.alcance.resolver(intento.lectorId));
     if (alcance.revocado) throw new ErrorSinConfianza(intento.lectorId, 'Credencial del lector revocada');
     if (alcance.eventoId !== intento.eventoId || alcance.puntoId !== intento.puntoId) {
       throw new ErrorSinConfianza(intento.lectorId, 'El lector no está asignado a este evento y punto');
@@ -99,17 +103,19 @@ export class ValidarPrimerIngreso {
           await unidad.cancelar();
           return this.sinConfirmacion(intento, 'evento sin permisos instalados', versiones);
         }
+        const evento = datos.evento;
+        const boleta = datos.boleta;
         const ctx: ContextoIngreso = {
           intento,
-          evento: datos.evento,
+          evento,
           punto: datos.punto,
-          boleta: datos.boleta,
+          boleta,
           versiones: datos.versiones,
           coordinador: this.deps.autoridad.actual(),
           modo: solicitud.modo ?? 'conectado',
           instante,
         };
-        const evaluacion = this.motor.evaluar(ctx);
+        const evaluacion = await conSpan(tracer, 'policy.evaluate', () => this.motor.evaluar(ctx));
         const { zonaBoleta, ...decision } = evaluacion;
         const resultado: ResultadoValidacion = {
           ...decision,
@@ -126,31 +132,34 @@ export class ValidarPrimerIngreso {
           return resultado;
         }
 
-        await unidad.registrarIntento(intento, huella, resultado);
-        if (resultado.decision === 'aceptado' && resultado.admision && datos.boleta) {
-          await unidad.registrarConsumo({
-            clave: {
-              clienteId: datos.evento.clienteId,
-              eventoId: datos.evento.eventoId,
-              boleteriaId: datos.evento.boleteriaId,
-              referencia: datos.boleta.referencia,
-              proposito: PROPOSITO_CONSUMO,
-            },
-            idOrigen: intento.idOrigen,
-            puntoId: intento.puntoId,
-            lectorId: intento.lectorId,
-            consumidoEn: instante,
-          });
-        }
+        const u = unidad;
         const registro = registroDecision(intento, resultado, zonaBoleta);
-        await unidad.agregarBitacora({
-          eventoId: intento.eventoId,
-          tipo: 'decision',
-          idOrigen: intento.idOrigen,
-          contenido: registro as unknown as Record<string, unknown>,
-          registradoEn: instante,
+        await conSpan(tracer, 'attempt.persist', async () => {
+          await u.registrarIntento(intento, huella, resultado);
+          if (resultado.decision === 'aceptado' && resultado.admision && boleta) {
+            await conSpan(tracer, 'ticket.consume', () => u.registrarConsumo({
+              clave: {
+                clienteId: evento.clienteId,
+                eventoId: evento.eventoId,
+                boleteriaId: evento.boleteriaId,
+                referencia: boleta.referencia,
+                proposito: PROPOSITO_CONSUMO,
+              },
+              idOrigen: intento.idOrigen,
+              puntoId: intento.puntoId,
+              lectorId: intento.lectorId,
+              consumidoEn: instante,
+            }));
+          }
+          await u.agregarBitacora({
+            eventoId: intento.eventoId,
+            tipo: 'decision',
+            idOrigen: intento.idOrigen,
+            contenido: registro as unknown as Record<string, unknown>,
+            registradoEn: instante,
+          });
         });
-        await unidad.agregarOutbox({ eventoId: intento.eventoId, registro });
+        await conSpan(tracer, 'outbox.enqueue', () => u.agregarOutbox({ eventoId: intento.eventoId, registro }));
         // Un lector que ya recibió "sin confirmación" no debe encontrar después una admisión confirmada.
         if (vencido()) {
           await unidad.cancelar();

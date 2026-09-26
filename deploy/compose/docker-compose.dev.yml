@@ -41,8 +41,14 @@ services:
       - "4317:4317"
       - "4318:4318"
       - "3000:3000"
+    environment:
+      NEXO_ALERT_WEBHOOK_URL: "${NEXO_ALERT_WEBHOOK_URL:-http://host.docker.internal:9099/alertas}"
     volumes:
       - lgtm-data:/data
+      - ../../observability/dashboards/operacion-del-evento.json:/otel-lgtm/dashboards/operacion-del-evento.json:ro
+      - ../../observability/dashboards/sincronizacion-y-resiliencia.json:/otel-lgtm/dashboards/sincronizacion-y-resiliencia.json:ro
+      - ../../observability/dashboards/provisioning-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/nexo-dashboards.yaml:ro
+      - ../../observability/alerts/alertas-t42.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/nexo-alertas.yaml:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health || exit 1"]
       interval: 10s

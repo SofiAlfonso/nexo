@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+/**
+ * Receptor local mínimo de webhooks de alertas (T42, punto de contacto de Grafana unified
+ * alerting). Sin dependencias: registra en stdout cada notificación recibida en JSON,
+ * lista para observar en consola durante los experimentos F1–F4 (T51–T54). No es apto para
+ * producción; sirve solo como punto de contacto local del laboratorio.
+ *
+ * Uso: node observability/alerts/webhook-receptor.mjs [puerto=9099]
+ */
+import { createServer } from 'node:http';
+
+const puerto = Number(process.argv[2] ?? process.env.NEXO_ALERT_WEBHOOK_PORT ?? 9099);
+
+const servidor = createServer((req, res) => {
+  if (req.method !== 'POST') {
+    res.writeHead(405).end();
+    return;
+  }
+  let cuerpo = '';
+  req.on('data', (fragmento) => { cuerpo += fragmento; });
+  req.on('end', () => {
+    try {
+      const notificacion = JSON.parse(cuerpo);
+      console.log(JSON.stringify({
+        evento: 'alerta.recibida',
+        recibidaEn: new Date().toISOString(),
+        titulo: notificacion.title ?? notificacion.commonAnnotations?.summary,
+        estado: notificacion.status,
+        alertas: (notificacion.alerts ?? []).map((a) => ({
+          estado: a.status,
+          etiquetas: a.labels,
+          anotaciones: a.annotations,
+        })),
+      }));
+    } catch {
+      console.log(JSON.stringify({ evento: 'alerta.recibida.cruda', recibidaEn: new Date().toISOString(), cuerpo }));
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
+  });
+});
+
+servidor.listen(puerto, () => {
+  console.log(`Receptor de alertas NEXO escuchando en http://0.0.0.0:${puerto}/alertas`);
+});
