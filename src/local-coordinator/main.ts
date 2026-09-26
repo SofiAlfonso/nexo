@@ -1,4 +1,6 @@
 import { ValidarPrimerIngreso } from '@nexo/shared/domain';
+import { iniciarTelemetria, pinoMixinTraza } from '@nexo/shared/telemetry';
+import pino from 'pino';
 import { AutoridadNodoUnico } from './application/autoridad.ts';
 import { DespachadorOutbox } from './application/despachador-outbox.ts';
 import { RegistroLatidos } from './application/latidos.ts';
@@ -12,6 +14,7 @@ import { crearClienteE1Http } from './infrastructure/e1/cliente-e1.ts';
 import { cargarConfigPermisos, crearSincronizadorPermisos } from './infrastructure/permisos/index.ts';
 import { crearAlmacenMemoria, semillaDemo } from './infrastructure/persistence/memoria/almacen-memoria.ts';
 import { crearAlmacenPostgres } from './infrastructure/persistence/postgres/index.ts';
+import { crearTelemetriaC2 } from './infrastructure/telemetria/adaptador-telemetria.ts';
 
 export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfig()) {
   let almacen: Almacen;
@@ -28,6 +31,7 @@ export async function iniciarCoordinador(config: ConfigCoordinador = cargarConfi
   const reloj = { ahora: () => new Date() };
   const servicio = new ServicioValidacion(new ValidarPrimerIngreso({
     unidades: almacen.unidades, alcance: almacen.alcance, autoridad, reloj,
+    telemetria: crearTelemetriaC2(pino({ mixin: pinoMixinTraza() })),
   }), contador, config, reloj);
   const app = crearServidor({ servicio, almacen, latidos, config, reloj, logger: true });
   if (!config.postgres) app.log.warn('D1 en memoria: datos de demostración, no persistentes');
@@ -92,4 +96,7 @@ export function ejecutarComoProceso(): void {
   });
 }
 
-if (import.meta.main) ejecutarComoProceso();
+if (import.meta.main) {
+  iniciarTelemetria({ servicio: 'nexo-local-coordinator' });
+  ejecutarComoProceso();
+}

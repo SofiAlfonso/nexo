@@ -6,9 +6,20 @@ import {
 } from '@nexo/shared/contracts';
 import type { EstadoCoordinador, RegistroLatidoPunto } from '@nexo/shared/contracts';
 import type { OutboxPendiente, PendienteOutbox } from '@nexo/shared/domain';
+import { metrics } from '@nexo/shared/telemetry';
 import type { ConfigCoordinador } from '../config.ts';
 import type { RegistroLatidos } from './latidos.ts';
 import type { ContadorV1 } from './prioridad.ts';
+
+const meter = metrics.getMeter('nexo.local-coordinator');
+/** T2: cantidad de registros pendientes de sincronizar por E1, observada en cada ciclo del despachador. */
+const outboxPendientesGauge = meter.createGauge('nexo_c2_outbox_pendientes', {
+  description: 'Registros pendientes de enviar a C4 por E1 (T2)',
+});
+/** T2: edad en segundos del pendiente más antiguo del outbox. */
+const outboxEdadMaxGauge = meter.createGauge('nexo_c2_outbox_edad_maxima_s', {
+  description: 'Edad en segundos del registro pendiente más antiguo del outbox (T2)',
+});
 
 export interface EstadoParaE1 {
   estado: EstadoCoordinador;
@@ -74,6 +85,12 @@ export class DespachadorOutbox {
     return Math.max(2, Math.min(MAX_REGISTROS_LOTE, this.o.config.loteEvidenciaMax));
   }
 
+  /** T2: publica el tamaño y la antigüedad máxima del outbox pendiente. */
+  private publicarMetricasOutbox(): void {
+    outboxPendientesGauge.record(this.pendientes);
+    outboxEdadMaxGauge.record(this.edadMaxS);
+  }
+
   iniciar(): void {
     if (this.activo) return;
     this.activo = true;
@@ -133,6 +150,7 @@ export class DespachadorOutbox {
         const resumen = await this.o.outbox.resumen(ahora);
         this.pendientes = resumen.pendientes;
         this.edadMaxS = resumen.edadMaxS;
+        this.publicarMetricasOutbox();
         const latidos = this.o.latidos.tomarPendientes();
         latidosTomados = latidos;
         const disponibles = this.capacidad - 1;
@@ -191,6 +209,7 @@ export class DespachadorOutbox {
       const resumen = await this.o.outbox.resumen(this.ultimoEnvioOk);
       this.pendientes = resumen.pendientes;
       this.edadMaxS = resumen.edadMaxS;
+      this.publicarMetricasOutbox();
       this.o.log?.info({ idLote: actual.lote.idLote, enviados: actual.filas.length }, 'Lote E1 confirmado');
       return { enviados: actual.filas.length, pendientes: this.pendientes };
     } catch (error) {
