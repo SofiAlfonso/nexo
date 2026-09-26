@@ -1,0 +1,90 @@
+# D1 — PostgreSQL 16 transaccional de sede, usado por C2 (nexo-coordinator).
+# Instancia separada de D2; el Secret nexo-d1-credentials lo crea
+# `deploy/scripts/up` (o `kubectl create secret generic ... --from-env-file`,
+# ver config/README.md) y nunca se versiona en Git.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexo-d1
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-d1
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: database
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: nexo-d1
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nexo-d1
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: nexo-d1
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: database
+spec:
+  serviceName: nexo-d1
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-d1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexo-d1
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+        - name: nexo-d1
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_DB } }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: nexo-d1-credentials, key: POSTGRES_PASSWORD } }
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

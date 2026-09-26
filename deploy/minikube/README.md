@@ -30,5 +30,41 @@ Los namespaces son `nexo-venue`, `nexo-central`, `nexo-external`,
 pruebas de humo, el acceso a Grafana y la exportación opcional a Grafana Cloud
 se documentan en [observability/collector/README.md](../../observability/collector/README.md).
 
-**Decisiones pendientes**: addons adicionales y estrategia de construcción
-local de imágenes. El perfil base del clúster ya está definido.
+## Despliegue de la aplicación (C1–C5, D1–D2)
+
+Con `namespaces/` y `observability/` ya aplicados (paso anterior) y Minikube
+corriendo, un solo comando construye las imágenes con `minikube image build`,
+crea los Secrets de laboratorio (plantillas, sin secretos en Git), aplica los
+manifiestos Kustomize de `deploy/kubernetes/{data,application}` y espera a
+que D1/D2/C2/C4 queden listos:
+
+```sh
+node deploy/scripts/up.mjs   # o deploy/scripts/up.ps1 en PowerShell
+```
+
+Otros scripts en `deploy/scripts/` (documentados en su propio
+[README](../scripts/README.md)):
+
+- `down` — elimina Deployments/Jobs/StatefulSets de la aplicación pero
+  conserva los PVC y Secrets de D1/D2 (reutilizables en el próximo `up`).
+- `reset --confirm` — `down` además de borrar PVC y Secrets; deja el clúster
+  como recién creado.
+- `load` — exporta las boletas activas de D1, publica una muestra
+  representativa como ConfigMap y corre el lector emulado (C1) como Job de
+  carga contra `nexo-coordinator` (perfil `nominal`, 30 s).
+
+`nexo-ticketing` (boletería simulada, `nexo-external`) queda en
+`CrashLoopBackOff` hasta que T23 la implemente en otra sesión; no bloquea el
+resto del despliegue.
+
+**Prueba de frontera** (T26): `tests/integration/k8s/network-policies.test.ts`
+verifica contra el clúster vivo que C2 no alcanza D2 directamente, que C2
+alcanza D1 y C4 a través de Toxiproxy, y que C4 sí alcanza D2. Requiere el
+stack desplegado (`kubectl` en el `PATH` y `nexo-coordinator` Ready):
+
+```sh
+npx vitest run --config vitest.integration.config.ts tests/integration/k8s/network-policies.test.ts
+```
+
+**Decisiones pendientes**: addons adicionales para Toxiproxy/caos
+(S2-chaos) y automatización de la construcción de imágenes en CI.

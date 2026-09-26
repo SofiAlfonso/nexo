@@ -1,0 +1,325 @@
+# NetworkPolicies de la ola 2 (T26, ADR-015, G01, G14). Cada Deployment
+# selecciona sus pods por `app.kubernetes.io/name` y agrega las etiquetas
+# `nexo.io/d1-client`, `nexo.io/d2-client` y `nexo.io/central-client` solo a
+# quien de verdad necesita cruzar una frontera. Una vez que un pod queda
+# seleccionado por una política con `Egress` (o `Ingress`), TODO el tráfico
+# de ese tipo se deniega salvo lo listado aquí: por eso toda política incluye
+# la regla de DNS y toda política de egreso enumera sus destinos explícitos.
+# Criterio de aceptación de T26: C2 no alcanza D2 directamente (ver
+# tests/integration/k8s/network-policies.test.ts).
+
+# ---------------------------------------------------------------------------
+# nexo-venue
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: nexo-venue
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-coordinator
+  namespace: nexo-venue
+spec:
+  # C2 es la única autoridad de validación (invariante 1) y no debe poder
+  # alcanzar D1 ni C4 directamente: solo habla con Toxiproxy, que es quien
+  # cruza esas fronteras (y a quien F1/F3 pueden perturbar sin tocar C2).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-coordinator
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - { protocol: TCP, port: 8081 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: toxiproxy
+      ports:
+        - { protocol: TCP, port: 18080 }
+        - { protocol: TCP, port: 15432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-d1
+  namespace: nexo-venue
+spec:
+  # Solo Toxiproxy (proxy c2-to-d1) y el Job de migración/semilla hablan
+  # directo con D1; nexo-coordinator lo hace siempre vía Toxiproxy.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-d1
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              nexo.io/d1-client: "true"
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: toxiproxy
+  namespace: nexo-venue
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: toxiproxy
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # nexo-coordinator (proxies c2-to-c4/c2-to-d1) y S2-chaos (API :8474,
+    # controlada desde nexo-chaos) necesitan llegar a Toxiproxy.
+    - from:
+        - podSelector: {}
+      ports:
+        - { protocol: TCP, port: 18080 }
+        - { protocol: TCP, port: 15432 }
+        - { protocol: TCP, port: 8474 }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-chaos
+      ports:
+        - { protocol: TCP, port: 8474 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-d1
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-central
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-central
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-db-init
+  namespace: nexo-venue
+spec:
+  # Job puntual de migración/semilla: único pod de nexo-venue (aparte de
+  # Toxiproxy) con permiso de red directo a D1 y a D2 (nexo-central).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-db-init
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-d1
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-central
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-d2
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-boletas-export
+  namespace: nexo-venue
+spec:
+  # Pod puntual de `deploy/scripts/load` (exporta boletas activas de D1 para
+  # alimentar al lector emulado); mismo patrón que nexo-db-init pero sin Job.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-boletas-export
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-d1
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-reader-load
+  namespace: nexo-venue
+spec:
+  # El lector emulado (C1) solo alcanza a C2, nunca decide ni habla con D1/C4.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: reader
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-coordinator
+      ports:
+        - { protocol: TCP, port: 8081 }
+
+# ---------------------------------------------------------------------------
+# nexo-central
+# ---------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: nexo-central
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-d2
+  namespace: nexo-central
+spec:
+  # La nube nunca autoriza y C2 no alcanza D2 directamente (invariantes 1 y
+  # 3): solo el propio C4 y el Job de migración/semilla (nexo-venue) hablan
+  # con D2. nexo-coordinator queda fuera deliberadamente.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-d2
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              nexo.io/d2-client: "true"
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-venue
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-db-init
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-central
+  namespace: nexo-central
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-central
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # E1 (evidencia) y el refresco de permisos llegan por Toxiproxy
+    # (proxy c2-to-c4); un operador humano entra directo a C5/O2 desde
+    # dentro del clúster (port-forward) o vía Ingress futuro.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-venue
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: toxiproxy
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - from: []
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-d2
+      ports:
+        - { protocol: TCP, port: 5432 }
+    # OTLP hacia el Collector/otel-lgtm de S2-otel (cableado pendiente T-otel).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-observability
+      ports:
+        - { protocol: TCP, port: 4318 }
+        - { protocol: TCP, port: 4317 }
+    # P1 hacia la boletería simulada (adaptador C3 dentro de M1, T23).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-external
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-ticketing
+      ports:
+        - { protocol: TCP, port: 8082 }
+
+# ---------------------------------------------------------------------------
+# nexo-external
+# ---------------------------------------------------------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: nexo-external
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexo-ticketing
+  namespace: nexo-external
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexo-ticketing
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nexo-central
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexo-central
+      ports:
+        - { protocol: TCP, port: 8082 }

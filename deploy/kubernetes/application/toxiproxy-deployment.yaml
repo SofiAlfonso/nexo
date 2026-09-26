@@ -1,0 +1,114 @@
+# Toxiproxy (nexo-venue): proxies obligatorios `c2-to-c4` y `c2-to-d1`,
+# usados por S2-chaos para F1 RED-01 y F3 BD-01. Los proxies se declaran en
+# el ConfigMap y Toxiproxy los crea al arrancar (`-config`); S2-chaos los
+# controla en caliente por la API (`:8474`) sin reiniciar este Deployment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: toxiproxy-config
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: toxiproxy
+    app.kubernetes.io/part-of: nexo
+data:
+  proxies.json: |
+    [
+      {
+        "name": "c2-to-c4",
+        "listen": "0.0.0.0:18080",
+        "upstream": "nexo-central.nexo-central.svc:8080",
+        "enabled": true
+      },
+      {
+        "name": "c2-to-d1",
+        "listen": "0.0.0.0:15432",
+        "upstream": "nexo-d1:5432",
+        "enabled": true
+      }
+    ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toxiproxy
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: toxiproxy
+    app.kubernetes.io/part-of: nexo
+    app.kubernetes.io/component: chaos-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: toxiproxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: toxiproxy
+        app.kubernetes.io/part-of: nexo
+        app.kubernetes.io/component: chaos-proxy
+        # Único componente de nexo-venue con permiso explícito para
+        # alcanzar D1 directamente y C4 en nexo-central (ver networkpolicies.yaml).
+        nexo.io/d1-client: "true"
+        nexo.io/central-client: "true"
+    spec:
+      containers:
+        - name: toxiproxy
+          image: ghcr.io/shopify/toxiproxy:2.9.0
+          imagePullPolicy: IfNotPresent
+          args: ["-host=0.0.0.0", "-config=/etc/toxiproxy/proxies.json"]
+          ports:
+            - name: api
+              containerPort: 8474
+            - name: c2-to-c4
+              containerPort: 18080
+            - name: c2-to-d1
+              containerPort: 15432
+          volumeMounts:
+            - name: config
+              mountPath: /etc/toxiproxy
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: api
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /version
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: toxiproxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toxiproxy
+  namespace: nexo-venue
+  labels:
+    app.kubernetes.io/name: toxiproxy
+    app.kubernetes.io/part-of: nexo
+spec:
+  selector:
+    app.kubernetes.io/name: toxiproxy
+  ports:
+    - name: api
+      port: 8474
+      targetPort: api
+    - name: c2-to-c4
+      port: 18080
+      targetPort: c2-to-c4
+    - name: c2-to-d1
+      port: 15432
+      targetPort: c2-to-d1
