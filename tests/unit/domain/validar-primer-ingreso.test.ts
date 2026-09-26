@@ -22,6 +22,8 @@ function sistema() {
 }
 
 describe('ValidarPrimerIngreso: unidad de trabajo, confianza e idempotencia', () => {
+  it.todo('PU-05-02 C2/mTLS reemplaza el lector, cierra la asignación anterior y solicita revocar su credencial');
+
   it('PU-03-01 aceptación confirma intento, consumo único, bitácora y outbox E1 antes de responder', async () => {
     const { db, servicio, solicitud, telemetria } = sistema();
     const r = await servicio.ejecutar(solicitud);
