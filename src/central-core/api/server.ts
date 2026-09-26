@@ -9,9 +9,9 @@ import { conSpan, trace } from '@nexo/shared/telemetry';
 import { ServicioAuth } from '../application/auth/servicioAuth.ts';
 import { ServicioO2 } from '../application/o2/servicio-o2.ts';
 import { AuthRepositorioPg, SesionesRepositorioPg } from '../infrastructure/auth-repositorio.ts';
-import { EstadoOperativoRepositorioPg, IntentosRepositorioPg, PreparacionConciliacionRepositorioPg, AccionesRepositorioPg, BoletasRepositorioPg, ActividadRepositorioPg } from '../infrastructure/o2-repositorio.ts';
+import { EstadoOperativoRepositorioPg, EventoActualO2RepositorioPg, IntentosRepositorioPg, PreparacionRepositorioPg, AccionesRepositorioPg, BoletasRepositorioPg, ActividadRepositorioPg } from '../infrastructure/o2-repositorio.ts';
 import { crearServicioPermisos, registrarRutasPermisos } from '../modules/configuration-permissions/api/index.ts';
-import { EventoConfigRepositorioPg, PuntoConfigRepositorioPg } from '../modules/configuration-permissions/infrastructure/index.ts';
+import { PuntoConfigRepositorioPg } from '../modules/configuration-permissions/infrastructure/index.ts';
 import {
   crearServicioIngestaEvidencia, crearServicioVigilanciaLatidos, registrarRutasEvidencia, registrarRutasIncidentes,
 } from '../modules/evidence-ingestion/api/index.ts';
@@ -48,20 +48,22 @@ export function crearApp(pool: Pool): AppC4 {
   const servicioVigilancia = crearServicioVigilanciaLatidos(pool);
   const incidentesRepositorio = new RepositorioIncidentesPg(pool);
   const intentosRepositorio = new IntentosRepositorioPg(pool);
+  const servicioLiquidacion = crearServicioLiquidacion(pool);
+  const servicioConciliacion = crearServicioConciliacion(pool, servicioLiquidacion);
   const servicioO2 = new ServicioO2(
-    new EventoConfigRepositorioPg(pool),
+    new EventoActualO2RepositorioPg(pool),
     new PuntoConfigRepositorioPg(pool),
     new EstadoOperativoRepositorioPg(pool),
     incidentesRepositorio,
-    new PreparacionConciliacionRepositorioPg(pool),
+    new PreparacionRepositorioPg(pool),
+    { obtenerConciliacion: eventoId => servicioConciliacion.obtenerConciliacion(eventoId) },
     intentosRepositorio,
     new AccionesRepositorioPg(pool),
     new BoletasRepositorioPg(pool),
     new ActividadRepositorioPg(pool),
   );
   const hub = new HubStream();
-  const servicioLiquidacion = crearServicioLiquidacion(pool);
-  const servicioConciliacion = crearServicioConciliacion(pool, servicioLiquidacion);
+
 
   const vigilancia = setInterval(() => {
     servicioVigilancia.revisarPuntosSinComunicacion()
