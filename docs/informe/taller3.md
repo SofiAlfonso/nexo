@@ -390,7 +390,7 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 | d | F2 corta la exportación escalando `otel-lgtm` a 0, porque `kindnet` no aplica NetworkPolicies de egreso | Adoptado (G06, ADR-013) |
 | e | `#/preparacion` sin escritura real; CA1–CA4 sin fuente de datos | Resuelto en el PR #32 (`3f8e0c9`): la preparación escribe en D2. CA1–CA4 quedan como recorte explícito ("No disponible todavía") |
 | f | Repositorio de conciliación de M3 en ajuste | Resuelto en el PR #32: no era un stub; `#/cierre` ahora resuelve eventos `cerrado` |
-| g, h | README de subcarpetas desactualizados | README raíz resuelto en el PR #26; `deploy/minikube/README.md` y `deploy/scripts/README.md`, en este pase final (T64) |
+| g, h | README de subcarpetas desactualizados | README raíz resuelto en el PR #26; `deploy/minikube/README.md` y `deploy/scripts/README.md`, en el PR #37 (T64) |
 | i | `#/lector` simulaba una validación V1 contra un endpoint inexistente | Resuelto como recorte en el PR #33 (`ea7725f`): la vista solo muestra intentos registrados |
 | j | La caída de `otel-lgtm` no se puede alertar desde dentro, y A13 y A14 vigilaban otro Collector | Parcial: el PR #34 (`4821be9`) corrige A13 y A14; el *dead-man's switch* externo queda como propuesta (§8.3) |
 | — | F1 corta 5 min, no los 15 min de T2 EXP 01, y F3 no ejecuta los subcasos de disco lleno de EXP 05 | Recorte del taller 3 ([taller3.md §3.1](../context/taller3.md)); ADR-002, ADR-011 y ADR-012 siguen pendientes de PoC completa |
@@ -450,7 +450,7 @@ Resumen del registro de recortes de la [matriz §3](../coherencia/matriz.md) y d
 |---|---|---|
 | PENDIENTE-DIGEST | §7 | Sesión con acceso a Docker o Minikube ([matriz §2](../coherencia/matriz.md)): `minikube image ls --format table` o `docker image inspect` |
 
-Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR-PASE-FINAL), escrito sobre `main` en `b07198e` (PR #36).
+Los marcadores de resultados de T57 del borrador se cerraron en el pase final (PR #37), escrito sobre `main` en `b07198e` (PR #36).
 
 ## Anexo A. Verificación de enlaces (T64)
 
