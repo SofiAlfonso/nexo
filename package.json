@@ -12,7 +12,8 @@
     "src/local-coordinator",
     "src/central-core",
     "src/reader-client",
-    "src/ticketing-sim"
+    "src/ticketing-sim",
+    "chaos/scripts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
