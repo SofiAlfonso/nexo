@@ -49,6 +49,23 @@ describe('nexo-chaos', () => {
     await expect(runner.validate(file)).rejects.toThrow('nexo-venue');
   });
 
+  it('valida F2 con selección exacta del Collector y sin destino de IP transitorio', async () => {
+    const collectorSelector = {
+      'app.kubernetes.io/instance': 'nexo-otel-collector',
+      'app.kubernetes.io/name': 'opentelemetry-collector',
+      component: 'standalone-collector',
+    };
+    await writeFile(file, YAML.stringify({
+      ...example, actions: [{
+        type: 'networkPolicy', namespace: 'nexo-observability',
+        name: 'nexo-chaos-collector-egress', podSelector: collectorSelector, mode: 'denyAll',
+      }],
+    }));
+    expect((await runner.validate(file)).actions[0]).toMatchObject({
+      type: 'networkPolicy', mode: 'denyAll', podSelector: collectorSelector,
+    });
+  });
+
   it('exige un plan de la misma versión y confirmación expresa', async () => {
     await expect(runner.run(file, { confirm: false })).rejects.toThrow('--confirm');
     await expect(runner.run(file, { confirm: true, dryRun: true })).rejects.toThrow('plan');
@@ -167,5 +184,48 @@ describe('nexo-chaos', () => {
     await runner.restore();
     expect(enabled).toBe(true);
     expect(vi.mocked(fetchDouble).mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(2);
+  });
+
+  it('limita el corte de F2 al egress del Collector y elimina su policy al restaurar', async () => {
+    const podSelector = {
+      'app.kubernetes.io/instance': 'nexo-otel-collector',
+      'app.kubernetes.io/name': 'opentelemetry-collector',
+      component: 'standalone-collector',
+    };
+    await writeFile(file, YAML.stringify({
+      ...example, actions: [{
+        type: 'networkPolicy', namespace: 'nexo-observability',
+        name: 'nexo-chaos-collector-egress', podSelector, mode: 'denyAll',
+      }],
+    }));
+    let created: Record<string, unknown> | undefined;
+    exec = vi.fn(async (_command: string, args: string[], input?: string) => {
+      if (args[0] === 'config') return 'minikube\n';
+      if (args.includes('networkpolicies')) return JSON.stringify({ items: created ? [created] : [] });
+      if (args.includes('pods')) return JSON.stringify({ items: [{ status: { phase: 'Running' } }] });
+      if (args.includes('create')) {
+        created = JSON.parse(input ?? '{}') as Record<string, unknown>;
+        return JSON.stringify(created);
+      }
+      if (args.includes('delete')) {
+        created = undefined;
+        return '';
+      }
+      throw new Error(`Comando inesperado: ${args.join(' ')}`);
+    });
+    runner = new ChaosRunner({
+      evidenceDir: join(directory, 'evidence'),
+      dependencies: { exec, fetch: globalThis.fetch },
+      now: () => now, watchdog: vi.fn(),
+    });
+    await runner.plan(file);
+    await runner.run(file, { confirm: true });
+    expect(created).toMatchObject({
+      kind: 'NetworkPolicy',
+      spec: { policyTypes: ['Egress'], egress: [], podSelector: { matchLabels: podSelector } },
+    });
+    await runner.restore();
+    expect(created).toBeUndefined();
+    expect(await runner.status()).toBeNull();
   });
 });
