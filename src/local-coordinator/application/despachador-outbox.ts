@@ -50,6 +50,8 @@ export interface OpcionesDespachador {
   backoffBaseMs?: number;
   backoffMaxMs?: number;
   esperaMaxV1Ms?: number;
+  /** Intervalo mínimo entre recálculos de T2 mientras hay un lote retenido (por defecto 5 s). */
+  resumenMinMs?: number;
   generarIdLote?: () => string;
   log?: { info(o: object, m?: string): void; warn(o: object, m?: string): void; error(o: object, m?: string): void };
 }
@@ -75,6 +77,8 @@ export class DespachadorOutbox {
   private edadMaxS = 0;
   private enLinea = false;
   private activo = false;
+  private resumenEn: number | null = null;
+  private readonly resumenMinMs: number;
   private timer: NodeJS.Timeout | null = null;
   private ciclo: Promise<{ enviados: number; pendientes: number; error?: string }> | null = null;
 
@@ -84,6 +88,7 @@ export class DespachadorOutbox {
     this.backoffBaseMs = o.backoffBaseMs ?? 500;
     this.backoffMaxMs = o.backoffMaxMs ?? 30_000;
     this.esperaMaxV1Ms = o.esperaMaxV1Ms ?? 200;
+    this.resumenMinMs = o.resumenMinMs ?? 5000;
     this.capacidad = this.capacidadMax();
   }
 
@@ -96,6 +101,29 @@ export class DespachadorOutbox {
   private publicarMetricasOutbox(): void {
     outboxPendientesGauge.record(this.pendientes);
     outboxEdadMaxGauge.record(this.edadMaxS);
+  }
+
+  private async actualizarResumen(ahora: Date): Promise<{ pendientes: number; edadMaxS: number }> {
+    const resumen = await this.o.outbox.resumen(ahora);
+    this.pendientes = resumen.pendientes;
+    this.edadMaxS = resumen.edadMaxS;
+    this.resumenEn = ahora.getTime();
+    this.publicarMetricasOutbox();
+    return resumen;
+  }
+
+  /**
+   * Con un lote retenido (C4 caído o rechazando), T2 debe seguir reflejando el outbox que crece:
+   * recalcula como mucho una vez cada `resumenMinMs`. Un fallo de D1 aquí no bloquea el reintento.
+   */
+  private async refrescarResumenRetenido(ahora: Date): Promise<void> {
+    if (this.resumenEn !== null && ahora.getTime() - this.resumenEn < this.resumenMinMs) return;
+    try {
+      await this.actualizarResumen(ahora);
+    } catch (error) {
+      this.resumenEn = ahora.getTime();
+      this.o.log?.warn({ error: error instanceof Error ? error.message : String(error) }, 'No se pudo recalcular T2 del outbox');
+    }
   }
 
   iniciar(): void {
@@ -154,10 +182,7 @@ export class DespachadorOutbox {
       await this.o.v1.esperarLibre(this.esperaMaxV1Ms);
       const ahora = this.o.reloj?.ahora() ?? new Date();
       if (!this.pendiente) {
-        const resumen = await this.o.outbox.resumen(ahora);
-        this.pendientes = resumen.pendientes;
-        this.edadMaxS = resumen.edadMaxS;
-        this.publicarMetricasOutbox();
+        const resumen = await this.actualizarResumen(ahora);
         const latidos = this.o.latidos.tomarPendientes();
         latidosTomados = latidos;
         const disponibles = this.capacidad - 1;
@@ -196,6 +221,8 @@ export class DespachadorOutbox {
         });
         this.pendiente = { lote, filas, latidos: seleccionados };
         latidosTomados = [];
+      } else {
+        await this.refrescarResumenRetenido(ahora);
       }
       const actual = this.pendiente;
       const acuse = AcuseLoteEvidencia.parse(await this.o.cliente.enviar(actual.lote));
@@ -213,12 +240,9 @@ export class DespachadorOutbox {
       this.ultimoEstadoEnviado = this.ultimoEnvioOk;
       this.fallosConsecutivos = 0;
       this.enLinea = true;
-      const resumen = await this.o.outbox.resumen(this.ultimoEnvioOk);
-      this.pendientes = resumen.pendientes;
-      this.edadMaxS = resumen.edadMaxS;
-      this.publicarMetricasOutbox();
+      const resumen = await this.actualizarResumen(this.ultimoEnvioOk);
       this.o.log?.info({ idLote: actual.lote.idLote, enviados: actual.filas.length }, 'Lote E1 confirmado');
-      return { enviados: actual.filas.length, pendientes: this.pendientes };
+      return { enviados: actual.filas.length, pendientes: resumen.pendientes };
     } catch (error) {
       if (latidosTomados.length) this.o.latidos.devolver(latidosTomados);
       this.fallosConsecutivos++;
@@ -233,6 +257,7 @@ export class DespachadorOutbox {
       }
       const mensaje = error instanceof Error ? error.message : String(error);
       this.o.log?.warn({ error: mensaje, fallosConsecutivos: this.fallosConsecutivos }, 'Fallo de envío E1');
+      if (this.pendiente) await this.refrescarResumenRetenido(this.o.reloj?.ahora() ?? new Date());
       return { enviados: 0, pendientes: this.pendientes, error: mensaje };
     }
   }

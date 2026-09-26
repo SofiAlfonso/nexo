@@ -44,7 +44,7 @@ function acuse(lote: LoteEvidencia): AcuseLoteEvidencia {
   });
 }
 
-function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidenciaMax?: number; esperaMaxV1Ms?: number; descartes?: RegistroDescartesE1 } = {}) {
+function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidenciaMax?: number; esperaMaxV1Ms?: number; descartes?: RegistroDescartesE1; reloj?: { ahora(): Date } } = {}) {
   const outbox = new OutboxMemoria();
   const latidos = new RegistroLatidos();
   const v1 = new ContadorV1();
@@ -53,7 +53,7 @@ function preparar(cantidad = 0, cliente?: ClienteE1, parametros: { loteEvidencia
     async enviar(lote) { lotes.push(lote); return acuse(lote); },
   };
   const despachador = new DespachadorOutbox({
-    outbox, latidos, v1, cliente: emisor, descartes: parametros.descartes,
+    outbox, latidos, v1, cliente: emisor, descartes: parametros.descartes, reloj: parametros.reloj,
     config: { eventoId: 'EVT-2026-02', recintoId: 'REC-01', coordinadorId: 'COORD-A', loteEvidenciaMax: parametros.loteEvidenciaMax ?? 100 },
     estado: () => ({ estado: 'operando', versionPermisos: 2, versionPoliticas: 3 }),
     intervaloMs: 10, esperaMaxV1Ms: parametros.esperaMaxV1Ms ?? 20,
@@ -205,6 +205,27 @@ describe('DespachadorOutbox', () => {
     expect((await despachador.ejecutarCiclo()).error).toContain('no corresponde');
     expect(outbox.acuses).toHaveLength(0);
     expect(despachador.metricas().enLinea).toBe(false);
+  });
+
+  it('con C4 caído y un lote retenido, T2 refleja los pendientes que crecen (como mucho cada 5 s)', async () => {
+    let ahora = new Date('2026-09-26T04:00:00.000Z');
+    const reloj = { ahora: () => ahora };
+    const { despachador, outbox, llenar } = preparar(3, { enviar: vi.fn().mockRejectedValue(new Error('offline')) }, { reloj });
+    await llenar();
+    const resumen = vi.spyOn(outbox, 'resumen');
+    await despachador.ejecutarCiclo();
+    expect(despachador.metricas().pendientes).toBe(3);
+    await outbox.agregar(Array.from({ length: 4 }, (_, n) => ({ eventoId: 'EVT-2026-02', registro: intento(100 + n) })));
+    const llamadas = resumen.mock.calls.length;
+    ahora = new Date(ahora.getTime() + 1000);
+    await despachador.ejecutarCiclo();
+    expect(resumen.mock.calls.length).toBe(llamadas);
+    expect(despachador.metricas().pendientes).toBe(3);
+    ahora = new Date(ahora.getTime() + 5000);
+    await despachador.ejecutarCiclo();
+    expect(despachador.metricas().pendientes).toBe(7);
+    expect(resumen.mock.calls.length).toBe(llamadas + 1);
+    expect(outbox.acuses).toHaveLength(0);
   });
 
   it('el lazo en segundo plano se detiene sin lanzar tras fallos', async () => {
