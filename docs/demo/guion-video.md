@@ -57,7 +57,7 @@ ya tienen contraseña sembrada.
   (admisiones/ingreso), T1 (latencia de validación) y T2 (pendientes de
   sincronización), citando `docs/observability/justificacion-metricas.md`.
 - Mencionar brevemente que N3/A1 usa como proxy
-  `nexo_c4_lotes_evidencia_total{resultado="conflicto"}` (recorte b de la
+  `nexo_c4_lotes_evidencia_total{resultado="conflicto",tipo="decision"}` (recorte b de la
   matriz de coherencia), sin necesidad de profundizar en cámara.
 
 ## 6. Un fallo (F1–F4) y su recuperación (90–120 s)
