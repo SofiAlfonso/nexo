@@ -44,22 +44,22 @@ Versiones exactas leídas de `package.json`, los cuatro `Dockerfile` y
 | TypeScript | `^6.0.3` (ejecutado nativamente por Node 24, sin paso `tsc` en runtime) | `package.json` |
 | Vitest | `^5.0.2` | `package.json` |
 | Fastify / `pg` / `zod` / `decimal.js` / `argon2` | Ver `package.json` de cada workspace (`src/*/package.json`) | ADR-014 |
-| Imagen `nexo/central-core` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** (sin Docker disponible en esta sesión no se puede calcular el digest; se construye con `minikube image build`, sin publicar a registro) | `deploy/kubernetes/application/central-deployment.yaml` |
-| Imagen `nexo/local-coordinator` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** | `deploy/kubernetes/application/coordinator-deployment.yaml` |
-| Imagen `nexo/ticketing-sim`, `nexo/reader-client`, `nexo/db-init` | Tag `dev`, `imagePullPolicy: Never` — **PENDIENTE-DIGEST** | `deploy/kubernetes/application/ticketing-deployment.yaml`, `reader-load-job.yaml`, `db-init-job.yaml` |
-| PostgreSQL (D1, D2) | `postgres:16-alpine` (digest — **PENDIENTE-DIGEST**) | `deploy/kubernetes/data/d1-statefulset.yaml`, `deploy/kubernetes/data/d2-statefulset.yaml`; confirmado en `chaos/evidence/rec-01-coordinator-cpu/cluster-estado.txt` |
-| Backend de telemetría | `grafana/otel-lgtm:0.34.0` (digest — **PENDIENTE-DIGEST**) | `deploy/kubernetes/observability/otel-lgtm.yaml`; ADR-013 |
-| Collector OTel | `opentelemetry-collector-k8s:0.160.0` según el estado del clúster; `values-local.yaml` no fija el tag (lo toma del chart de Helm). Digest — **PENDIENTE-DIGEST** | `observability/collector/values-local.yaml`; `chaos/evidence/rec-01-coordinator-cpu/cluster-estado.txt` |
-| Toxiproxy (F1) | `ghcr.io/shopify/toxiproxy:2.9.0` (digest — **PENDIENTE-DIGEST**) | `deploy/kubernetes/application/toxiproxy-deployment.yaml` |
+| Imagen `nexo/central-core` | Tag `dev`, `imagePullPolicy: Never`; ID `sha256:2f155650dfdcd37c499b6da0d901d7a18c9a2cde5b5a14d7f19322fa4ed56631` (se construye con `minikube image build`, sin publicar a registro) | `deploy/kubernetes/application/central-deployment.yaml` |
+| Imagen `nexo/local-coordinator` | Tag `dev`, `imagePullPolicy: Never`; ID `sha256:515b93f6f41690f5d0bde98c9f5644a724a784cf4fe7d19f7e6db4437439698b` | `deploy/kubernetes/application/coordinator-deployment.yaml` |
+| Imagen `nexo/ticketing-sim`, `nexo/reader-client`, `nexo/db-init` | Tag `dev`, `imagePullPolicy: Never`; ID `sha256:0f4f1ab8c57654f648510791cc31cc78ae173882b68a39f3b0f352969ddae058`, `sha256:acd7dc26ac5f61181bb52a9375033bc696eefd45f8ac2edcb735c4d1a00f7ace` y `sha256:6f91eeaa6b31edaeed6093aa4855b57cfd74f7873bafd79f4d2de46d9184b529`, respectivamente | `deploy/kubernetes/application/ticketing-deployment.yaml`, `reader-load-job.yaml`, `db-init-job.yaml` |
+| PostgreSQL (D1, D2) | `postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea` | `deploy/kubernetes/data/d1-statefulset.yaml`, `deploy/kubernetes/data/d2-statefulset.yaml`; confirmado en `chaos/evidence/rec-01-coordinator-cpu/cluster-estado.txt` |
+| Backend de telemetría | `grafana/otel-lgtm:0.34.0@sha256:b966ea107831d526d9eb8fe4d2d86c9e5731392fad9dce8296bcf2072031f07c` | `deploy/kubernetes/observability/otel-lgtm.yaml`; ADR-013 |
+| Collector OTel | `opentelemetry-collector-k8s:0.160.0` según el estado del clúster; `values-local.yaml` no fija el tag (lo toma del chart de Helm). Digest `sha256:76d7a04f2291da1d8b7ce259468d09f0f9f44f71f67a5737539f64ca82b5bdb1` | `observability/collector/values-local.yaml`; `chaos/evidence/rec-01-coordinator-cpu/cluster-estado.txt` |
+| Toxiproxy (F1) | `ghcr.io/shopify/toxiproxy:2.9.0@sha256:b44c283298cea49e2defaba1b3028783798346f2a926684e3a345fd8441af3b8` | `deploy/kubernetes/application/toxiproxy-deployment.yaml` |
 
 Todas las imágenes de aplicación se construyen dentro de Minikube
-(`imagePullPolicy: Never`) y no se descargan de un registro. Sus digests solo
-existen en el Docker de Minikube; las imágenes de terceros usan tags móviles
-cuyo digest de registro no garantiza el de la imagen desplegada. Este pase
-final se hizo sin ejecutar Docker ni Minikube, así que los digests siguen
-pendientes. Quien tenga acceso al clúster debe reemplazar cada
-**PENDIENTE-DIGEST** con el digest real (`minikube image ls --format table`
-o `docker image inspect`).
+(`imagePullPolicy: Never`) y no se descargan de un registro, así que no tienen
+digest de registro: se registra su ID de imagen local. Las imágenes de terceros
+se registran con el digest de registro con el que corren. Ambos valores se leyeron
+el 2026-09-26 del campo `imageID` de los pods en ejecución en Minikube
+(`kubectl get pods -A -o jsonpath='{..imageID}'`), después de F1–F4. Los
+manifiestos siguen usando tags; fijarlos por digest queda como propuesta
+(informe §8.3, punto 7).
 
 ## 3. Registro de recortes y desviaciones frente a §7 de taller3.md
 
