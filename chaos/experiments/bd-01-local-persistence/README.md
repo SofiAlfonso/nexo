@@ -1,16 +1,6 @@
-# BD-01 — Indisponibilidad de la persistencia transaccional local
+# F3 BD-01 — D1 indisponible
 
-**Responsabilidad**: reservar el espacio para el experimento BD-01, que
-provocará la indisponibilidad de D1 (persistencia transaccional local del
-coordinador) para observar el comportamiento de C2 ante esa falla.
-
-**Qué no debe implementarse aquí todavía**: la interrupción en sí ni
-scripts de ejecución. Solo la carpeta y este README.
-
-**Componente relacionado**: D1 (persistencia transaccional local) y C2
-(coordinador local), que depende de D1 para confirmar consumo, decisión,
-idempotencia y outbox antes de aceptar.
-
-**Decisiones pendientes**: mecanismo de indisponibilidad (detener el motor
-de base de datos vs. bloquear el volumen), duración del experimento y
-criterios de éxito/rollback.
+`experiment.yaml` escala `nexo-d1` a cero durante dos minutos. C2 no debe
+aceptar nuevas admisiones sin D1; los reintentos posteriores conservan el
+consumo único. Hipótesis y umbrales en `docs/context/taller3.md` §3.1.
+Preparado para ola 3; no ejecutar todavía.

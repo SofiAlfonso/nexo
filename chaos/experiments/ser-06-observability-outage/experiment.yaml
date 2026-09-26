@@ -1,0 +1,16 @@
+version: 1
+id: ser-06-observability-outage
+environment: minikube
+owner: lab-operator
+durationSeconds: 900
+scope:
+  event: lab-event-01
+  gate: gate-01
+  instance: venue-01
+  synthetic: true
+actions:
+  - type: scale
+    namespace: nexo-observability
+    kind: deployment
+    name: nexo-otel-lgtm
+    replicas: 0

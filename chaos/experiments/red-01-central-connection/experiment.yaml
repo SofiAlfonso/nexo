@@ -1,0 +1,16 @@
+version: 1
+id: red-01-central-connection
+environment: minikube
+owner: lab-operator
+durationSeconds: 300
+scope:
+  event: lab-event-01
+  gate: gate-01
+  instance: venue-01
+  synthetic: true
+actions:
+  - type: toxiproxy
+    namespace: nexo-venue
+    service: toxiproxy
+    proxy: c2-to-c4
+    mode: disable

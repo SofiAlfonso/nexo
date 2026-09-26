@@ -1,0 +1,16 @@
+version: 1
+id: rec-01-coordinator-cpu
+environment: minikube
+owner: lab-operator
+durationSeconds: 120
+scope:
+  event: lab-event-01
+  gate: gate-01
+  instance: venue-01
+  synthetic: true
+actions:
+  - type: cpuLimit
+    namespace: nexo-venue
+    deployment: nexo-coordinator
+    container: coordinator
+    limit: 100m

@@ -1,0 +1,16 @@
+version: 1
+id: bd-01-local-persistence
+environment: minikube
+owner: lab-operator
+durationSeconds: 120
+scope:
+  event: lab-event-01
+  gate: gate-01
+  instance: venue-01
+  synthetic: true
+actions:
+  - type: scale
+    namespace: nexo-venue
+    kind: statefulset
+    name: nexo-d1
+    replicas: 0
