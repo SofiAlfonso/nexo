@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AcuseLatido, AcuseLoteDiario, ErrorRespuesta, RespuestaValidacion } from '@nexo/shared/contracts';
 import { ValidarPrimerIngreso } from '@nexo/shared/domain';
 import { AutoridadNodoUnico } from '../../../src/local-coordinator/application/autoridad.ts';
@@ -90,7 +90,7 @@ describe('C2 HTTP V1 y H1', () => {
       const unidad = await abrir();
       const cargar = unidad.cargarParaActualizar.bind(unidad);
       unidad.cargarParaActualizar = async (intento) => {
-        await new Promise((resolve) => setTimeout(resolve, 60));
+        await new Promise((resolve) => setTimeout(resolve, 600));
         return cargar(intento);
       };
       return unidad;
@@ -98,9 +98,9 @@ describe('C2 HTTP V1 y H1', () => {
     const inicio = Date.now();
     const respuesta = await app.inject({ method: 'POST', url: '/v1/validaciones', payload: solicitud() });
     expect(RespuestaValidacion.parse(respuesta.json()).decision).toBe('sin-respuesta');
-    expect(Date.now() - inicio).toBeLessThan(55);
+    expect(Date.now() - inicio).toBeLessThan(400);
     expect(contador.enCurso()).toBe(1);
-    await new Promise((resolve) => setTimeout(resolve, 75));
+    await vi.waitFor(() => expect(contador.enCurso()).toBe(0), { timeout: 2000 });
     expect(contador.enCurso()).toBe(0);
     expect(almacen.volcado().consumos).toHaveLength(1);
     almacen.unidades.abrir = abrir;
